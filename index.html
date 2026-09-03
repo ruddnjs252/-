@@ -208,7 +208,7 @@
             display: flex;
             flex-direction: column;
             gap: 6px;
-            max-height: 580px;
+            max-height: 550px;
             overflow-y: auto;
         }
         .stock-item {
@@ -536,6 +536,15 @@
             text-align: center;
             max-width: 90%;
         }
+
+        /* [신규] 하단 버전 표시 스타일 */
+        .version-footer {
+            text-align: center;
+            font-size: 9px;
+            color: #555;
+            padding: 4px 0 2px 0;
+            flex-shrink: 0;
+        }
     </style>
 </head>
 <body>
@@ -702,6 +711,9 @@
             </div>
         </div>
     </main>
+
+    <!-- [신규] 하단 버전 표시 영역 -->
+    <div class="version-footer">v0.4(서킷완화)</div>
 </div>
 
 <!-- 뉴스 모아보기 모달 -->
@@ -1230,15 +1242,14 @@
                 targetPrice = Math.max(0.5, targetPrice);
             }
 
-            // [개선] 단시간 폭등할 때(상방으로 12% 이상 급등할 때만) 브레이크 발동 & 정지 시간 대폭 축소 (15초~20초)
             const shift = (targetPrice - stock.lastViRefPrice) / stock.lastViRefPrice;
             if (shift >= 0.12 && !stock.haltType) {
                 if (stock.market === "KR") {
                     stock.haltType = "VI";
-                    stock.haltUntilSec = currentDaySec + 15; // 15초 정지로 단축
+                    stock.haltUntilSec = currentDaySec + 15;
                 } else {
                     stock.haltType = "LULD";
-                    stock.haltUntilSec = currentDaySec + 20; // 20초 정지로 단축
+                    stock.haltUntilSec = currentDaySec + 20;
                 }
             }
 
