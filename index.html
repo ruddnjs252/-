@@ -30,14 +30,14 @@
 </head>
 <body>
     <h1>리퀘: 끝없는 성장</h1>
-    
-    <div id="gameContainer">
-        <canvas id="gameCanvas" width="1000" height="750"></canvas>
 
         <!-- [ENG-VER-HTML] 우측 상단 캔버스 바깥 버전 표기 -->
     <div style="width: 1000px; margin: 0 auto; text-align: right; padding-right: 5px;">
         <span style="font-size: 12px; color: gray;">v0.2.1 (Dev)</span>
     </div>
+    
+    <div id="gameContainer">
+        <canvas id="gameCanvas" width="1000" height="750"></canvas>
 
         <!-- [ENG-002-START] 길드 가입 신청서 모달 -->
         <div id="charCreationUI" class="ui-layer" style="display: none; flex-direction: column; align-items: center; justify-content: center;">
@@ -1053,14 +1053,6 @@
                 if (ft.timer <= 0) floatingTexts.splice(i, 1); 
             }
             ctx.globalAlpha = 1.0; 
-
-            // [ENG-VER] 버전 정보 표기 (수정 사항을 커밋할 때마다 번호를 올려서 배포 여부 확인)
-           ctx.fillStyle = "rgba(255, 255, 255, 0.4)";
-            ctx.font = "11px sans-serif";
-            ctx.textAlign = "left";
-            ctx.textBaseline = "bottom";
-            ctx.fillText("v0.2.1 (Dev)", 12, canvas.height - 10);
-            
 
             requestAnimationFrame(gameLoop);
         }
