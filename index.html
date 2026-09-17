@@ -2,8 +2,8 @@
 <html lang="ko">
 <head>
     <meta charset="UTF-8">
-    <title>리퀘 (Re-Quest) v0.2.3</title>
-    <!-- [ENG-001-START] 기본 스타일시트 -->
+    <title>리퀘 (Re-Quest) v0.2.4</title>
+<!-- [aa-001] 스타일시트 설정 -->
     <style>
         body { background-color: #222; color: white; text-align: center; font-family: sans-serif; margin: 0; }
         #gameContainer { position: relative; width: 1000px; height: 750px; margin: 10px auto 20px auto; border: 2px solid #888; overflow: hidden; background-color: #333; user-select: none; }
@@ -26,20 +26,21 @@
         .stat-btn { background: #333; color: white; border: 1px solid #666; cursor: pointer; width: 25px; height: 25px; font-weight: bold; }
         .stat-btn:hover { background: #555; }
     </style>
-    <!-- [ENG-001-END] -->
+<!-- [aa-001-end] -->
 </head>
 <body>
     <h1>리퀘: 끝없는 성장</h1>
     
-    <!-- [ENG-VER-HTML] 우측 상단 캔버스 바깥 버전 표기 -->
+<!-- [aa-002] 상단 우측 버전 표기 UI -->
     <div style="width: 1000px; margin: 0 auto; text-align: right; padding-right: 5px;">
-        <span style="font-size: 12px; color: gray;">v0.2.3 (Dev)</span>
+        <span style="font-size: 12px; color: gray;">v0.2.4 (Dev)</span>
     </div>
+<!-- [aa-002-end] -->
 
     <div id="gameContainer">
         <canvas id="gameCanvas" width="1000" height="750"></canvas>
 
-        <!-- [ENG-002-START] 길드 가입 신청서 모달 -->
+<!-- [aa-003] 길드 가입 신청서 모달 창 -->
         <div id="charCreationUI" class="ui-layer" style="display: none; flex-direction: column; align-items: center; justify-content: center;">
             <div class="panel" style="width: 840px; height: 640px; background: #222; border: 2px solid #aaa; display: flex; flex-direction: column; align-items: center; justify-content: flex-start; position: relative;">
                 <h2 style="margin: 5px 0;">모험가 길드 가입 신청서</h2>
@@ -71,9 +72,9 @@
                 <button id="ccStartBtn" class="btn" style="position: absolute; bottom: 10px; padding: 10px 40px; font-size: 16px; background: gray;" onclick="finishGuildJoin()" disabled>가입 완료</button>
             </div>
         </div>
-        <!-- [ENG-002-END] -->
+<!-- [aa-003-end] -->
 
-        <!-- [ENG-003-START] 인벤토리 및 상태창 모달 -->
+<!-- [aa-004] 인벤토리 및 상태창 모달 창 -->
         <div id="inventoryUI" class="ui-layer" style="display: none; flex-direction: column;">
             <div style="width: 100%; padding: 10px; background: #111; display: flex; justify-content: space-around;">
                 <button id="tabInv" class="nav-btn active" onclick="switchTab('inv')">가방 / 장비</button>
@@ -99,9 +100,9 @@
                 </div>
             </div>
         </div>
-        <!-- [ENG-003-END] -->
+<!-- [aa-004-end] -->
 
-        <!-- [ENG-004-START] 개인 창고 모달 -->
+<!-- [aa-005] 개인 창고 모달 창 -->
         <div id="storageUI" class="ui-layer" style="display: none; flex-direction: column;">
             <div style="width: 100%; padding: 10px; background: #111; text-align: center;">
                 <h2 style="color: gold; margin: 0;">개인 창고 <span style="font-size: 14px; color: gray;">(타인 접근 불가)</span></h2>
@@ -112,9 +113,9 @@
                 <div class="panel" style="width: 50%;"><h3 style="margin-top:0;">창고 내부 (클릭하여 꺼내기)</h3><div id="storageBoxList"></div></div>
             </div>
         </div>
-        <!-- [ENG-004-END] -->
+<!-- [aa-005-end] -->
 
-        <!-- [ENG-005-START] 메뉴 및 사망 모달 -->
+<!-- [aa-006] NPC 메뉴 및 사망 화면 모달 창 -->
         <div id="npcMenuUI" class="ui-layer" style="display: none; justify-content: center; align-items: center;">
             <div class="panel" style="background: #222; border: 2px solid #aaa; min-width: 300px;">
                 <h2 id="npcMenuTitle" style="color: gold; margin-top:0;">메뉴</h2>
@@ -128,15 +129,15 @@
             <h3 style="color: lightgray;">접수원은 매우 강합니다...</h3>
             <button class="btn" style="font-size: 20px; padding: 10px 20px; margin-top: 20px;" onclick="respawn()">길드에서 부활하기</button>
         </div>
-        <!-- [ENG-005-END] -->
+<!-- [aa-006-end] -->
     </div>
 
-    <!-- 외부 데이터 스크립트 연결 -->
+    <!-- 외부 모듈 데이터 스크립트 연결 -->
     <script src="data/maps.js"></script>
     <script src="data/jobs.js"></script>
 
-    <!-- [ENG-006-START] 게임 엔진 메인 스크립트 -->
     <script>
+// [aa-007] 게임 핵심 변수 및 플레이어 데이터 정의
         const canvas = document.getElementById("gameCanvas");
         const ctx = canvas.getContext("2d");
 
@@ -159,7 +160,7 @@
             dashSpeed: 0, dashDirX: 0, dashDirY: 0, dashTimer: 0,
             targetX: 0, targetY: 0,
             activeSkillType: null,
-            aimingSkill: "leap_only" // 시작 시 기본 스킬 조준 활성화
+            aimingSkill: null // 시작 시에는 비조준(준비대기) 상태
         };
 
         let quest = { active: false, target: 10, current: 0 };
@@ -174,7 +175,9 @@
 
         let keys = {}, mouseX = 0, mouseY = 0, attackTimer = 0;
         const statKeys = ["hp", "str", "dex", "mana", "stamina", "charm"];
+// [aa-007-end]
 
+// [aa-008] 직업 및 스킬 정보 조회 헬퍼
         function getCurrentActiveSkill() {
             if (!player.acquiredJobs || player.acquiredJobs.length === 0) return JOB_DATA[0].skill;
             let currentJobName = player.acquiredJobs[player.currentSkillIdx % player.acquiredJobs.length];
@@ -186,7 +189,9 @@
             let mainJobName = player.acquiredJobs[0] || "견습 기사";
             return JOB_DATA.find(j => j.name === mainJobName) || JOB_DATA[0];
         }
+// [aa-008-end]
 
+// [aa-009] NPC 상호작용 및 맵 전환/부활 로직
         function openNPCMenu(type) {
             gameState = "npcMenu";
             const ui = document.getElementById("npcMenuUI");
@@ -237,7 +242,7 @@
             player.x = 500; player.y = 500;
             currentMap = "guild";
             MAP_DATA.dungeon.goblin.active = false;
-            prepareCurrentSkill();
+            player.aimingSkill = null;
             player.dashTimer = 0;
             gameState = "playing";
             document.getElementById("deathUI").style.display = "none";
@@ -256,11 +261,13 @@
             MAP_DATA.dungeon.goblin.hp = MAP_DATA.dungeon.goblin.maxHp; 
             MAP_DATA.dungeon.goblin.x = 500; MAP_DATA.dungeon.goblin.y = 200;
             MAP_DATA.dungeon.goblin.active = true;
-            prepareCurrentSkill();
+            player.aimingSkill = null;
             player.dashTimer = 0;
             closeNPCMenu();
         }
+// [aa-009-end]
 
+// [aa-010] 개인 창고 시스템 로직
         function openStorage() {
             gameState = "storage";
             document.getElementById("storageUI").style.display = "flex";
@@ -286,7 +293,9 @@
                 boxDiv.appendChild(div);
             });
         }
+// [aa-010-end]
 
+// [aa-011] 길드 가입 신청서 및 방사형 그래프 UI 로직
         function openCharCreation() {
             closeNPCMenu();
             gameState = "charCreation";
@@ -442,7 +451,7 @@
             player.acquiredJobs = [...tempSelectedJobs];
             player.job = player.acquiredJobs.join(" + ");
             player.currentSkillIdx = 0;
-            prepareCurrentSkill();
+            player.aimingSkill = null; // 조준 초기화
 
             player.maxHp = player.stats.hp * 3;
             player.currentHp = player.maxHp;
@@ -454,23 +463,25 @@
             gameState = "playing";
             document.getElementById("charCreationUI").style.display = "none";
         }
+// [aa-011-end]
 
-        // [ENG-SKILL-CONTROL-START] R키 스킬 선택 및 실행 함수
+// [aa-012] R키 스킬 순환/취소 및 스킬 실제 발동 로직
         function handleRKey() {
             if (gameState !== "playing" || player.dashTimer > 0) return;
             if (player.acquiredJobs.length === 0) return;
 
+            // R키 입력 시 기존 조준 중이던 상태는 즉시 초기화(취소)
+            player.aimingSkill = null;
+
+            // 다음 보유 스킬로 순환
             cycleSkill();
-            prepareCurrentSkill();
+            
+            const activeSkill = getCurrentActiveSkill();
+            addFloatingText(player.x + player.width/2, player.y - 15, `[${activeSkill.name}] 준비됨`, "cyan");
         }
 
         function cycleSkill() {
             player.currentSkillIdx = (player.currentSkillIdx + 1) % player.acquiredJobs.length;
-        }
-
-        function prepareCurrentSkill() {
-            const activeSkill = getCurrentActiveSkill();
-            player.aimingSkill = activeSkill.type;
         }
 
         function startSkillCooldown(skillId, cooldownSec) {
@@ -491,6 +502,7 @@
                 player.dashTimer = 6;
                 player.activeSkillType = "leap_only";
                 addVisualEffect(pCenterX, pCenterY, 30, "cyan");
+                player.aimingSkill = null;
                 return true;
             }
             else if (player.aimingSkill === "leap_attack") {
@@ -501,6 +513,7 @@
                 player.dashTimer = 6;
                 player.activeSkillType = "leap_attack";
                 addVisualEffect(pCenterX, pCenterY, 35, "gold");
+                player.aimingSkill = null;
                 return true;
             }
             else if (player.aimingSkill === "jump_slam") {
@@ -522,6 +535,7 @@
                         applyDamageToGoblin(totalDmg);
                     }
                 }
+                player.aimingSkill = null;
                 return true;
             } 
             else if (player.aimingSkill === "charge") {
@@ -541,11 +555,14 @@
                     player.activeSkillType = activeSkill.type;
                     addVisualEffect(pCenterX, pCenterY, 40, "yellow");
                 }
+                player.aimingSkill = null;
                 return true;
             }
             return false;
         }
+// [aa-012-end]
 
+// [aa-013] 전투 피격, 시각 이펙트 및 데미지 플로팅
         function applyDamageToGoblin(dmg) {
             let gob = MAP_DATA.dungeon.goblin;
             gob.hp -= dmg;
@@ -577,7 +594,12 @@
             visualEffects.push({ x: x, y: y, radius: radius, color: color, alpha: 0.6, timer: 15 });
         }
 
-        // [ENG-INPUT-EVENT-START] 조작 및 마우스 이벤트 통합
+        function addFloatingText(x, y, text, color) {
+            floatingTexts.push({ x: x + (Math.random() * 20 - 10), y: y - 10, text: text, color: color, alpha: 1.0, timer: 30 });
+        }
+// [aa-013-end]
+
+// [aa-014] 키보드/마우스 입력 이벤트 리스너
         window.addEventListener("keydown", (e) => {
             keys[e.key] = true;
             if (e.key.toLowerCase() === 'r') handleRKey();
@@ -600,6 +622,7 @@
             keys = {};
         });
 
+        // 우클릭 브라우저 메뉴 기본 차단
         window.addEventListener("contextmenu", (e) => {
             e.preventDefault();
             return false;
@@ -611,14 +634,11 @@
             mouseY = e.clientY - rect.top;
         });
 
-        function addFloatingText(x, y, text, color) {
-            floatingTexts.push({ x: x + (Math.random() * 20 - 10), y: y - 10, text: text, color: color, alpha: 1.0, timer: 30 });
-        }
-
+        // 마우스 클릭 이벤트 (우클릭: 1회차 조준, 2회차 발동 / 좌클릭: 일반 공격 및 상호작용)
         canvas.addEventListener("mousedown", (e) => {
             if (gameState !== "playing") return;
 
-            // [우클릭: e.button === 2] -> R 스킬 즉시 발동
+            // [우클릭(e.button === 2)]: 스킬 2단계 제어
             if (e.button === 2) {
                 e.preventDefault();
                 const activeSkill = getCurrentActiveSkill();
@@ -629,11 +649,18 @@
                     return;
                 }
 
-                executeAimingSkill();
+                // 1번째 우클릭: 아직 조준 상태가 아니면 -> 조준 활성화
+                if (!player.aimingSkill) {
+                    player.aimingSkill = activeSkill.type;
+                } 
+                // 2번째 우클릭: 이미 조준 상태면 -> 최종 발동!
+                else {
+                    executeAimingSkill();
+                }
                 return;
             }
 
-            // [좌클릭: e.button === 0] -> NPC 상호작용 및 기본 공격
+            // [좌클릭(e.button === 0)]: 상호작용 및 기본 부채꼴 공격
             if (e.button === 0) {
                 const pCenterX = player.x + player.width / 2;
                 const pCenterY = player.y + player.height / 2;
@@ -680,8 +707,9 @@
                 }
             }
         });
-        // [ENG-INPUT-EVENT-END]
+// [aa-014-end]
 
+// [aa-015] 인벤토리 UI 탭 전환 및 장비/스킬 목록 렌더링
         function switchTab(tabId) {
             const currentJob = getCurrentJobInfo();
             if(tabId === 'inv') {
@@ -730,7 +758,9 @@
             document.getElementById("inventoryUI").style.display = "none";
             document.getElementById("storageUI").style.display = "none";
         }
+// [aa-015-end]
 
+// [aa-016] 충돌 감지 및 물리 처리 헬퍼
         function checkRectCollision(x1, y1, w1, h1, x2, y2, w2, h2) {
             return x1 < x2 + w2 && x1 + w1 > x2 && y1 < y2 + h2 && y1 + h1 > y2;
         }
@@ -746,7 +776,9 @@
             }
             return false;
         }
+// [aa-016-end]
 
+// [aa-017] 메인 게임 루프 및 캔버스 렌더링
         function gameLoop() {
             ctx.clearRect(0, 0, canvas.width, canvas.height);
 
@@ -909,10 +941,11 @@
             ctx.fillStyle = player.color;
             ctx.fillRect(player.x, player.y, player.width, player.height);
 
+            // 스킬 조준선 및 기본 공격 가이드 렌더링
             if (gameState === "playing") {
                 const aimAngle = Math.atan2(mouseY - pCenterY, mouseX - pCenterX);
 
-                // 상시 조준선 표시 (견습 기사 및 기사 도약 베기)
+                // 우클릭 1회차로 조준이 켜졌을 때만 궤적 표시
                 if (player.aimingSkill === "leap_only" || player.aimingSkill === "leap_attack") {
                     const fixedLeapDist = player.width * 3;
                     const leapW = player.width + 10;
@@ -926,7 +959,6 @@
                     ctx.strokeRect(0, -leapW / 2, fixedLeapDist, leapW);
                     ctx.restore();
                 }
-                // 광전사 뛰어들기 조준 원
                 else if (player.aimingSkill === "jump_slam") {
                     ctx.save();
                     ctx.beginPath();
@@ -945,7 +977,6 @@
                     ctx.stroke();
                     ctx.restore();
                 } 
-                // 성기사 돌진 궤적
                 else if (player.aimingSkill === "charge") {
                     const chargeDist = Math.hypot(mouseX - pCenterX, mouseY - pCenterY);
                     const chargeW = player.width + 10;
@@ -1016,12 +1047,19 @@
             ctx.font = "bold 12px sans-serif"; ctx.textAlign = "left"; ctx.textBaseline = "middle";
 
             let curCd = player.skillCooldowns[activeSkill.id] || 0;
-            let cdText = curCd <= 0 ? "우클릭 발동" : `${(curCd / 60).toFixed(1)}초`;
             let jobCount = player.acquiredJobs.length;
             let skillIdxText = jobCount > 1 ? `[${(player.currentSkillIdx % jobCount) + 1}/${jobCount}]` : "";
 
-            ctx.fillStyle = curCd <= 0 ? "gold" : "gray";
-            ctx.fillText(`[R] ${activeSkill.name} ${skillIdxText}: ${cdText}`, hudX + 8, skillHudY + 16);
+            if (curCd > 0) {
+                ctx.fillStyle = "gray";
+                ctx.fillText(`[R] ${activeSkill.name} ${skillIdxText}: ${(curCd / 60).toFixed(1)}초`, hudX + 8, skillHudY + 16);
+            } else if (player.aimingSkill) {
+                ctx.fillStyle = "cyan";
+                ctx.fillText(`[조준중] ${activeSkill.name} (우클릭:발동 / R:취소)`, hudX + 8, skillHudY + 16);
+            } else {
+                ctx.fillStyle = "gold";
+                ctx.fillText(`[R] ${activeSkill.name} ${skillIdxText}: 우클릭(준비)`, hudX + 8, skillHudY + 16);
+            }
 
             // ======== 퀘스트 HUD ========
             ctx.fillStyle = "rgba(0, 0, 0, 0.7)";
@@ -1046,7 +1084,7 @@
         }
 
         gameLoop();
+// [aa-017-end]
     </script>
-    <!-- [ENG-006-END] -->
 </body>
 </html>
