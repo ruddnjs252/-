@@ -2,7 +2,7 @@
 <html lang="ko">
 <head>
     <meta charset="UTF-8">
-    <title>리퀘 (Re-Quest) v0.2.5</title>
+    <title>리퀘 (Re-Quest) v0.2.6</title>
 <!-- [aa-001] 스타일시트 설정 -->
     <style>
         body { background-color: #222; color: white; text-align: center; font-family: sans-serif; margin: 0; }
@@ -50,22 +50,24 @@
             position: fixed;
             left: 40px;
             bottom: 40px;
-            width: 110px;
-            height: 110px;
+            width: 120px;
+            height: 120px;
             border-radius: 50%;
-            background: rgba(255, 255, 255, 0.1);
-            border: 2px solid rgba(255, 255, 255, 0.2);
+            background: rgba(0, 0, 0, 0.6);
+            border: 3px solid #00ffff;
+            box-shadow: 0 0 10px rgba(0, 255, 255, 0.5);
             display: none;
             z-index: 9999;
         }
         #vpad-stick-knob {
             position: absolute;
-            top: 30px;
-            left: 30px;
+            top: 35px;
+            left: 35px;
             width: 50px;
             height: 50px;
             border-radius: 50%;
-            background: rgba(255, 255, 255, 0.4);
+            background: #00ffff;
+            box-shadow: 0 0 8px #ffffff;
         }
         
     </style>
@@ -84,7 +86,7 @@
     
 <!-- [aa-002] 상단 우측 버전 표기 UI -->
     <div style="width: 1000px; margin: 0 auto; text-align: right; padding-right: 5px;">
-        <span style="font-size: 12px; color: gray;">v0.2.5 (Dev)</span>
+        <span style="font-size: 12px; color: gray;">v0.2.6 (Dev)</span>
     </div>
 <!-- [aa-002-end] -->
 
@@ -219,27 +221,34 @@
             }, { passive: false });
 
             window.addEventListener("touchmove", (e) => {
-                for (let i = 0; i < e.changedTouches.length; i++) {
-                    let t = e.changedTouches[i];
-                    if (t.identifier === touchId) {
-                        let dx = t.clientX - startX;
-                        let dy = t.clientY - startY;
-                        let dist = Math.hypot(dx, dy);
-                        let maxR = 40;
-                        if (dist > maxR) {
-                            dx = (dx / dist) * maxR;
-                            dy = (dy / dist) * maxR;
-                        }
-                        stickKnob.style.transform = `translate(${dx}px, ${dy}px)`;
+            for (let i = 0; i < e.changedTouches.length; i++) {
+                let t = e.changedTouches[i];
+                if (t.identifier === touchId) {
+                    let dx = t.clientX - startX;
+                    let dy = t.clientY - startY;
+                    let dist = Math.hypot(dx, dy);
+                    let maxR = 45;
+                    if (dist > maxR) {
+                        dx = (dx / dist) * maxR;
+                        dy = (dy / dist) * maxR;
+                    }
+                    stickKnob.style.transform = `translate(${dx}px, ${dy}px)`;
 
-                        // WASD 키 상태로 가상 변환
-                        keys["w"] = dy < -12;
-                        keys["s"] = dy > 12;
-                        keys["a"] = dx < -12;
-                        keys["d"] = dx > 12;
+                    // WASD 키 변환
+                    keys["w"] = dy < -12;
+                    keys["s"] = dy > 12;
+                    keys["a"] = dx < -12;
+                    keys["d"] = dx > 12;
+
+                    // 이동 방향으로 마우스 조준점 강제 일치 (캐릭터 전방 100px)
+                    if (dist > 5) {
+                        let moveAngle = Math.atan2(dy, dx);
+                        mouseX = player.x + Math.cos(moveAngle) * 100;
+                        mouseY = player.y + Math.sin(moveAngle) * 100;
                     }
                 }
-            }, { passive: false });
+            }
+        }, { passive: false });
 
             const endTouch = (e) => {
                 for (let i = 0; i < e.changedTouches.length; i++) {
@@ -964,29 +973,47 @@
                     }
 
                     if ((player.activeSkillType === "charge" || player.activeSkillType === "leap_attack") && currentMap === "dungeon" && MAP_DATA.dungeon.goblin.active) {
-                        let gob = MAP_DATA.dungeon.goblin;
-                        if (checkRectCollision(nextX, nextY, player.width, player.height, gob.x - gob.size/2, gob.y - gob.size/2, gob.size, gob.size)) {
-                            const dmg = (player.stats.str * 3) + activeSkill.bonusDmg;
-                            applyDamageToGoblin(dmg);
-                        }
+                    let gob = MAP_DATA.dungeon.goblin;
+                    if (checkRectCollision(nextX, nextY, player.width, player.height, gob.x - gob.size/2, gob.y - gob.size/2, gob.size, gob.size)) {
+                        const dmg = (player.stats.str * 3) + activeSkill.bonusDmg;
+                        applyDamageToGoblin(dmg);
                     }
                 } else {
                     if (keys["ArrowUp"] || keys["w"] || keys["W"]) nextY -= player.speed;
                     if (keys["ArrowDown"] || keys["s"] || keys["S"]) nextY += player.speed;
                     if (keys["ArrowLeft"] || keys["a"] || keys["A"]) nextX -= player.speed;
                     if (keys["ArrowRight"] || keys["d"] || keys["D"]) nextX += player.speed;
-
-                    nextX = Math.max(0, Math.min(nextX, canvas.width - player.width));
-                    nextY = Math.max(0, Math.min(nextY, canvas.height - player.height));
-
-                    if (checkObstacleCollision(nextX, nextY)) {
-                        nextX = player.x; nextY = player.y;
+                }
+            
+                // [NPC 및 오브젝트 끼임 방지: 도약 착지/일반 이동 공통 적용]
+                if (currentMap === "town" && typeof npcReceptionist !== "undefined") {
+                    let pRadius = player.radius || (player.width ? player.width / 2 : 15);
+                    let npcRadius = npcReceptionist.radius || 20;
+                    let dx = nextX - npcReceptionist.x;
+                    let dy = nextY - npcReceptionist.y;
+                    let dist = Math.hypot(dx, dy);
+                    let minDist = pRadius + npcRadius + 4;
+                    if (dist < minDist && dist > 0) {
+                        nextX = npcReceptionist.x + (dx / dist) * minDist;
+                        nextY = npcReceptionist.y + (dy / dist) * minDist;
                     }
                 }
-
+            
+                // 맵 경계 체크
+                nextX = Math.max(0, Math.min(nextX, canvas.width - player.width));
+                nextY = Math.max(0, Math.min(nextY, canvas.height - player.height));
+            
+                // 장애물 충돌 체크
+                if (checkObstacleCollision(nextX, nextY)) {
+                    nextX = player.x; 
+                    nextY = player.y;
+                }
+            
+                // 최종 좌표 반영
                 player.x = nextX;
                 player.y = nextY;
-
+            
+                // 스태미나 자연 회복
                 if (player.currentStamina < player.maxStamina) {
                     player.staminaRegenTimer++;
                     if (player.staminaRegenTimer >= 60) {
@@ -994,6 +1021,7 @@
                         player.staminaRegenTimer = 0;
                     }
                 }
+                    
             } else if (gameState === "knockback") {
                 player.x += player.knockbackDirX * 25;
                 player.y += player.knockbackDirY * 5;
