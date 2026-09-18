@@ -167,32 +167,32 @@
     <div id="versionTag" style="font-size: 12px; color: #888; margin-bottom: 5px;">v0.2.6 (Dev)</div>
     <!-- [MOD-005-END] -->
 
-    <!-- [MOD-006: 캔버스 및 팝업 레이어 HTML] -->
+  <!-- [MOD-006: 캔버스 및 팝업 레이어 HTML] -->
     <div id="gameContainer">
         <canvas id="gameCanvas" width="1000" height="750"></canvas>
 
-        <!-- 캐릭터 생성 UI -->
-        <div id="charCreationUI" class="ui-layer" style="display: flex; flex-direction: column; align-items: center; justify-content: center;">
-            <div style="background: #2b2b2b; border: 2px solid gold; border-radius: 8px; padding: 20px; width: 620px; max-width: 90%; box-shadow: 0 0 20px rgba(0,0,0,0.8);">
+        <!-- 캐릭터 생성 UI (기본 display: none으로 수정) -->
+        <div id="charCreationUI" class="ui-layer" style="display: none; align-items: center; justify-content: center;">
+            <div style="background: #2b2b2b; border: 2px solid gold; border-radius: 8px; padding: 20px; width: 620px; max-width: 90%; box-shadow: 0 0 20px rgba(0,0,0,0.8); pointer-events: auto;">
                 <h2 style="color: gold; margin-top: 0;">모험가 등록증</h2>
                 <input type="text" id="ccPlayerName" placeholder="모험가 이름을 입력하세요" value="모험가">
                 
                 <div style="display: flex; justify-content: space-around; margin: 15px 0;">
                     <div style="text-align: left;">
-                        <div style="color: #4da6ff; font-weight: bold; margin-bottom: 5px;">보너스 포인트: <span id="ccFreePoints">5</span></div>
-                        <div id="statSelectors"></div>
-                    </div>
-                    <div>
-                        <canvas id="ccRadarCanvas" width="180" height="180"></canvas>
+                        <div style="color: #4da6ff; font-weight: bold; margin-bottom: 5px;">기본 스탯 (전사)</div>
+                        <div style="font-size: 14px; color: #ccc; line-height: 1.8;">
+                            힘(STR): 12 | 민첩(AGI): 10<br>
+                            체력(VIT): 12 | 지능(INT): 8<br>
+                            감각(PER): 8
+                        </div>
                     </div>
                 </div>
 
                 <div style="margin-bottom: 15px;">
-                    <div style="font-weight: bold; margin-bottom: 8px; color: #aaa;">선택 가능한 클래스</div>
-                    <div id="ccClassList" style="display: flex; gap: 10px; justify-content: center;"></div>
+                    <div style="font-weight: bold; margin-bottom: 8px; color: #aaa;">선택된 클래스: <span style="color: #ffaa00;">워리어 (Warrior)</span></div>
                 </div>
 
-                <button id="btnStartGame" class="btn" style="background: #2a752a; border-color: #4da64d; padding: 10px 30px; font-size: 16px;" onclick="finishCharacterCreation()">모험 시작</button>
+                <button id="btnStartGame" class="btn" style="background: #2a752a; border-color: #4da64d; padding: 10px 30px; font-size: 16px;" onclick="finishCharacterCreation()">등록 완료하고 시작</button>
             </div>
         </div>
 
@@ -207,11 +207,13 @@
                     </div>
                     <div id="panelInvContent">
                         <h3>소지품</h3>
-                        <div id="itemList"></div>
+                        <div id="itemList">
+                            <div class="item" style="color: #ffaa00;">시작의 대검 [귀속]</div>
+                        </div>
                     </div>
                     <div id="panelJobContent" style="display: none;">
                         <h3>직업 특성 및 해금</h3>
-                        <div id="jobDetails"></div>
+                        <div id="jobDetails">워리어 계통 숙련 진행 중...</div>
                     </div>
                 </div>
                 <div class="panel" style="width: 50%;">
@@ -405,14 +407,42 @@
             document.getElementById("charCreationUI").style.display = "none";
         }
 
+        function openCharCreation() {
+            gameState = "creation";
+            const ui = document.getElementById("charCreationUI");
+            ui.style.display = "flex";
+        }
+
+        function finishCharacterCreation() {
+            const nameInput = document.getElementById("ccPlayerName");
+            if (nameInput && nameInput.value.trim() !== "") {
+                player.name = nameInput.value.trim();
+            }
+            closeUI();
+        }
+
         function switchTab(tab) {
             document.getElementById("tabInv").classList.toggle("active", tab === 'inv');
             document.getElementById("tabJob").classList.toggle("active", tab === 'job');
             document.getElementById("panelInvContent").style.display = tab === 'inv' ? "block" : "none";
             document.getElementById("panelJobContent").style.display = tab === 'job' ? "block" : "none";
+
+            // 상태창 갱신
+            const statsDiv = document.getElementById("playerStatsDisplay");
+            if (statsDiv) {
+                statsDiv.innerHTML = `
+                    <b>이름:</b> ${player.name || "모험가"}<br>
+                    <b>직업:</b> ${player.class}<br>
+                    <b>체력:</b> ${player.currentHp} / ${player.maxHp}<br>
+                    <b>스태미나:</b> ${player.currentStamina} / ${player.maxStamina}<br><br>
+                    <b>[능력치]</b><br>
+                    STR(힘): ${player.stats.str} | AGI(민첩): ${player.stats.agi}<br>
+                    VIT(체력): ${player.stats.vit} | INT(지능): ${player.stats.int}<br>
+                    PER(감각): ${player.stats.per}
+                `;
+            }
         }
         // [MOD-011-END]
-
         // [MOD-012: 물리 판정 및 충돌 검사 유틸리티]
         function checkObstacleCollision(x, y) {
             return false; // 추가 장애물 검사용 간이 함수
