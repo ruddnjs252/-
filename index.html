@@ -2,7 +2,7 @@
 <html lang="ko">
 <head>
     <meta charset="UTF-8">
-    <title>리퀘 (Re-Quest) v0.2</title>
+    <title>리퀘 (Re-Quest) v0.2.1</title>
     
     <style>
         /* [MOD-001: 기본 화면 및 캔버스 스타일] */
@@ -32,10 +32,30 @@
         .stat-control-box { text-align: center; background: #111; padding: 5px; border-radius: 5px; border: 1px solid #444;}
         .stat-btn { background: #333; color: white; border: 1px solid #666; cursor: pointer; width: 25px; height: 25px; font-weight: bold; }
         .stat-btn:hover { background: #555; }
+
+        /* [추가] 모바일 가상 패드 UI */
+        .vpad-btn { position: fixed; border-radius: 50%; background: rgba(0, 0, 0, 0.65); border: 2px solid rgba(255, 255, 255, 0.5); color: #fff; font-weight: bold; display: flex; align-items: center; justify-content: center; user-select: none; z-index: 9999; }
+        .vpad-btn:active { background: rgba(255, 255, 255, 0.4); }
+        #vpad-atk { right: 25px; bottom: 35px; width: 75px; height: 75px; font-size: 16px; border-color: #ff5555; }
+        #vpad-skill { right: 115px; bottom: 25px; width: 65px; height: 65px; font-size: 14px; border-color: #55ff55; }
+        #vpad-r { right: 30px; bottom: 125px; width: 50px; height: 50px; font-size: 13px; border-color: #ffaa00; }
+        #vpad-e { right: 105px; bottom: 105px; width: 45px; height: 45px; font-size: 12px; border-color: #aaaaaa; }
+        #vpad-stick-base { position: fixed; left: 40px; bottom: 40px; width: 120px; height: 120px; border-radius: 50%; background: rgba(0, 0, 0, 0.6); border: 3px solid #00ffff; box-shadow: 0 0 10px rgba(0, 255, 255, 0.5); display: none; z-index: 9999; }
+        #vpad-stick-knob { position: absolute; top: 35px; left: 35px; width: 50px; height: 50px; border-radius: 50%; background: #00ffff; box-shadow: 0 0 8px #ffffff; }
+
         /* [MOD-003-END] */
     </style>
 </head>
 <body>
+        <!-- [추가] 모바일 가상 패드 HTML -->
+    <div id="vpad-container">
+        <div id="vpad-stick-base"><div id="vpad-stick-knob"></div></div>
+        <div id="vpad-atk" class="vpad-btn">공격</div>
+        <div id="vpad-skill" class="vpad-btn">스킬</div>
+        <div id="vpad-r" class="vpad-btn">R변경</div>
+        <div id="vpad-e" class="vpad-btn">가방</div>
+    </div>
+
     <!-- [MOD-004: 타이틀 및 캔버스 컨테이너] -->
     <h1>리퀘: 끝없는 성장</h1>
     
@@ -709,6 +729,97 @@
                 }
             }
         });
+                // [추가: MOD-016-VPAD] 모바일 터치 패드 로직
+        (function initVirtualPad() {
+            const stickBase = document.getElementById("vpad-stick-base");
+            const stickKnob = document.getElementById("vpad-stick-knob");
+            const btnAtk = document.getElementById("vpad-atk");
+            const btnSkill = document.getElementById("vpad-skill");
+            const btnR = document.getElementById("vpad-r");
+            const btnE = document.getElementById("vpad-e");
+
+            let touchId = null;
+            let startX = 0, startY = 0;
+
+            // 조이스틱 터치 시작
+            window.addEventListener("touchstart", (e) => {
+                for (let i = 0; i < e.changedTouches.length; i++) {
+                    let t = e.changedTouches[i];
+                    if (t.clientX < window.innerWidth / 2 && touchId === null) {
+                        touchId = t.identifier;
+                        startX = t.clientX;
+                        startY = t.clientY;
+                        stickBase.style.left = (startX - 60) + "px";
+                        stickBase.style.top = (startY - 60) + "px";
+                        stickBase.style.bottom = "auto";
+                        stickBase.style.display = "block";
+                        stickKnob.style.transform = `translate(0px, 0px)`;
+                    }
+                }
+            }, { passive: false });
+
+            // 조이스틱 이동 (시선 동기화 포함)
+            window.addEventListener("touchmove", (e) => {
+                for (let i = 0; i < e.changedTouches.length; i++) {
+                    let t = e.changedTouches[i];
+                    if (t.identifier === touchId) {
+                        let dx = t.clientX - startX;
+                        let dy = t.clientY - startY;
+                        let dist = Math.hypot(dx, dy);
+                        let maxR = 45;
+                        if (dist > maxR) { dx = (dx / dist) * maxR; dy = (dy / dist) * maxR; }
+                        stickKnob.style.transform = `translate(${dx}px, ${dy}px)`;
+
+                        keys["w"] = dy < -12; keys["s"] = dy > 12;
+                        keys["a"] = dx < -12; keys["d"] = dx > 12;
+
+                        if (dist > 5) {
+                            let moveAngle = Math.atan2(dy, dx);
+                            mouseX = player.x + Math.cos(moveAngle) * 120;
+                            mouseY = player.y + Math.sin(moveAngle) * 120;
+                        }
+                    }
+                }
+            }, { passive: false });
+
+            // 조이스틱 터치 종료
+            const endTouch = (e) => {
+                for (let i = 0; i < e.changedTouches.length; i++) {
+                    if (e.changedTouches[i].identifier === touchId) {
+                        touchId = null;
+                        stickBase.style.display = "none";
+                        keys["w"] = false; keys["s"] = false; keys["a"] = false; keys["d"] = false;
+                    }
+                }
+            };
+            window.addEventListener("touchend", endTouch);
+            window.addEventListener("touchcancel", endTouch);
+
+            // 액션 버튼 바인딩
+            btnAtk.addEventListener("touchstart", (e) => {
+                e.preventDefault();
+                canvas.dispatchEvent(new MouseEvent("mousedown", { button: 0, clientX: canvas.offsetLeft + mouseX, clientY: canvas.offsetTop + mouseY }));
+            });
+            btnSkill.addEventListener("touchstart", (e) => {
+                e.preventDefault();
+                canvas.dispatchEvent(new MouseEvent("mousedown", { button: 2, clientX: canvas.offsetLeft + mouseX, clientY: canvas.offsetTop + mouseY }));
+            });
+            btnR.addEventListener("touchstart", (e) => {
+                e.preventDefault();
+                handleRKey();
+            });
+            btnE.addEventListener("touchstart", (e) => {
+                e.preventDefault();
+                if (gameState === "playing") {
+                    gameState = "inventory";
+                    document.getElementById("inventoryUI").style.display = "flex";
+                    switchTab('inv');
+                } else {
+                    closeUI();
+                }
+            });
+        })();
+
         // [MOD-016-END]
 
         // [MOD-017: UI 제어 및 충돌 유틸리티]
