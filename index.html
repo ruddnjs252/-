@@ -1128,7 +1128,7 @@
         }
         // [MOD-017-END]
 
-        // [MOD-018: 메인 게임 루프 (업데이트 & 렌더링)]
+       // [MOD-018: 메인 게임 루프 (업데이트 & 렌더링 - 직업 완전 제거)]
         function gameLoop() {
             ctx.clearRect(0, 0, canvas.width, canvas.height);
 
@@ -1138,8 +1138,9 @@
 
             const pCenterX = player.x + player.width / 2;
             const pCenterY = player.y + player.height / 2;
-            const currentJob = getCurrentJobInfo();
-            const activeSkill = getCurrentActiveSkill();
+            
+            // 직업 스킬 대신 현재 퀵슬롯에 등록된 스킬 확인
+            const activeSkill = typeof getActiveQuickSlotSkill === "function" ? getActiveQuickSlotSkill() : null;
 
             for (let sId in player.skillCooldowns) {
                 if (player.skillCooldowns[sId] > 0) player.skillCooldowns[sId]--;
@@ -1164,7 +1165,6 @@
                         }
                     }
 
-                    // 4. 월드 경계 충돌 처리 적용 (WORLD_WIDTH, WORLD_HEIGHT) + 도약 끼임 튕겨내기 보존
                     if (nextX <= 0 || nextX >= WORLD_WIDTH - player.width || nextY <= 0 || nextY >= WORLD_HEIGHT - player.height || checkObstacleCollision(nextX, nextY)) {
                         player.dashTimer = 0;
                         nextX = player.x; 
@@ -1174,7 +1174,8 @@
                     if ((player.activeSkillType === "charge" || player.activeSkillType === "leap_attack") && currentMap === "dungeon" && typeof MAP_DATA !== "undefined" && MAP_DATA.dungeon.goblin.active) {
                         let gob = MAP_DATA.dungeon.goblin;
                         if (checkRectCollision(nextX, nextY, player.width, player.height, gob.x - gob.size/2, gob.y - gob.size/2, gob.size, gob.size)) {
-                            const dmg = (player.stats.str * 3) + activeSkill.bonusDmg;
+                            // 임시 무기 데미지 + 스킬 데미지 연산
+                            const dmg = (player.stats.str * 3) + (activeSkill ? activeSkill.bonusDmg : 0);
                             applyDamageToGoblin(dmg);
                         }
                     }
@@ -1184,7 +1185,6 @@
                     if (keys["ArrowLeft"] || keys["a"]) nextX -= player.speed;
                     if (keys["ArrowRight"] || keys["d"]) nextX += player.speed;
 
-                    // 4. 월드 밖으로 나가지 못하게 제한
                     nextX = Math.max(0, Math.min(nextX, WORLD_WIDTH - player.width));
                     nextY = Math.max(0, Math.min(nextY, WORLD_HEIGHT - player.height));
 
@@ -1214,18 +1214,17 @@
                 }
             }
 
-            // 1. 카메라 추적 연산 및 경계(Clamp) 처리
+            // 1. 카메라 추적 연산
             camera.x = player.x + player.width / 2 - canvas.width / 2;
             camera.y = player.y + player.height / 2 - canvas.height / 2;
             camera.x = Math.max(0, Math.min(camera.x, WORLD_WIDTH - canvas.width));
             camera.y = Math.max(0, Math.min(camera.y, WORLD_HEIGHT - canvas.height));
 
-
-            // === 3-1. [월드 렌더링 분리 시작] ===
+            // === [월드 렌더링 시작] ===
             ctx.save();
             ctx.translate(-camera.x, -camera.y);
 
-            // 격자무늬(Grid) 바닥 그리기
+            // 격자무늬(Grid) 바닥
             ctx.strokeStyle = "#3a3a3a";
             ctx.lineWidth = 1;
             for(let i = 0; i <= WORLD_WIDTH; i += 100) {
@@ -1241,14 +1240,12 @@
                 const por = MAP_DATA.guild.portal;
                 const chs = MAP_DATA.guild.personalChest;
 
-                ctx.fillStyle = por.color;
-                ctx.fillRect(por.x, por.y, por.w, por.h);
+                ctx.fillStyle = por.color; ctx.fillRect(por.x, por.y, por.w, por.h);
                 ctx.fillStyle = "white"; ctx.font = "bold 14px sans-serif"; 
                 ctx.textAlign = "center"; ctx.textBaseline = "middle";
                 ctx.fillText("포탈", por.x + por.w/2, por.y - 15);
 
-                ctx.fillStyle = rec.color;
-                ctx.fillRect(rec.x, rec.y, rec.size, rec.size);
+                ctx.fillStyle = rec.color; ctx.fillRect(rec.x, rec.y, rec.size, rec.size);
                 
                 const recY = rec.y - rec.size - 10;
                 ctx.fillStyle = "rgba(0, 0, 0, 0.6)"; ctx.fillRect(rec.x - 25, recY, 80, 16);
@@ -1257,10 +1254,8 @@
                 ctx.fillText("접수원", rec.x + rec.size/2, recY + 8);
                 ctx.fillStyle = "red"; ctx.fillRect(rec.x - 25, recY + 18, 80, 3);
 
-                ctx.fillStyle = chs.color;
-                ctx.fillRect(chs.x, chs.y, chs.w, chs.h);
-                ctx.strokeStyle = "#8B6508"; ctx.lineWidth = 3;
-                ctx.strokeRect(chs.x, chs.y, chs.w, chs.h);
+                ctx.fillStyle = chs.color; ctx.fillRect(chs.x, chs.y, chs.w, chs.h);
+                ctx.strokeStyle = "#8B6508"; ctx.lineWidth = 3; ctx.strokeRect(chs.x, chs.y, chs.w, chs.h);
                 ctx.fillStyle = "white"; ctx.font = "bold 12px sans-serif";
                 ctx.textAlign = "center"; ctx.textBaseline = "middle";
                 ctx.fillText("개인 창고", chs.x + chs.w/2, chs.y - 10);
@@ -1282,12 +1277,21 @@
                         }
                     }
 
+                    // [추가] 락온 타겟 시각적 표시 (붉은색 점선 원)
+                    if (player.lockedTarget === gob) {
+                        ctx.beginPath();
+                        ctx.arc(gob.x, gob.y, gob.size + 10, 0, Math.PI * 2);
+                        ctx.strokeStyle = "rgba(255, 0, 0, 0.8)";
+                        ctx.lineWidth = 3;
+                        ctx.setLineDash([6, 6]);
+                        ctx.stroke();
+                        ctx.setLineDash([]);
+                    }
+
                     ctx.fillStyle = "limegreen";
-                    ctx.beginPath();
-                    ctx.moveTo(gob.x, gob.y - gob.size / 2);
+                    ctx.beginPath(); ctx.moveTo(gob.x, gob.y - gob.size / 2);
                     ctx.lineTo(gob.x - gob.size / 2, gob.y + gob.size / 2);
-                    ctx.lineTo(gob.x + gob.size / 2, gob.y + gob.size / 2);
-                    ctx.fill();
+                    ctx.lineTo(gob.x + gob.size / 2, gob.y + gob.size / 2); ctx.fill();
 
                     const tagY = gob.y - gob.size - 25;
                     ctx.fillStyle = "rgba(0, 0, 0, 0.6)"; ctx.fillRect(gob.x - 40, tagY, 80, 16);
@@ -1300,75 +1304,47 @@
 
             for (let i = visualEffects.length - 1; i >= 0; i--) {
                 let eff = visualEffects[i];
-                ctx.save();
-                ctx.beginPath();
-                ctx.arc(eff.x, eff.y, eff.radius, 0, Math.PI * 2);
-                ctx.fillStyle = eff.color;
-                ctx.globalAlpha = eff.alpha;
-                ctx.fill();
-                ctx.restore();
-                eff.alpha -= 0.04;
-                eff.timer--;
+                ctx.save(); ctx.beginPath(); ctx.arc(eff.x, eff.y, eff.radius, 0, Math.PI * 2);
+                ctx.fillStyle = eff.color; ctx.globalAlpha = eff.alpha; ctx.fill(); ctx.restore();
+                eff.alpha -= 0.04; eff.timer--;
                 if (eff.timer <= 0) visualEffects.splice(i, 1);
             }
 
             ctx.fillStyle = player.color;
             ctx.fillRect(player.x, player.y, player.width, player.height);
 
-            // 월드 기준 스킬 이펙트 조준선 그리기 (wMouseX, wMouseY 활용)
+            // 무기 및 스킬 조준선 렌더링
             if (gameState === "playing") {
                 let wMouseX = mouseX + camera.x;
                 let wMouseY = mouseY + camera.y;
                 const aimAngle = Math.atan2(wMouseY - pCenterY, wMouseX - pCenterX);
 
-                if (player.aimingSkill === "leap_attack") {
+                if (player.aimingSkill === "leap_only") {
                     const fixedLeapDist = player.width * 3;
                     const leapW = player.width + 10;
-                    ctx.save();
-                    ctx.translate(pCenterX, pCenterY);
-                    ctx.rotate(aimAngle);
-                    ctx.fillStyle = "rgba(255, 215, 0, 0.3)";
-                    ctx.fillRect(0, -leapW / 2, fixedLeapDist, leapW);
-                    ctx.strokeStyle = "gold";
-                    ctx.lineWidth = 2;
-                    ctx.strokeRect(0, -leapW / 2, fixedLeapDist, leapW);
-                    ctx.restore();
+                    ctx.save(); ctx.translate(pCenterX, pCenterY); ctx.rotate(aimAngle);
+                    ctx.fillStyle = "rgba(255, 215, 0, 0.3)"; ctx.fillRect(0, -leapW / 2, fixedLeapDist, leapW);
+                    ctx.strokeStyle = "gold"; ctx.lineWidth = 2; ctx.strokeRect(0, -leapW / 2, fixedLeapDist, leapW); ctx.restore();
                 }
                 else if (player.aimingSkill === "jump_slam") {
-                    ctx.save();
-                    ctx.beginPath();
-                    ctx.arc(wMouseX, wMouseY, 80, 0, Math.PI * 2);
-                    ctx.fillStyle = "rgba(255, 69, 0, 0.25)";
-                    ctx.fill();
-                    ctx.strokeStyle = "orangered";
-                    ctx.lineWidth = 2;
-                    ctx.stroke();
-
-                    ctx.beginPath();
-                    ctx.moveTo(pCenterX, pCenterY);
-                    ctx.lineTo(wMouseX, wMouseY);
-                    ctx.strokeStyle = "rgba(255, 69, 0, 0.4)";
-                    ctx.setLineDash([6, 6]);
-                    ctx.stroke();
-                    ctx.restore();
+                    ctx.save(); ctx.beginPath(); ctx.arc(wMouseX, wMouseY, 80, 0, Math.PI * 2);
+                    ctx.fillStyle = "rgba(255, 69, 0, 0.25)"; ctx.fill();
+                    ctx.strokeStyle = "orangered"; ctx.lineWidth = 2; ctx.stroke();
+                    ctx.beginPath(); ctx.moveTo(pCenterX, pCenterY); ctx.lineTo(wMouseX, wMouseY);
+                    ctx.strokeStyle = "rgba(255, 69, 0, 0.4)"; ctx.setLineDash([6, 6]); ctx.stroke(); ctx.restore();
                 } 
                 else if (player.aimingSkill === "charge") {
                     const chargeDist = Math.hypot(wMouseX - pCenterX, wMouseY - pCenterY);
                     const chargeW = player.width + 10;
-                    ctx.save();
-                    ctx.translate(pCenterX, pCenterY);
-                    ctx.rotate(aimAngle);
-                    ctx.fillStyle = "rgba(255, 215, 0, 0.25)";
-                    ctx.fillRect(0, -chargeW / 2, chargeDist, chargeW);
-                    ctx.strokeStyle = "gold";
-                    ctx.lineWidth = 2;
-                    ctx.strokeRect(0, -chargeW / 2, chargeDist, chargeW);
-                    ctx.restore();
+                    ctx.save(); ctx.translate(pCenterX, pCenterY); ctx.rotate(aimAngle);
+                    ctx.fillStyle = "rgba(255, 215, 0, 0.25)"; ctx.fillRect(0, -chargeW / 2, chargeDist, chargeW);
+                    ctx.strokeStyle = "gold"; ctx.lineWidth = 2; ctx.strokeRect(0, -chargeW / 2, chargeDist, chargeW); ctx.restore();
                 } 
                 else {
-                    ctx.beginPath();
-                    ctx.moveTo(pCenterX, pCenterY);
-                    ctx.arc(pCenterX, pCenterY, currentJob.normal.range, aimAngle - currentJob.normal.spread / 2, aimAngle + currentJob.normal.spread / 2);
+                    const baseRange = 60; // 무기 기본 사거리
+                    const baseSpread = Math.PI / 2;
+                    ctx.beginPath(); ctx.moveTo(pCenterX, pCenterY);
+                    ctx.arc(pCenterX, pCenterY, baseRange, aimAngle - baseSpread / 2, aimAngle + baseSpread / 2);
                     ctx.lineTo(pCenterX, pCenterY);
                     ctx.fillStyle = attackTimer > 0 ? "rgba(255, 255, 255, 0.7)" : "rgba(255, 255, 255, 0.15)";
                     if(attackTimer > 0) attackTimer--;
@@ -1376,85 +1352,57 @@
                 }
             }
 
-            // 플로팅 텍스트(대미지 등)를 월드 좌표계에서 그리기
             for (let i = floatingTexts.length - 1; i >= 0; i--) {
                 let ft = floatingTexts[i];
                 ctx.fillStyle = ft.color; ctx.globalAlpha = ft.alpha;
-                ctx.font = "bold 16px sans-serif"; 
-                ctx.textAlign = "center"; ctx.textBaseline = "middle";
+                ctx.font = "bold 16px sans-serif"; ctx.textAlign = "center"; ctx.textBaseline = "middle";
                 ctx.fillText(ft.text, ft.x, ft.y);
                 ft.y -= 1; ft.alpha -= 0.03; ft.timer--;
                 if (ft.timer <= 0) floatingTexts.splice(i, 1); 
             }
             ctx.globalAlpha = 1.0; 
 
-            ctx.restore(); // === 3-2. [월드 렌더링 분리 종료 (스크린 좌표계로 복귀)] ===
+            ctx.restore(); 
+            // === [월드 렌더링 종료] ===
 
-
-            // === 3-3. [HUD 렌더링 시작 (고정된 화면 좌표)] ===
-            const hudX = 10, hudY = 10, hudW = 210;
-            let hudH = currentJob.usesMana ? 95 : 75;
+            // === [HUD 렌더링 시작 (고정 픽셀 좌표)] ===
+            const hudX = 10, hudY = 10, hudW = 210, hudH = 95;
 
             ctx.fillStyle = "rgba(0, 0, 0, 0.75)";
             ctx.fillRect(hudX, hudY, hudW, hudH);
 
             ctx.fillStyle = "white"; ctx.font = "bold 13px sans-serif";
             ctx.textAlign = "left"; ctx.textBaseline = "top";
-            let displayJobText = player.acquiredJobs.length > 1 ? `${player.acquiredJobs[0]} 외 ${player.acquiredJobs.length - 1}` : player.acquiredJobs[0];
-            ctx.fillText(`[Lv.${player.level}] ${player.name} (${displayJobText})`, hudX + 10, hudY + 10);
+            ctx.fillText(`[Lv.${player.level}] ${player.name}`, hudX + 10, hudY + 10); // 직업 텍스트 삭제됨
 
             const barW = 180, barH = 10;
             let currentBarY = hudY + 30;
 
             ctx.fillStyle = "rgba(0, 0, 0, 0.9)"; ctx.fillRect(hudX + 15, currentBarY, barW, barH);
             ctx.fillStyle = "red"; ctx.fillRect(hudX + 15, currentBarY, barW * (Math.max(0, player.currentHp) / player.maxHp), barH);
-            ctx.fillStyle = "white"; ctx.font = "10px sans-serif";
-            ctx.fillText(`HP: ${Math.floor(player.currentHp)}/${player.maxHp}`, hudX + 20, currentBarY - 1);
+            ctx.fillStyle = "white"; ctx.font = "10px sans-serif"; ctx.fillText(`HP: ${Math.floor(player.currentHp)}/${player.maxHp}`, hudX + 20, currentBarY - 1);
             currentBarY += 15;
 
             ctx.fillStyle = "rgba(0, 0, 0, 0.9)"; ctx.fillRect(hudX + 15, currentBarY, barW, barH);
             ctx.fillStyle = "yellow"; ctx.fillRect(hudX + 15, currentBarY, barW * (player.currentStamina / player.maxStamina), barH);
-            ctx.fillStyle = "black"; 
-            ctx.fillText(`ST: ${Math.floor(player.currentStamina)}/${player.maxStamina}`, hudX + 20, currentBarY - 1);
+            ctx.fillStyle = "black"; ctx.fillText(`ST: ${Math.floor(player.currentStamina)}/${player.maxStamina}`, hudX + 20, currentBarY - 1);
             currentBarY += 15;
 
-            if (currentJob.usesMana) {
-                ctx.fillStyle = "rgba(0, 0, 0, 0.9)"; ctx.fillRect(hudX + 15, currentBarY, barW, barH);
-                ctx.fillStyle = "dodgerblue"; ctx.fillRect(hudX + 15, currentBarY, barW * (player.currentMana / player.maxMana), barH);
-                ctx.fillStyle = "white"; ctx.fillText(`MP: ${Math.floor(player.currentMana)}/${player.maxMana}`, hudX + 20, currentBarY - 1);
-                currentBarY += 15;
-            }
+            ctx.fillStyle = "rgba(0, 0, 0, 0.9)"; ctx.fillRect(hudX + 15, currentBarY, barW, barH);
+            ctx.fillStyle = "dodgerblue"; ctx.fillRect(hudX + 15, currentBarY, barW * (player.currentMana / player.maxMana), barH);
+            ctx.fillStyle = "white"; ctx.fillText(`MP: ${Math.floor(player.currentMana)}/${player.maxMana}`, hudX + 20, currentBarY - 1);
+            currentBarY += 15;
 
             ctx.fillStyle = "rgba(0, 0, 0, 0.9)"; ctx.fillRect(hudX + 15, currentBarY, barW, barH - 2);
             ctx.fillStyle = "limegreen"; ctx.fillRect(hudX + 15, currentBarY, barW * (player.exp / player.maxExp), barH - 2);
             ctx.fillStyle = "black"; ctx.fillText(`EXP: ${Math.floor(player.exp)}/${player.maxExp}`, hudX + 20, currentBarY - 2);
 
-            // R스킬 순환 표시 HUD
-            const skillHudY = hudY + hudH + 6;
-            ctx.fillStyle = "rgba(0, 0, 0, 0.75)";
-            ctx.fillRect(hudX, skillHudY, hudW, 32);
-
-            ctx.font = "bold 12px sans-serif"; ctx.textAlign = "left"; ctx.textBaseline = "middle";
-
-            let curCd = player.skillCooldowns[activeSkill.id] || 0;
-            let cdText = curCd <= 0 ? "사용 가능" : `${(curCd / 60).toFixed(1)}초`;
-            let jobCount = player.acquiredJobs.length;
-            let skillIdxText = jobCount > 1 ? `[${(player.currentSkillIdx % jobCount) + 1}/${jobCount}]` : "";
-
-            if (player.aimingSkill) {
-                ctx.fillStyle = "cyan";
-                ctx.fillText(`[조준] ${activeSkill.name} (좌:발동 / R:변경)`, hudX + 8, skillHudY + 16);
-            } else {
-                ctx.fillStyle = curCd <= 0 ? "gold" : "gray";
-                ctx.fillText(`[R] ${activeSkill.name} ${skillIdxText}: ${cdText}`, hudX + 8, skillHudY + 16);
-            }
-
-            // 퀘스트 HUD
+            // 퀘스트 HUD (해상도 자동 조절 대응을 위해 우측 정렬 유지)
             ctx.fillStyle = "rgba(0, 0, 0, 0.7)";
-            ctx.fillRect(780, 10, 210, 36);
+            ctx.fillRect(canvas.width - 220, 10, 210, 36);
             ctx.font = "bold 13px sans-serif"; ctx.textAlign = "left"; ctx.textBaseline = "middle";
             ctx.fillStyle = quest.active && quest.current >= quest.target ? "gold" : "white";
-            ctx.fillText(quest.active ? `퀘스트: 고블린 (${quest.current}/${quest.target})` : "진행중인 퀘스트 없음", 790, 28);
+            ctx.fillText(quest.active ? `퀘스트: 고블린 (${quest.current}/${quest.target})` : "진행중인 퀘스트 없음", canvas.width - 210, 28);
 
             requestAnimationFrame(gameLoop);
         }
