@@ -57,24 +57,45 @@
         #vpad-stick-base { position: fixed; left: 8vmin; bottom: 8vmin; width: 26vmin; height: 26vmin; border-radius: 50%; background: rgba(0, 0, 0, 0.6); border: 3px solid #00ffff; box-shadow: 0 0 10px rgba(0, 255, 255, 0.5); display: none; z-index: 9999; }
         #vpad-stick-knob { position: absolute; top: 25%; left: 25%; width: 50%; height: 50%; border-radius: 50%; background: #00ffff; box-shadow: 0 0 8px #ffffff; }
 
-        /* [추가] 방사형(Radial) 퀵슬롯 UI */
-        #quick-slot-container {
+        /* [추가] 방사형(Radial) 퀵슬롯 UI - 리볼버 회전 적용 */
+        #quick-slot-wrapper {
             position: fixed; bottom: 0; left: 50%; transform: translateX(-50%);
             width: 50vmin; height: 25vmin; z-index: 9000;
+            overflow: hidden; pointer-events: none;
+        }
+        #quick-slot-container {
+            position: absolute; bottom: 0; left: 0; width: 50vmin; height: 25vmin;
             border-top-left-radius: 50vmin; border-top-right-radius: 50vmin;
             background-color: rgba(255, 165, 0, 0.85); border: 3px solid #ffcc00; border-bottom: none;
-            pointer-events: none;
+        }
+        /* 탄창처럼 돌아갈 둥근 휠 */
+        #quick-slot-wheel {
+            position: absolute; bottom: 0; left: 50%;
+            width: 36vmin; height: 36vmin; margin-left: -18vmin; margin-bottom: -18vmin;
+            border-radius: 50%; transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+        /* 12시 방향 고정 붉은 침 */
+        .quick-slot-pointer {
+            position: absolute; bottom: 0; left: 50%; transform: translateX(-50%);
+            width: 0; height: 0; border-left: 2vmin solid transparent; border-right: 2vmin solid transparent;
+            border-bottom: 12vmin solid #e60000; z-index: 9001; transform-origin: bottom center;
         }
         .q-slot {
             position: absolute; width: 9vmin; height: 9vmin; border-radius: 50%;
             border: 2px solid rgba(255, 255, 255, 0.8); background: rgba(0, 0, 0, 0.4);
-            transform: translate(-50%, 50%); transition: all 0.2s; pointer-events: none;
+            top: 50%; left: 50%; margin-top: -4.5vmin; margin-left: -4.5vmin;
+            display: flex; align-items: center; justify-content: center; pointer-events: none;
         }
-        #q-slot-1 { bottom: 4vmin; left: 10%; }
-        #q-slot-2 { bottom: 16vmin; left: 24%; }
-        #q-slot-3 { bottom: 22vmin; left: 50%; }
-        #q-slot-4 { bottom: 16vmin; left: 76%; }
-        #q-slot-5 { bottom: 4vmin; left: 90%; }
+        .q-slot-inner {
+            display: flex; align-items: center; justify-content: center; width: 100%; height: 100%;
+            transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+        /* 5개 슬롯을 360도(72도 간격)로 둥글게 배치 */
+        #q-slot-1 { transform: rotate(0deg) translateY(-17vmin); }
+        #q-slot-2 { transform: rotate(72deg) translateY(-17vmin); }
+        #q-slot-3 { transform: rotate(144deg) translateY(-17vmin); }
+        #q-slot-4 { transform: rotate(216deg) translateY(-17vmin); }
+        #q-slot-5 { transform: rotate(288deg) translateY(-17vmin); }
         
         /* [MOD-003-END] */
     </style>
@@ -82,15 +103,18 @@
 <body>
     <!-- [MOD-004: 타이틀 및 HTML 레이어] -->
     <div id="vpad-container">
-
-        <!-- [추가] 방사형 퀵슬롯 HTML -->
-    <div id="quick-slot-container">
-        <div id="q-slot-1" class="q-slot"></div>
-        <div id="q-slot-2" class="q-slot"></div>
-        <div id="q-slot-3" class="q-slot"></div>
-        <div id="q-slot-4" class="q-slot"></div>
-        <div id="q-slot-5" class="q-slot"></div>
-    </div>
+        <!-- [추가] 방사형 퀵슬롯 HTML (리볼버 기능) -->
+        <div id="quick-slot-wrapper">
+            <div id="quick-slot-container"></div>
+            <div class="quick-slot-pointer"></div>
+            <div id="quick-slot-wheel">
+                <div id="q-slot-1" class="q-slot"><div class="q-slot-inner"></div></div>
+                <div id="q-slot-2" class="q-slot"><div class="q-slot-inner"></div></div>
+                <div id="q-slot-3" class="q-slot"><div class="q-slot-inner"></div></div>
+                <div id="q-slot-4" class="q-slot"><div class="q-slot-inner"></div></div>
+                <div id="q-slot-5" class="q-slot"><div class="q-slot-inner"></div></div>
+            </div>
+        </div>
         
         <div id="vpad-stick-base"><div id="vpad-stick-knob"></div></div>
         <div id="vpad-atk" class="vpad-btn">공격</div>
@@ -105,7 +129,6 @@
         <!-- 캔버스는 가상 렌더링 크기를 1000x750으로 고정하되 화면비에 맞춰 자동 스케일링 -->
         <canvas id="gameCanvas" width="1000" height="750"></canvas>
     <!-- [MOD-004-END] -->
-
         <!-- [MOD-005: 길드 가입 신청서 (캐릭터 생성) UI] -->
         <div id="charCreationUI" class="ui-layer" style="display: none; flex-direction: column; align-items: center; justify-content: center;">
             <div class="panel" style="width: 840px; height: 640px; background: #222; border: 2px solid #aaa; display: flex; flex-direction: column; align-items: center; justify-content: flex-start; position: relative;">
@@ -552,7 +575,7 @@
             slam: { id: "slam", name: "강타", type: "jump_slam", cooldown: 5, bonusDmg: 20 }
         };
         
-        // 플레이어 퀵슬롯 변수 초기화 (나중에 MOD-010으로 통합하시면 됩니다)
+        // 플레이어 퀵슬롯 변수 초기화
         if (!player.quickSlots) {
             player.quickSlots = [ MOCK_SKILLS.leap, MOCK_SKILLS.charge, MOCK_SKILLS.slam, null, null ];
             player.currentQuickSlotIdx = 0;
@@ -573,26 +596,34 @@
             updateQuickSlotUI();
         }
 
-        // 퀵슬롯 UI 시각적 갱신
+        // 퀵슬롯 UI 시각적 갱신 (리볼버 회전 로직)
         function updateQuickSlotUI() {
+            const wheel = document.getElementById("quick-slot-wheel");
+            if (wheel) {
+                // 선택된 슬롯 인덱스에 따라 탄창 전체를 역방향으로 72도씩 회전
+                let rotation = -(player.currentQuickSlotIdx * 72);
+                wheel.style.transform = `rotate(${rotation}deg)`;
+            }
+
             for(let i=0; i<5; i++) {
                 let slot = document.getElementById("q-slot-" + (i+1));
-                if (!slot) continue;
+                let inner = slot ? slot.querySelector('.q-slot-inner') : null;
+                if (!slot || !inner) continue;
                 
                 let skill = player.quickSlots[i];
-                slot.innerHTML = skill ? `<span style="color:white; font-size:11px;">${skill.name}</span>` : "";
-                slot.style.display = "flex";
-                slot.style.alignItems = "center";
-                slot.style.justifyContent = "center";
+                inner.innerHTML = skill ? `<span style="color:white; font-size:11px; font-weight:bold;">${skill.name}</span>` : "";
 
+                // 휠이 돌아가도 스킬 이름 텍스트는 항상 똑바로 서있도록 보정
+                let counterRotation = -(i * 72) - (-(player.currentQuickSlotIdx * 72));
+                inner.style.transform = `rotate(${counterRotation}deg)`;
+
+                // 12시(정중앙)에 위치한 슬롯 강조
                 if (i === player.currentQuickSlotIdx) {
                     slot.style.border = "3px solid #ff3333";
                     slot.style.background = "rgba(255, 50, 50, 0.6)";
-                    slot.style.transform = "translate(-50%, 50%) scale(1.15)";
                 } else {
                     slot.style.border = "2px solid rgba(255, 255, 255, 0.8)";
                     slot.style.background = "rgba(0, 0, 0, 0.4)";
-                    slot.style.transform = "translate(-50%, 50%) scale(1.0)";
                 }
             }
         }
