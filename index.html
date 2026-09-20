@@ -2,13 +2,24 @@
 <html lang="ko">
 <head>
     <meta charset="UTF-8">
-    <title>리퀘 (Re-Quest) v0.2.1</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>리퀘 (Re-Quest) v0.2.2 - 펄로우 카메라</title>
     
     <style>
-        /* [MOD-001: 기본 화면 및 캔버스 스타일] */
-        body { background-color: #222; color: white; text-align: center; font-family: sans-serif; margin: 0; }
-        #gameContainer { position: relative; width: 1000px; height: 750px; margin: 20px auto; border: 2px solid #888; overflow: hidden; background-color: #333; user-select: none; }
-        canvas { display: block; cursor: crosshair; }
+        /* [MOD-001: 기본 화면 및 반응형 캔버스 스타일] */
+        body { background-color: #222; color: white; text-align: center; font-family: sans-serif; margin: 0; touch-action: none; -webkit-user-select: none; user-select: none; }
+        #gameContainer { 
+            position: relative; 
+            width: 100%; 
+            max-width: 1000px; 
+            aspect-ratio: 4 / 3; 
+            height: auto; 
+            margin: 0 auto; 
+            border: 2px solid #888; 
+            overflow: hidden; 
+            background-color: #2a2a2a; 
+        }
+        canvas { display: block; width: 100%; height: 100%; cursor: crosshair; }
         /* [MOD-001-END] */
 
         /* [MOD-002: UI 레이어 및 팝업 공통 스타일] */
@@ -21,7 +32,7 @@
         .class-item.locked { background: #222; color: #555; border: 1px dashed #444; cursor: not-allowed; }
         /* [MOD-002-END] */
 
-        /* [MOD-003: 버튼 및 텍스트 컨트롤 스타일] */
+        /* [MOD-003: 버튼 컨트롤 및 모바일 가상 패드(vmin 반응형) 스타일] */
         .close-btn { position: absolute; top: 10px; right: 20px; padding: 5px 15px; background: red; color: white; border: none; cursor: pointer; font-weight: bold; z-index: 20; }
         .btn { padding: 8px 20px; background: #555; color: white; border: 1px solid #888; cursor: pointer; margin: 5px; font-weight: bold; border-radius: 4px; }
         .btn:hover:not(:disabled) { background: #777; }
@@ -33,21 +44,22 @@
         .stat-btn { background: #333; color: white; border: 1px solid #666; cursor: pointer; width: 25px; height: 25px; font-weight: bold; }
         .stat-btn:hover { background: #555; }
 
-        /* [추가] 모바일 가상 패드 UI */
+        /* 가상 패드 UI */
         .vpad-btn { position: fixed; border-radius: 50%; background: rgba(0, 0, 0, 0.65); border: 2px solid rgba(255, 255, 255, 0.5); color: #fff; font-weight: bold; display: flex; align-items: center; justify-content: center; user-select: none; z-index: 9999; }
         .vpad-btn:active { background: rgba(255, 255, 255, 0.4); }
-        #vpad-atk { right: 25px; bottom: 35px; width: 75px; height: 75px; font-size: 16px; border-color: #ff5555; }
-        #vpad-skill { right: 115px; bottom: 25px; width: 65px; height: 65px; font-size: 14px; border-color: #55ff55; }
-        #vpad-r { right: 30px; bottom: 125px; width: 50px; height: 50px; font-size: 13px; border-color: #ffaa00; }
-        #vpad-e { right: 105px; bottom: 105px; width: 45px; height: 45px; font-size: 12px; border-color: #aaaaaa; }
-        #vpad-stick-base { position: fixed; left: 40px; bottom: 40px; width: 120px; height: 120px; border-radius: 50%; background: rgba(0, 0, 0, 0.6); border: 3px solid #00ffff; box-shadow: 0 0 10px rgba(0, 255, 255, 0.5); display: none; z-index: 9999; }
-        #vpad-stick-knob { position: absolute; top: 35px; left: 35px; width: 50px; height: 50px; border-radius: 50%; background: #00ffff; box-shadow: 0 0 8px #ffffff; }
-
+        
+        #vpad-atk { right: 4vmin; bottom: 6vmin; width: 16vmin; height: 16vmin; font-size: 3.5vmin; border-color: #ff5555; }
+        #vpad-skill { right: 23vmin; bottom: 4vmin; width: 14vmin; height: 14vmin; font-size: 3vmin; border-color: #55ff55; }
+        #vpad-r { right: 5vmin; bottom: 25vmin; width: 11vmin; height: 11vmin; font-size: 2.5vmin; border-color: #ffaa00; }
+        #vpad-e { right: 21vmin; bottom: 21vmin; width: 10vmin; height: 10vmin; font-size: 2.2vmin; border-color: #aaaaaa; }
+        
+        #vpad-stick-base { position: fixed; left: 8vmin; bottom: 8vmin; width: 26vmin; height: 26vmin; border-radius: 50%; background: rgba(0, 0, 0, 0.6); border: 3px solid #00ffff; box-shadow: 0 0 10px rgba(0, 255, 255, 0.5); display: none; z-index: 9999; }
+        #vpad-stick-knob { position: absolute; top: 25%; left: 25%; width: 50%; height: 50%; border-radius: 50%; background: #00ffff; box-shadow: 0 0 8px #ffffff; }
         /* [MOD-003-END] */
     </style>
 </head>
 <body>
-        <!-- [추가] 모바일 가상 패드 HTML -->
+    <!-- [MOD-004: 타이틀 및 HTML 레이어] -->
     <div id="vpad-container">
         <div id="vpad-stick-base"><div id="vpad-stick-knob"></div></div>
         <div id="vpad-atk" class="vpad-btn">공격</div>
@@ -56,10 +68,10 @@
         <div id="vpad-e" class="vpad-btn">가방</div>
     </div>
 
-    <!-- [MOD-004: 타이틀 및 캔버스 컨테이너] -->
     <h1>리퀘: 끝없는 성장</h1>
     
     <div id="gameContainer">
+        <!-- 캔버스는 가상 렌더링 크기를 1000x750으로 고정하되 화면비에 맞춰 자동 스케일링 -->
         <canvas id="gameCanvas" width="1000" height="750"></canvas>
     <!-- [MOD-004-END] -->
 
@@ -161,9 +173,14 @@
     <!-- [MOD-009-END] -->
 
     <script>
-        // [MOD-010: 엔진 Setup 및 게임 데이터 변수]
+        // [MOD-010: 엔진 Setup 및 월드/카메라/게임 데이터 변수]
         const canvas = document.getElementById("gameCanvas");
         const ctx = canvas.getContext("2d");
+
+        // 1. 월드 크기 및 카메라 객체 정의
+        const WORLD_WIDTH = 3000;
+        const WORLD_HEIGHT = 3000;
+        let camera = { x: 0, y: 0, width: canvas.width, height: canvas.height };
 
         let gameState = "playing"; 
         let currentMap = "guild";
@@ -197,7 +214,10 @@
         let totalFreePoints = 30; 
         let tempSelectedJobs = [];
 
-        let keys = {}, mouseX = 0, mouseY = 0, attackTimer = 0;
+        // 화면상 마우스 좌표
+        let mouseX = 0, mouseY = 0; 
+        let attackTimer = 0;
+        let keys = {};
         const statKeys = ["hp", "str", "dex", "mana", "stamina", "charm"];
         // [MOD-010-END]
 
@@ -265,7 +285,9 @@
             player.currentMana = player.maxMana;
             player.x = 500; player.y = 500;
             currentMap = "guild";
-            MAP_DATA.dungeon.goblin.active = false;
+            if (typeof MAP_DATA !== "undefined" && MAP_DATA.dungeon) {
+                MAP_DATA.dungeon.goblin.active = false;
+            }
             player.aimingSkill = null;
             player.dashTimer = 0;
             gameState = "playing";
@@ -281,10 +303,12 @@
 
         function enterDungeon() {
             currentMap = "dungeon";
-            player.x = 500; player.y = 650; 
-            MAP_DATA.dungeon.goblin.hp = MAP_DATA.dungeon.goblin.maxHp; 
-            MAP_DATA.dungeon.goblin.x = 500; MAP_DATA.dungeon.goblin.y = 200;
-            MAP_DATA.dungeon.goblin.active = true;
+            player.x = 1500; player.y = 1500; // 던전은 맵 중앙 부근에서 시작
+            if (typeof MAP_DATA !== "undefined" && MAP_DATA.dungeon) {
+                MAP_DATA.dungeon.goblin.hp = MAP_DATA.dungeon.goblin.maxHp; 
+                MAP_DATA.dungeon.goblin.x = 1500; MAP_DATA.dungeon.goblin.y = 1200;
+                MAP_DATA.dungeon.goblin.active = true;
+            }
             player.aimingSkill = null;
             player.dashTimer = 0;
             closeNPCMenu();
@@ -518,9 +542,13 @@
                 return;
             }
 
+            // 스킬 좌표 처리 시 월드 좌표(wMouseX, wMouseY) 적용
+            let wMouseX = mouseX + camera.x;
+            let wMouseY = mouseY + camera.y;
+
             const pCenterX = player.x + player.width / 2;
             const pCenterY = player.y + player.height / 2;
-            const aimAngle = Math.atan2(mouseY - pCenterY, mouseX - pCenterX);
+            const aimAngle = Math.atan2(wMouseY - pCenterY, wMouseX - pCenterX);
 
             if (activeSkill.type === "leap_only") {
                 startSkillCooldown(activeSkill.id, activeSkill.cooldown);
@@ -549,9 +577,14 @@
 
         function executeAimingSkill() {
             const activeSkill = getCurrentActiveSkill();
+            
+            // 월드 변환 좌표 사용
+            let wMouseX = mouseX + camera.x;
+            let wMouseY = mouseY + camera.y;
+
             const pCenterX = player.x + player.width / 2;
             const pCenterY = player.y + player.height / 2;
-            const aimAngle = Math.atan2(mouseY - pCenterY, mouseX - pCenterX);
+            const aimAngle = Math.atan2(wMouseY - pCenterY, wMouseX - pCenterX);
 
             if (player.aimingSkill === "leap_attack") {
                 startSkillCooldown(activeSkill.id, activeSkill.cooldown);
@@ -567,8 +600,9 @@
             }
             else if (player.aimingSkill === "jump_slam") {
                 startSkillCooldown(activeSkill.id, activeSkill.cooldown);
-                let targetX = Math.max(20, Math.min(canvas.width - 50, mouseX - player.width / 2));
-                let targetY = Math.max(20, Math.min(canvas.height - 50, mouseY - player.height / 2));
+                // 4. 월드 경계(WORLD_WIDTH/HEIGHT) 기준 타겟 클램핑 적용
+                let targetX = Math.max(0, Math.min(WORLD_WIDTH - player.width, wMouseX - player.width / 2));
+                let targetY = Math.max(0, Math.min(WORLD_HEIGHT - player.height, wMouseY - player.height / 2));
                 
                 if (!checkObstacleCollision(targetX, targetY)) {
                     player.x = targetX;
@@ -579,7 +613,7 @@
                 addVisualEffect(slamX, slamY, 80, "red");
 
                 const totalDmg = (player.stats.str * 3) + activeSkill.bonusDmg;
-                if (currentMap === "dungeon" && MAP_DATA.dungeon.goblin.active) {
+                if (currentMap === "dungeon" && typeof MAP_DATA !== "undefined" && MAP_DATA.dungeon.goblin.active) {
                     if (Math.hypot(MAP_DATA.dungeon.goblin.x - slamX, MAP_DATA.dungeon.goblin.y - slamY) < 80 + MAP_DATA.dungeon.goblin.size / 2) {
                         applyDamageToGoblin(totalDmg);
                     }
@@ -590,8 +624,8 @@
             } 
             else if (player.aimingSkill === "charge") {
                 startSkillCooldown(activeSkill.id, activeSkill.cooldown);
-                const dx = mouseX - pCenterX;
-                const dy = mouseY - pCenterY;
+                const dx = wMouseX - pCenterX;
+                const dy = wMouseY - pCenterY;
                 const dist = Math.hypot(dx, dy);
 
                 if (dist > 5) {
@@ -600,8 +634,8 @@
                     player.dashDirX = dx / dist;
                     player.dashDirY = dy / dist;
                     player.dashTimer = Math.min(40, Math.ceil(dist / speed));
-                    player.targetX = mouseX - player.width / 2;
-                    player.targetY = mouseY - player.height / 2;
+                    player.targetX = wMouseX - player.width / 2;
+                    player.targetY = wMouseY - player.height / 2;
                     player.activeSkillType = activeSkill.type;
                     addVisualEffect(pCenterX, pCenterY, 40, "yellow");
                 }
@@ -618,8 +652,9 @@
             addFloatingText(gob.x, gob.y - gob.size, dmg, "orange");
             if (gob.hp <= 0) {
                 gob.hp = gob.maxHp;
-                gob.x = Math.random() * 800 + 100;
-                gob.y = Math.random() * 500 + 100;
+                // 월드 확장 적용: 던전 내 고블린 랜덤 리스폰 구역 확장
+                gob.x = Math.random() * (WORLD_WIDTH - 200) + 100;
+                gob.y = Math.random() * (WORLD_HEIGHT - 200) + 100;
                 
                 player.exp += gob.expReward;
                 if (player.exp >= player.maxExp) {
@@ -667,10 +702,12 @@
             }
         });
 
+        // 화면 좌표계 저장
         canvas.addEventListener("mousemove", (e) => {
             const rect = canvas.getBoundingClientRect();
-            mouseX = e.clientX - rect.left;
-            mouseY = e.clientY - rect.top;
+            // 화면 캔버스 해상도(1000x750) 기준으로 좌표 보정
+            mouseX = (e.clientX - rect.left) * (canvas.width / rect.width);
+            mouseY = (e.clientY - rect.top) * (canvas.height / rect.height);
         });
 
         function addFloatingText(x, y, text, color) {
@@ -685,21 +722,26 @@
                 return;
             }
 
+            // 2. 월드 좌표계 연산 적용
+            let wMouseX = mouseX + camera.x;
+            let wMouseY = mouseY + camera.y;
+
             const pCenterX = player.x + player.width / 2;
             const pCenterY = player.y + player.height / 2;
 
-            if (currentMap === "guild") {
+            if (currentMap === "guild" && typeof MAP_DATA !== "undefined") {
                 const rec = MAP_DATA.guild.receptionist;
                 const por = MAP_DATA.guild.portal;
                 const chs = MAP_DATA.guild.personalChest;
 
-                if (mouseX >= rec.x && mouseX <= rec.x + rec.size && mouseY >= rec.y && mouseY <= rec.y + rec.size) {
+                // 클릭 좌표계가 화면이 아닌 월드 기준이 되도록 wMouseX, wMouseY 사용
+                if (wMouseX >= rec.x && wMouseX <= rec.x + rec.size && wMouseY >= rec.y && wMouseY <= rec.y + rec.size) {
                     if (Math.hypot((rec.x+15) - pCenterX, (rec.y+15) - pCenterY) < 100) { openNPCMenu('receptionist'); return; }
                 }
-                if (mouseX >= por.x && mouseX <= por.x + por.w && mouseY >= por.y && mouseY <= por.y + por.h) {
+                if (wMouseX >= por.x && wMouseX <= por.x + por.w && wMouseY >= por.y && wMouseY <= por.y + por.h) {
                     if (Math.hypot((por.x+20) - pCenterX, (por.y+100) - pCenterY) < 100) { openNPCMenu('portal'); return; }
                 }
-                if (mouseX >= chs.x && mouseX <= chs.x + chs.w && mouseY >= chs.y && mouseY <= chs.y + chs.h) {
+                if (wMouseX >= chs.x && wMouseX <= chs.x + chs.w && wMouseY >= chs.y && wMouseY <= chs.y + chs.h) {
                     if (Math.hypot((chs.x+25) - pCenterX, (chs.y+25) - pCenterY) < 100) { openStorage(); return; }
                 }
             }
@@ -714,9 +756,9 @@
             const currentJob = getCurrentJobInfo();
             const normal = currentJob.normal;
             const totalDmg = (player.stats.str * 3) + normal.bonusDmg;
-            const aimAngle = Math.atan2(mouseY - pCenterY, mouseX - pCenterX);
+            const aimAngle = Math.atan2(wMouseY - pCenterY, wMouseX - pCenterX);
 
-            if (currentMap === "dungeon" && MAP_DATA.dungeon.goblin.active) {
+            if (currentMap === "dungeon" && typeof MAP_DATA !== "undefined" && MAP_DATA.dungeon.goblin.active) {
                 const gob = MAP_DATA.dungeon.goblin;
                 const dx = gob.x - pCenterX;
                 const dy = gob.y - pCenterY;
@@ -729,7 +771,8 @@
                 }
             }
         });
-                // [추가: MOD-016-VPAD] 모바일 터치 패드 로직
+
+        // [MOD-016-VPAD] 모바일 터치 패드 로직
         (function initVirtualPad() {
             const stickBase = document.getElementById("vpad-stick-base");
             const stickKnob = document.getElementById("vpad-stick-knob");
@@ -741,7 +784,6 @@
             let touchId = null;
             let startX = 0, startY = 0;
 
-            // 조이스틱 터치 시작
             window.addEventListener("touchstart", (e) => {
                 for (let i = 0; i < e.changedTouches.length; i++) {
                     let t = e.changedTouches[i];
@@ -758,7 +800,6 @@
                 }
             }, { passive: false });
 
-            // 조이스틱 이동 (시선 동기화 포함)
             window.addEventListener("touchmove", (e) => {
                 for (let i = 0; i < e.changedTouches.length; i++) {
                     let t = e.changedTouches[i];
@@ -773,16 +814,20 @@
                         keys["w"] = dy < -12; keys["s"] = dy > 12;
                         keys["a"] = dx < -12; keys["d"] = dx > 12;
 
+                        // 5. 모바일 가상 패드 시선(Screen 기준) 동기화 보정
                         if (dist > 5) {
                             let moveAngle = Math.atan2(dy, dx);
-                            mouseX = player.x + Math.cos(moveAngle) * 120;
-                            mouseY = player.y + Math.sin(moveAngle) * 120;
+                            // 화면 좌표계 상에서 플레이어의 현재 스크린 위치 
+                            let screenPx = player.x + player.width/2 - camera.x;
+                            let screenPy = player.y + player.height/2 - camera.y;
+                            
+                            mouseX = screenPx + Math.cos(moveAngle) * 120;
+                            mouseY = screenPy + Math.sin(moveAngle) * 120;
                         }
                     }
                 }
             }, { passive: false });
 
-            // 조이스틱 터치 종료
             const endTouch = (e) => {
                 for (let i = 0; i < e.changedTouches.length; i++) {
                     if (e.changedTouches[i].identifier === touchId) {
@@ -795,14 +840,13 @@
             window.addEventListener("touchend", endTouch);
             window.addEventListener("touchcancel", endTouch);
 
-            // 액션 버튼 바인딩
             btnAtk.addEventListener("touchstart", (e) => {
                 e.preventDefault();
-                canvas.dispatchEvent(new MouseEvent("mousedown", { button: 0, clientX: canvas.offsetLeft + mouseX, clientY: canvas.offsetTop + mouseY }));
+                canvas.dispatchEvent(new MouseEvent("mousedown", { button: 0 }));
             });
             btnSkill.addEventListener("touchstart", (e) => {
                 e.preventDefault();
-                canvas.dispatchEvent(new MouseEvent("mousedown", { button: 2, clientX: canvas.offsetLeft + mouseX, clientY: canvas.offsetTop + mouseY }));
+                canvas.dispatchEvent(new MouseEvent("mousedown", { button: 2 }));
             });
             btnR.addEventListener("touchstart", (e) => {
                 e.preventDefault();
@@ -819,7 +863,6 @@
                 }
             });
         })();
-
         // [MOD-016-END]
 
         // [MOD-017: UI 제어 및 충돌 유틸리티]
@@ -877,7 +920,7 @@
         }
 
         function checkObstacleCollision(x, y) {
-            if (currentMap === "guild") {
+            if (currentMap === "guild" && typeof MAP_DATA !== "undefined") {
                 const rec = MAP_DATA.guild.receptionist;
                 const por = MAP_DATA.guild.portal;
                 const chs = MAP_DATA.guild.personalChest;
@@ -906,6 +949,7 @@
                 if (player.skillCooldowns[sId] > 0) player.skillCooldowns[sId]--;
             }
 
+            // === [업데이트 로직] ===
             if (gameState === "playing") {
                 let nextX = player.x;
                 let nextY = player.y;
@@ -924,13 +968,14 @@
                         }
                     }
 
-                    if (nextX <= 0 || nextX >= canvas.width - player.width || nextY <= 0 || nextY >= canvas.height - player.height || checkObstacleCollision(nextX, nextY)) {
+                    // 4. 월드 경계 충돌 처리 적용 (WORLD_WIDTH, WORLD_HEIGHT) + 도약 끼임 튕겨내기 보존
+                    if (nextX <= 0 || nextX >= WORLD_WIDTH - player.width || nextY <= 0 || nextY >= WORLD_HEIGHT - player.height || checkObstacleCollision(nextX, nextY)) {
                         player.dashTimer = 0;
-                        nextX = Math.max(0, Math.min(nextX, canvas.width - player.width));
-                        nextY = Math.max(0, Math.min(nextY, canvas.height - player.height));
+                        nextX = player.x; 
+                        nextY = player.y; 
                     }
 
-                    if ((player.activeSkillType === "charge" || player.activeSkillType === "leap_attack") && currentMap === "dungeon" && MAP_DATA.dungeon.goblin.active) {
+                    if ((player.activeSkillType === "charge" || player.activeSkillType === "leap_attack") && currentMap === "dungeon" && typeof MAP_DATA !== "undefined" && MAP_DATA.dungeon.goblin.active) {
                         let gob = MAP_DATA.dungeon.goblin;
                         if (checkRectCollision(nextX, nextY, player.width, player.height, gob.x - gob.size/2, gob.y - gob.size/2, gob.size, gob.size)) {
                             const dmg = (player.stats.str * 3) + activeSkill.bonusDmg;
@@ -943,8 +988,9 @@
                     if (keys["ArrowLeft"] || keys["a"]) nextX -= player.speed;
                     if (keys["ArrowRight"] || keys["d"]) nextX += player.speed;
 
-                    nextX = Math.max(0, Math.min(nextX, canvas.width - player.width));
-                    nextY = Math.max(0, Math.min(nextY, canvas.height - player.height));
+                    // 4. 월드 밖으로 나가지 못하게 제한
+                    nextX = Math.max(0, Math.min(nextX, WORLD_WIDTH - player.width));
+                    nextY = Math.max(0, Math.min(nextY, WORLD_HEIGHT - player.height));
 
                     if (checkObstacleCollision(nextX, nextY)) {
                         nextX = player.x; nextY = player.y;
@@ -965,15 +1011,36 @@
                 player.x += player.knockbackDirX * 25;
                 player.y += player.knockbackDirY * 5;
                 
-                if (player.x <= 0 || player.x >= canvas.width - player.width || player.y <= 0) {
-                    player.x = Math.max(0, Math.min(player.x, canvas.width - player.width));
+                if (player.x <= 0 || player.x >= WORLD_WIDTH - player.width || player.y <= 0) {
+                    player.x = Math.max(0, Math.min(player.x, WORLD_WIDTH - player.width));
                     gameState = "dead";
                     document.getElementById("deathUI").style.display = "flex";
                 }
             }
 
+            // 1. 카메라 추적 연산 및 경계(Clamp) 처리
+            camera.x = player.x + player.width / 2 - canvas.width / 2;
+            camera.y = player.y + player.height / 2 - canvas.height / 2;
+            camera.x = Math.max(0, Math.min(camera.x, WORLD_WIDTH - canvas.width));
+            camera.y = Math.max(0, Math.min(camera.y, WORLD_HEIGHT - canvas.height));
+
+
+            // === 3-1. [월드 렌더링 분리 시작] ===
+            ctx.save();
+            ctx.translate(-camera.x, -camera.y);
+
+            // 격자무늬(Grid) 바닥 그리기
+            ctx.strokeStyle = "#3a3a3a";
+            ctx.lineWidth = 1;
+            for(let i = 0; i <= WORLD_WIDTH; i += 100) {
+                ctx.beginPath(); ctx.moveTo(i, 0); ctx.lineTo(i, WORLD_HEIGHT); ctx.stroke();
+            }
+            for(let i = 0; i <= WORLD_HEIGHT; i += 100) {
+                ctx.beginPath(); ctx.moveTo(0, i); ctx.lineTo(WORLD_WIDTH, i); ctx.stroke();
+            }
+
             // 맵 환경
-            if (currentMap === "guild") {
+            if (currentMap === "guild" && typeof MAP_DATA !== "undefined") {
                 const rec = MAP_DATA.guild.receptionist;
                 const por = MAP_DATA.guild.portal;
                 const chs = MAP_DATA.guild.personalChest;
@@ -1002,7 +1069,7 @@
                 ctx.textAlign = "center"; ctx.textBaseline = "middle";
                 ctx.fillText("개인 창고", chs.x + chs.w/2, chs.y - 10);
             } 
-            else if (currentMap === "dungeon") {
+            else if (currentMap === "dungeon" && typeof MAP_DATA !== "undefined") {
                 let gob = MAP_DATA.dungeon.goblin;
                 if (gob.active) {
                     const dx = pCenterX - gob.x, dy = pCenterY - gob.y;
@@ -1052,8 +1119,11 @@
             ctx.fillStyle = player.color;
             ctx.fillRect(player.x, player.y, player.width, player.height);
 
+            // 월드 기준 스킬 이펙트 조준선 그리기 (wMouseX, wMouseY 활용)
             if (gameState === "playing") {
-                const aimAngle = Math.atan2(mouseY - pCenterY, mouseX - pCenterX);
+                let wMouseX = mouseX + camera.x;
+                let wMouseY = mouseY + camera.y;
+                const aimAngle = Math.atan2(wMouseY - pCenterY, wMouseX - pCenterX);
 
                 if (player.aimingSkill === "leap_attack") {
                     const fixedLeapDist = player.width * 3;
@@ -1071,7 +1141,7 @@
                 else if (player.aimingSkill === "jump_slam") {
                     ctx.save();
                     ctx.beginPath();
-                    ctx.arc(mouseX, mouseY, 80, 0, Math.PI * 2);
+                    ctx.arc(wMouseX, wMouseY, 80, 0, Math.PI * 2);
                     ctx.fillStyle = "rgba(255, 69, 0, 0.25)";
                     ctx.fill();
                     ctx.strokeStyle = "orangered";
@@ -1080,14 +1150,14 @@
 
                     ctx.beginPath();
                     ctx.moveTo(pCenterX, pCenterY);
-                    ctx.lineTo(mouseX, mouseY);
+                    ctx.lineTo(wMouseX, wMouseY);
                     ctx.strokeStyle = "rgba(255, 69, 0, 0.4)";
                     ctx.setLineDash([6, 6]);
                     ctx.stroke();
                     ctx.restore();
                 } 
                 else if (player.aimingSkill === "charge") {
-                    const chargeDist = Math.hypot(mouseX - pCenterX, mouseY - pCenterY);
+                    const chargeDist = Math.hypot(wMouseX - pCenterX, wMouseY - pCenterY);
                     const chargeW = player.width + 10;
                     ctx.save();
                     ctx.translate(pCenterX, pCenterY);
@@ -1110,7 +1180,22 @@
                 }
             }
 
-            // ======== 상태창 HUD ========
+            // 플로팅 텍스트(대미지 등)를 월드 좌표계에서 그리기
+            for (let i = floatingTexts.length - 1; i >= 0; i--) {
+                let ft = floatingTexts[i];
+                ctx.fillStyle = ft.color; ctx.globalAlpha = ft.alpha;
+                ctx.font = "bold 16px sans-serif"; 
+                ctx.textAlign = "center"; ctx.textBaseline = "middle";
+                ctx.fillText(ft.text, ft.x, ft.y);
+                ft.y -= 1; ft.alpha -= 0.03; ft.timer--;
+                if (ft.timer <= 0) floatingTexts.splice(i, 1); 
+            }
+            ctx.globalAlpha = 1.0; 
+
+            ctx.restore(); // === 3-2. [월드 렌더링 분리 종료 (스크린 좌표계로 복귀)] ===
+
+
+            // === 3-3. [HUD 렌더링 시작 (고정된 화면 좌표)] ===
             const hudX = 10, hudY = 10, hudW = 210;
             let hudH = currentJob.usesMana ? 95 : 75;
 
@@ -1148,7 +1233,7 @@
             ctx.fillStyle = "limegreen"; ctx.fillRect(hudX + 15, currentBarY, barW * (player.exp / player.maxExp), barH - 2);
             ctx.fillStyle = "black"; ctx.fillText(`EXP: ${Math.floor(player.exp)}/${player.maxExp}`, hudX + 20, currentBarY - 2);
 
-            // ======== R스킬 순환 표시 HUD ========
+            // R스킬 순환 표시 HUD
             const skillHudY = hudY + hudH + 6;
             ctx.fillStyle = "rgba(0, 0, 0, 0.75)";
             ctx.fillRect(hudX, skillHudY, hudW, 32);
@@ -1168,23 +1253,12 @@
                 ctx.fillText(`[R] ${activeSkill.name} ${skillIdxText}: ${cdText}`, hudX + 8, skillHudY + 16);
             }
 
-            // ======== 퀘스트 HUD ========
+            // 퀘스트 HUD
             ctx.fillStyle = "rgba(0, 0, 0, 0.7)";
             ctx.fillRect(780, 10, 210, 36);
             ctx.font = "bold 13px sans-serif"; ctx.textAlign = "left"; ctx.textBaseline = "middle";
             ctx.fillStyle = quest.active && quest.current >= quest.target ? "gold" : "white";
             ctx.fillText(quest.active ? `퀘스트: 고블린 (${quest.current}/${quest.target})` : "진행중인 퀘스트 없음", 790, 28);
-
-            for (let i = floatingTexts.length - 1; i >= 0; i--) {
-                let ft = floatingTexts[i];
-                ctx.fillStyle = ft.color; ctx.globalAlpha = ft.alpha;
-                ctx.font = "bold 16px sans-serif"; 
-                ctx.textAlign = "center"; ctx.textBaseline = "middle";
-                ctx.fillText(ft.text, ft.x, ft.y);
-                ft.y -= 1; ft.alpha -= 0.03; ft.timer--;
-                if (ft.timer <= 0) floatingTexts.splice(i, 1); 
-            }
-            ctx.globalAlpha = 1.0; 
 
             requestAnimationFrame(gameLoop);
         }
