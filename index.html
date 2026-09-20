@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>리퀘 (Re-Quest) v0.2.48</title>
+    <title>리퀘 (Re-Quest) v0.2.49</title>
     
     <style>
         /* [MOD-001: 기본 화면 및 전체화면 캔버스 스타일] */
@@ -1012,7 +1012,7 @@
         }
         // [MOD-017-END]
 
-     // [MOD-018: 메인 게임 루프 (안 보이는 팔과 무기 스윙 궤적 반영)]
+    // [MOD-018: 메인 게임 루프 (무기 비스듬한 파지 및 손목 스냅 반영)]
         function gameLoop() {
             ctx.clearRect(0, 0, canvas.width, canvas.height);
 
@@ -1109,7 +1109,6 @@
                 if (attackTimer > 0) attackTimer--;
 
                 if (attackTimer <= 0) { 
-                    // 무기 길이와 팔의 위치를 고려한 실제 사거리
                     const baseRange = 60; 
                     const totalDmg = (player.stats.str * 3) + 5; 
 
@@ -1225,7 +1224,7 @@
                 if (eff.timer <= 0) visualEffects.splice(i, 1);
             }
 
-            // === [플레이어 렌더링: 확대된 파란색 동그라미] ===
+            // === [플레이어 렌더링: 파란색 동그라미] ===
             ctx.beginPath();
             ctx.arc(player.x, player.y, playerRadius, 0, Math.PI * 2);
             ctx.fillStyle = "#00a2ff"; 
@@ -1263,23 +1262,28 @@
                 } 
                 else {
                     // 무기(검/도끼 계열) 규격
-                    const weaponLength = 50; // 무기 길이
-                    const weaponWidth = 12;  // 무기 두께
-                    const pivotX = 0; // 캐릭터 몸통 중심축 (어깨선)
-                    const pivotY = playerRadius + 10; // 캐릭터 우측으로 10px 떨어진 위치 (안 보이는 오른손)
+                    const weaponLength = 50; 
+                    const weaponWidth = 12;  
+                    const pivotX = 0; 
+                    const pivotY = playerRadius + 10; 
 
-                    let currentAngle = aimAngle; // 평소엔 마우스 방향을 조준
+                    let currentAngle = aimAngle; // 어깨(팔)의 기본 조준 방향
                     let isSwinging = (attackTimer > 0 && player.lastAttackAngle !== undefined);
+                    
+                    // [수정] 평소에는 손목을 안쪽으로 30도(-Math.PI/6) 꺾어서 비스듬하게 쥐고 있음
+                    let wristAngle = -Math.PI / 6; 
 
                     if (isSwinging) {
-                        // 스윙 애니메이션 (30프레임 동안 회전)
                         let progress = 1.0 - (attackTimer / 30); 
                         
-                        // 타겟 방향을 중심으로 약 120도(-60도 ~ +60도) 범위로 궤도를 그림
                         let startAngle = player.lastAttackAngle - Math.PI / 3;
                         let endAngle = player.lastAttackAngle + Math.PI / 3;
                         
                         currentAngle = startAngle + (endAngle - startAngle) * progress;
+
+                        // [추가] 스윙 중반(progress 0.5)에 원심력으로 무기가 쫙 펴지도록 손목 각도 보정
+                        // 0도에 가까워졌다가 끝날 때 다시 -30도로 돌아옴
+                        wristAngle = (-Math.PI / 6) * (1 - Math.sin(progress * Math.PI));
 
                         // 궤적(검기) 이펙트 렌더링
                         ctx.beginPath();
@@ -1291,23 +1295,27 @@
                         ctx.stroke();
                     }
 
-                    // 캔버스 중심을 캐릭터 중심으로 맞추고 각도 회전
+                    // 캔버스 중심을 캐릭터 중앙으로 맞추고 팔(어깨) 각도 회전
                     ctx.save();
                     ctx.translate(pCenterX, pCenterY);
                     ctx.rotate(currentAngle);
                     
-                    // 무기 히트박스 (안 보이는 오른손 위치에서 앞을 향해 뻗음)
+                    // 안 보이는 오른손(회전축) 위치로 이동 후, 손목 각도 적용
+                    ctx.translate(pivotX, pivotY);
+                    ctx.rotate(wristAngle);
+                    
+                    // 무기 히트박스 (손목이 0,0 좌표이므로 바로 뻗어나감)
                     ctx.fillStyle = "rgba(255, 255, 255, 0.8)";
-                    ctx.fillRect(pivotX, pivotY - weaponWidth / 2, weaponLength, weaponWidth);
+                    ctx.fillRect(0, -weaponWidth / 2, weaponLength, weaponWidth);
                     
                     // 무기 디버그용 붉은 테두리
                     ctx.strokeStyle = "red";
                     ctx.lineWidth = 1.5;
-                    ctx.strokeRect(pivotX, pivotY - weaponWidth / 2, weaponLength, weaponWidth);
+                    ctx.strokeRect(0, -weaponWidth / 2, weaponLength, weaponWidth);
                     
-                    // 회전축 (유저 기획안의 하얀 점 = 오른손)
+                    // 회전축 (하얀 점 = 오른손)
                     ctx.beginPath();
-                    ctx.arc(pivotX, pivotY, 5, 0, Math.PI * 2);
+                    ctx.arc(0, 0, 5, 0, Math.PI * 2);
                     ctx.fillStyle = "white";
                     ctx.fill();
                     ctx.strokeStyle = "black";
