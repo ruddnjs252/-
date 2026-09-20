@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>리퀘 (Re-Quest) v0.2.45</title>
+    <title>리퀘 (Re-Quest) v0.2.46</title>
     
     <style>
         /* [MOD-001: 기본 화면 및 전체화면 캔버스 스타일] */
@@ -574,7 +574,7 @@
         }
         // [MOD-014-END]
 
-       // [MOD-015: 스킬 시스템 및 전투 연산 로직 (직업 제거 및 8칸 퀵슬롯 기반)]
+       /// [MOD-015: 스킬 시스템 및 전투 연산 로직 (직업 제거 및 8칸 퀵슬롯 기반)]
         
         // 8칸 테스트용 꽉 찬 스킬 데이터
         const MOCK_SKILLS = {
@@ -588,7 +588,6 @@
             wind: { id: "wind", name: "바람", type: "wind", cooldown: 3, bonusDmg: 8 }
         };
         
-        // 초기화 (동그라미 캐릭터 리워크 반영: 플레이어 크기를 반지름 기반으로 호환성 유지)
         if (!player.quickSlots) {
             player.quickSlots = [ MOCK_SKILLS.leap, MOCK_SKILLS.charge, MOCK_SKILLS.slam, MOCK_SKILLS.slash, MOCK_SKILLS.heal, MOCK_SKILLS.fire, MOCK_SKILLS.ice, MOCK_SKILLS.wind ];
             player.currentQuickSlotIdx = 0;
@@ -596,11 +595,14 @@
             player.lockedTarget = null;
         }
 
+        // 캐릭터 크기 키우기에 맞춰 플레이어 객체의 width/height도 44로 동기화
+        player.width = 44;
+        player.height = 44;
+
         function getActiveQuickSlotSkill() {
             return player.quickSlots[player.currentQuickSlotIdx];
         }
 
-        // R키: 무한 누적 회전 로직 (역주행 방지)
         function handleRKey() {
             if (gameState !== "playing" || player.dashTimer > 0) return;
             
@@ -668,6 +670,7 @@
             const pCenterX = player.x;
             const pCenterY = player.y;
             const aimAngle = Math.atan2(wMouseY - pCenterY, wMouseX - pCenterX);
+            const playerRadius = player.width / 2;
 
             if (player.aimingSkill === "leap_only") {
                 startSkillCooldown(activeSkill.id, activeSkill.cooldown);
@@ -682,10 +685,10 @@
             }
             else if (player.aimingSkill === "jump_slam") {
                 startSkillCooldown(activeSkill.id, activeSkill.cooldown);
-                let targetX = Math.max(15, Math.min(WORLD_WIDTH - 15, wMouseX));
-                let targetY = Math.max(15, Math.min(WORLD_HEIGHT - 15, wMouseY));
+                let targetX = Math.max(playerRadius, Math.min(WORLD_WIDTH - playerRadius, wMouseX));
+                let targetY = Math.max(playerRadius, Math.min(WORLD_HEIGHT - playerRadius, wMouseY));
                 
-                if (!checkObstacleCollision(targetX - player.width/2, targetY - player.height/2)) {
+                if (!checkObstacleCollision(targetX - playerRadius, targetY - playerRadius)) {
                     player.x = targetX;
                     player.y = targetY;
                 }
@@ -755,7 +758,7 @@
         
         setTimeout(updateQuickSlotUI, 100);
         // [MOD-015-END]
-
+        
    // [MOD-016: 입력 이벤트 리스너 (조작계 변경 및 타겟팅 전용)]
         function selectQuickSlot(index) {
             if (gameState !== "playing" || player.dashTimer > 0) return;
@@ -1009,7 +1012,7 @@
         }
         // [MOD-017-END]
 
-       // [MOD-018: 메인 게임 루프 (동그라미 캐릭터 및 접수원 삭제 반영)]
+       // [MOD-018: 메인 게임 루프 (확대된 동그라미 캐릭터 반영)]
         function gameLoop() {
             ctx.clearRect(0, 0, canvas.width, canvas.height);
 
@@ -1019,7 +1022,7 @@
 
             const pCenterX = player.x;
             const pCenterY = player.y;
-            const playerRadius = player.width / 2; // 캐릭터 크기 (반지름 15px)
+            const playerRadius = player.width / 2; // 확대된 반지름 (22px)
             
             const activeSkill = typeof getActiveQuickSlotSkill === "function" ? getActiveQuickSlotSkill() : null;
 
@@ -1221,13 +1224,13 @@
                 if (eff.timer <= 0) visualEffects.splice(i, 1);
             }
 
-            // === [플레이어 렌더링: 파란색 동그라미 + 더 진한 파란색 테두리] ===
+            // === [플레이어 렌더링: 확대된 파란색 동그라미 + 진한 파란색 테두리] ===
             ctx.beginPath();
             ctx.arc(player.x, player.y, playerRadius, 0, Math.PI * 2);
-            ctx.fillStyle = "#00a2ff"; // 밝은 파란색 채우기
+            ctx.fillStyle = "#00a2ff"; 
             ctx.fill();
             ctx.lineWidth = 3;
-            ctx.strokeStyle = "#004488"; // 더 진한 파란색 테두리
+            ctx.strokeStyle = "#004488"; 
             ctx.stroke();
 
             // 무기 조준선 및 스킬 이펙트 렌더링
