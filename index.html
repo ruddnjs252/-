@@ -266,17 +266,7 @@
         // [MOD-010-END]
 
         // [MOD-011: 직업 및 스킬 정보 반환 유틸리티]
-        function getCurrentActiveSkill() {
-            if (!player.acquiredJobs || player.acquiredJobs.length === 0) return JOB_DATA[0].skill;
-            let currentJobName = player.acquiredJobs[player.currentSkillIdx % player.acquiredJobs.length];
-            let found = JOB_DATA.find(j => j.name === currentJobName);
-            return found ? found.skill : JOB_DATA[0].skill;
-        }
-
-        function getCurrentJobInfo() {
-            let mainJobName = player.acquiredJobs[0] || "견습 기사";
-            return JOB_DATA.find(j => j.name === mainJobName) || JOB_DATA[0];
-        }
+      
         // [MOD-011-END]
 
         // [MOD-012: NPC 상호작용 및 게임 진행 로직]
