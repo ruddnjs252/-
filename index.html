@@ -6,16 +6,17 @@
     <title>리퀘 (Re-Quest) v0.2.2 - 펄로우 카메라</title>
     
     <style>
-        /* [MOD-001: 기본 화면 및 반응형 캔버스 스타일] */
-        body { background-color: #222; color: white; text-align: center; font-family: sans-serif; margin: 0; touch-action: none; -webkit-user-select: none; user-select: none; }
+        /* [MOD-001: 기본 화면 및 전체화면 캔버스 스타일] */
+        body { background-color: #222; color: white; font-family: sans-serif; margin: 0; overflow: hidden; touch-action: none; -webkit-user-select: none; user-select: none; }
+        h1 { display: none; } /* 전체화면을 위해 기존 텍스트 타이틀 숨김 */
         #gameContainer { 
-            position: relative; 
-            width: 100%; 
-            max-width: 1000px; 
-            aspect-ratio: 4 / 3; 
-            height: auto; 
-            margin: 0 auto; 
-            border: 2px solid #888; 
+            position: absolute; 
+            top: 0; 
+            left: 0; 
+            width: 100vw; 
+            height: 100vh; 
+            margin: 0; 
+            border: none; /* 불필요한 테두리 제거 */
             overflow: hidden; 
             background-color: #2a2a2a; 
         }
@@ -177,7 +178,19 @@
         const canvas = document.getElementById("gameCanvas");
         const ctx = canvas.getContext("2d");
 
-        // 1. 월드 크기 및 카메라 객체 정의
+        // 1. 화면 크기에 맞춰 캔버스 내부 픽셀 해상도를 1:1로 자동 조절
+        function resizeCanvas() {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+            if (typeof camera !== "undefined") {
+                camera.width = canvas.width;
+                camera.height = canvas.height;
+            }
+        }
+        window.addEventListener('resize', resizeCanvas);
+        resizeCanvas();
+
+        // 2. 월드 크기 및 카메라 객체 정의
         const WORLD_WIDTH = 3000;
         const WORLD_HEIGHT = 3000;
         let camera = { x: 0, y: 0, width: canvas.width, height: canvas.height };
