@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>리퀘 (Re-Quest) v0.2.46</title>
+    <title>리퀘 (Re-Quest) v0.2.47</title>
     
     <style>
         /* [MOD-001: 기본 화면 및 전체화면 캔버스 스타일] */
@@ -1012,7 +1012,7 @@
         }
         // [MOD-017-END]
 
-       // [MOD-018: 메인 게임 루프 (확대된 동그라미 캐릭터 반영)]
+     // [MOD-018: 메인 게임 루프 (임시 히트박스 및 스윙 궤적 반영)]
         function gameLoop() {
             ctx.clearRect(0, 0, canvas.width, canvas.height);
 
@@ -1109,7 +1109,8 @@
                 if (attackTimer > 0) attackTimer--;
 
                 if (attackTimer <= 0) { 
-                    const baseRange = 60; 
+                    // [수정] 무기 길이(45)와 회전축 오프셋(27)을 더한 실제 도달 거리로 사거리 변경
+                    const baseRange = 72; 
                     const totalDmg = (player.stats.str * 3) + 5; 
 
                     if (currentMap === "dungeon" && typeof MAP_DATA !== "undefined" && MAP_DATA.dungeon.goblin.active) {
@@ -1124,9 +1125,9 @@
                         }
 
                         if (targetToAttack) {
-                            attackTimer = 30; 
+                            attackTimer = 30; // 스윙 쿨타임 및 애니메이션 시간(30프레임)
                             player.lastAttackAngle = Math.atan2(targetToAttack.y - pCenterY, targetToAttack.x - pCenterX);
-                            applyDamageToGoblin(totalDmg);
+                            applyDamageToGoblin(totalDmg); // 현재는 발동 즉시 타격(나중에 궤적 충돌로 고도화 예정)
                         }
                     }
                 }
@@ -1224,7 +1225,7 @@
                 if (eff.timer <= 0) visualEffects.splice(i, 1);
             }
 
-            // === [플레이어 렌더링: 확대된 파란색 동그라미 + 진한 파란색 테두리] ===
+            // === [플레이어 렌더링] ===
             ctx.beginPath();
             ctx.arc(player.x, player.y, playerRadius, 0, Math.PI * 2);
             ctx.fillStyle = "#00a2ff"; 
@@ -1233,7 +1234,7 @@
             ctx.strokeStyle = "#004488"; 
             ctx.stroke();
 
-            // 무기 조준선 및 스킬 이펙트 렌더링
+            // [수정] 무기 조준선(기존 부채꼴 제거) 및 스윙 궤적 / 히트박스 렌더링
             if (gameState === "playing") {
                 let wMouseX = mouseX + camera.x;
                 let wMouseY = mouseY + camera.y;
@@ -1261,15 +1262,56 @@
                     ctx.strokeStyle = "gold"; ctx.lineWidth = 2; ctx.strokeRect(0, -chargeW / 2, chargeDist, chargeW); ctx.restore();
                 } 
                 else {
-                    const baseRange = 60; 
-                    const baseSpread = Math.PI / 2;
-                    let renderAngle = (attackTimer > 0 && player.lastAttackAngle !== undefined) ? player.lastAttackAngle : aimAngle;
+                    // 기본 무기(검/도끼 스윙 계열) 설정
+                    const weaponLength = 45; // 무기 길이
+                    const weaponWidth = 10;  // 무기 두께
+                    const pivotOffset = playerRadius + 5; // 캐릭터 반경 밖 5px 지점 (회전축)
+
+                    let currentAngle = aimAngle; // 평소엔 마우스 방향을 조준
+                    let isSwinging = (attackTimer > 0 && player.lastAttackAngle !== undefined);
+
+                    if (isSwinging) {
+                        // 스윙 진행률 (30프레임 기준 0.0 -> 1.0)
+                        let progress = 1.0 - (attackTimer / 30); 
+                        
+                        // 타겟 방향을 중심으로 약 140도(-70도 ~ +70도) 가량 휘두름
+                        let startAngle = player.lastAttackAngle - Math.PI / 2.5;
+                        let endAngle = player.lastAttackAngle + Math.PI / 2.5;
+                        
+                        currentAngle = startAngle + (endAngle - startAngle) * progress;
+
+                        // 궤적(검기) 렌더링 - 무기 끝부분이 그리는 곡선 표시
+                        ctx.beginPath();
+                        ctx.arc(pCenterX, pCenterY, pivotOffset + weaponLength, startAngle, currentAngle);
+                        ctx.strokeStyle = "rgba(255, 255, 255, 0.6)";
+                        ctx.lineWidth = 3;
+                        ctx.stroke();
+                    }
+
+                    // 회전축(pivotOffset)을 기준으로 한 히트박스(하얀 네모) 렌더링
+                    ctx.save();
+                    ctx.translate(pCenterX, pCenterY);
+                    ctx.rotate(currentAngle);
                     
-                    ctx.beginPath(); ctx.moveTo(pCenterX, pCenterY);
-                    ctx.arc(pCenterX, pCenterY, baseRange, renderAngle - baseSpread / 2, renderAngle + baseSpread / 2);
-                    ctx.lineTo(pCenterX, pCenterY);
-                    ctx.fillStyle = attackTimer > 20 ? "rgba(255, 255, 255, 0.7)" : "rgba(255, 255, 255, 0.15)";
+                    // 무기 히트박스 본체
+                    ctx.fillStyle = "rgba(255, 255, 255, 0.8)";
+                    ctx.fillRect(pivotOffset, -weaponWidth / 2, weaponLength, weaponWidth);
+                    
+                    // 무기 디버그용 붉은 테두리
+                    ctx.strokeStyle = "red";
+                    ctx.lineWidth = 1;
+                    ctx.strokeRect(pivotOffset, -weaponWidth / 2, weaponLength, weaponWidth);
+                    
+                    // 회전축 표시 (유저 기획안의 흰색 점)
+                    ctx.beginPath();
+                    ctx.arc(pivotOffset, 0, 4, 0, Math.PI * 2);
+                    ctx.fillStyle = "white";
                     ctx.fill();
+                    ctx.strokeStyle = "black";
+                    ctx.lineWidth = 1.5;
+                    ctx.stroke();
+
+                    ctx.restore();
                 }
             }
 
