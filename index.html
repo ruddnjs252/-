@@ -174,26 +174,24 @@
     <!-- [MOD-009-END] -->
 
     <script>
-        // [MOD-010: 엔진 Setup 및 월드/카메라/게임 데이터 변수]
+      // [MOD-010: 엔진 Setup 및 월드/카메라/게임 데이터 변수]
         const canvas = document.getElementById("gameCanvas");
         const ctx = canvas.getContext("2d");
 
-        // 1. 화면 크기에 맞춰 캔버스 내부 픽셀 해상도를 1:1로 자동 조절
+        // 1. 월드 크기 및 카메라 객체 먼저 정의 (에러 방지를 위해 위로 올림)
+        const WORLD_WIDTH = 3000;
+        const WORLD_HEIGHT = 3000;
+        let camera = { x: 0, y: 0, width: 1000, height: 750 };
+
+        // 2. 화면 크기에 맞춰 캔버스 내부 픽셀 해상도를 1:1로 자동 조절
         function resizeCanvas() {
             canvas.width = window.innerWidth;
             canvas.height = window.innerHeight;
-            if (typeof camera !== "undefined") {
-                camera.width = canvas.width;
-                camera.height = canvas.height;
-            }
+            camera.width = canvas.width;
+            camera.height = canvas.height;
         }
         window.addEventListener('resize', resizeCanvas);
         resizeCanvas();
-
-        // 2. 월드 크기 및 카메라 객체 정의
-        const WORLD_WIDTH = 3000;
-        const WORLD_HEIGHT = 3000;
-        let camera = { x: 0, y: 0, width: canvas.width, height: canvas.height };
 
         let gameState = "playing"; 
         let currentMap = "guild";
