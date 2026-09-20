@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>리퀘 (Re-Quest) v0.2.37</title>
+    <title>리퀘 (Re-Quest) v0.2.371</title>
     
     <style>
         /* [MOD-001: 기본 화면 및 전체화면 캔버스 스타일] */
@@ -59,17 +59,17 @@
 
         /* [추가] 방사형(Radial) 퀵슬롯 UI - 8칸 리볼버 회전 적용 */
         #quick-slot-wrapper {
-            position: fixed; bottom: 0; left: 50%; transform: translateX(-50%);
-            /* 테두리가 윗부분에 잘리지 않도록 wrapper 높이를 26vmin으로 여유있게 설정 */
+            position: fixed; 
+            bottom: -8vmin; /* UI를 아래로 쑥 내려서 화면을 덜 가리도록 조정 (-8vmin) */
+            left: 50%; 
+            transform: translateX(-50%);
             width: 50vmin; height: 26vmin; z-index: 9000;
             overflow: hidden; pointer-events: none;
         }
         #quick-slot-container {
             position: absolute; bottom: 0; left: 0; width: 50vmin; height: 25vmin;
-            /* 50vmin 반경 대신 25vmin을 사용하여 완벽한 반원 형태 유지 */
             border-radius: 25vmin 25vmin 0 0; 
             background-color: rgba(255, 165, 0, 0.85); border: 3px solid #ffcc00; border-bottom: none;
-            /* 테두리(border) 두께가 안쪽으로 계산되도록 설정 */
             box-sizing: border-box; 
         }
         #quick-slot-wheel {
