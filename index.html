@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>리퀘 (Re-Quest) v0.2.491</title>
+    <title>리퀘 (Re-Quest) v0.2.492</title>
     
     <style>
         /* [MOD-001: 기본 화면 및 전체화면 캔버스 스타일] */
@@ -1012,7 +1012,7 @@
         }
         // [MOD-017-END]
 
-    // [MOD-018: 메인 게임 루프 (무기 여유 공간 확보 및 사거리 증가)]
+    // [MOD-018: 메인 게임 루프 (스킬 조준 중 무기 증발 버그 수정)]
         function gameLoop() {
             ctx.clearRect(0, 0, canvas.width, canvas.height);
 
@@ -1109,7 +1109,6 @@
                 if (attackTimer > 0) attackTimer--;
 
                 if (attackTimer <= 0) { 
-                    // [수정] 무기를 바깥으로 뺀 만큼 사거리 증가 (60 -> 85)
                     const baseRange = 85; 
                     const totalDmg = (player.stats.str * 3) + 5; 
 
@@ -1240,6 +1239,7 @@
                 let wMouseY = mouseY + camera.y;
                 const aimAngle = Math.atan2(wMouseY - pCenterY, wMouseX - pCenterX);
 
+                // 스킬 조준선 UI 렌더링 (else 구문 제거)
                 if (player.aimingSkill === "leap_only") {
                     const fixedLeapDist = player.width * 3;
                     const leapW = player.width + 10;
@@ -1261,63 +1261,61 @@
                     ctx.fillStyle = "rgba(255, 215, 0, 0.25)"; ctx.fillRect(0, -chargeW / 2, chargeDist, chargeW);
                     ctx.strokeStyle = "gold"; ctx.lineWidth = 2; ctx.strokeRect(0, -chargeW / 2, chargeDist, chargeW); ctx.restore();
                 } 
-                else {
-                    // 무기(검/도끼 계열) 규격
-                    const weaponLength = 50; 
-                    const weaponWidth = 12;  
-                    const pivotX = 0; 
-                    // [수정] 캐릭터 반경 밖으로 공간을 넉넉하게 주기 위해 10에서 25로 증가
-                    const pivotY = playerRadius + 25; 
+                
+                // 무기(검/도끼 계열)는 스킬 조준 중에도 항상 렌더링
+                const weaponLength = 50; 
+                const weaponWidth = 12;  
+                const pivotX = 0; 
+                const pivotY = playerRadius + 25; 
 
-                    let currentAngle = aimAngle; 
-                    let isSwinging = (attackTimer > 0 && player.lastAttackAngle !== undefined);
-                    
-                    let wristAngle = -Math.PI / 6; 
+                let currentAngle = aimAngle; 
+                let isSwinging = (attackTimer > 0 && player.lastAttackAngle !== undefined);
+                
+                let wristAngle = -Math.PI / 6; 
 
-                    if (isSwinging) {
-                        let progress = 1.0 - (attackTimer / 30); 
-                        
-                        let startAngle = player.lastAttackAngle - Math.PI / 3;
-                        let endAngle = player.lastAttackAngle + Math.PI / 3;
-                        
-                        currentAngle = startAngle + (endAngle - startAngle) * progress;
+                if (isSwinging) {
+                    let progress = 1.0 - (attackTimer / 30); 
+                    
+                    let startAngle = player.lastAttackAngle - Math.PI / 3;
+                    let endAngle = player.lastAttackAngle + Math.PI / 3;
+                    
+                    currentAngle = startAngle + (endAngle - startAngle) * progress;
 
-                        wristAngle = (-Math.PI / 6) * (1 - Math.sin(progress * Math.PI));
+                    wristAngle = (-Math.PI / 6) * (1 - Math.sin(progress * Math.PI));
 
-                        // 궤적(검기) 이펙트 렌더링
-                        ctx.beginPath();
-                        const swingRadius = Math.hypot(weaponLength, pivotY);
-                        const tipOffsetAngle = Math.atan2(pivotY, weaponLength);
-                        ctx.arc(pCenterX, pCenterY, swingRadius, startAngle + tipOffsetAngle, currentAngle + tipOffsetAngle);
-                        ctx.strokeStyle = "rgba(255, 255, 255, 0.4)";
-                        ctx.lineWidth = 15;
-                        ctx.stroke();
-                    }
-
-                    ctx.save();
-                    ctx.translate(pCenterX, pCenterY);
-                    ctx.rotate(currentAngle);
-                    
-                    ctx.translate(pivotX, pivotY);
-                    ctx.rotate(wristAngle);
-                    
-                    ctx.fillStyle = "rgba(255, 255, 255, 0.8)";
-                    ctx.fillRect(0, -weaponWidth / 2, weaponLength, weaponWidth);
-                    
-                    ctx.strokeStyle = "red";
-                    ctx.lineWidth = 1.5;
-                    ctx.strokeRect(0, -weaponWidth / 2, weaponLength, weaponWidth);
-                    
+                    // 궤적(검기) 이펙트 렌더링
                     ctx.beginPath();
-                    ctx.arc(0, 0, 5, 0, Math.PI * 2);
-                    ctx.fillStyle = "white";
-                    ctx.fill();
-                    ctx.strokeStyle = "black";
-                    ctx.lineWidth = 1.5;
+                    const swingRadius = Math.hypot(weaponLength, pivotY);
+                    const tipOffsetAngle = Math.atan2(pivotY, weaponLength);
+                    ctx.arc(pCenterX, pCenterY, swingRadius, startAngle + tipOffsetAngle, currentAngle + tipOffsetAngle);
+                    ctx.strokeStyle = "rgba(255, 255, 255, 0.4)";
+                    ctx.lineWidth = 15;
                     ctx.stroke();
-
-                    ctx.restore();
                 }
+
+                ctx.save();
+                ctx.translate(pCenterX, pCenterY);
+                ctx.rotate(currentAngle);
+                
+                ctx.translate(pivotX, pivotY);
+                ctx.rotate(wristAngle);
+                
+                ctx.fillStyle = "rgba(255, 255, 255, 0.8)";
+                ctx.fillRect(0, -weaponWidth / 2, weaponLength, weaponWidth);
+                
+                ctx.strokeStyle = "red";
+                ctx.lineWidth = 1.5;
+                ctx.strokeRect(0, -weaponWidth / 2, weaponLength, weaponWidth);
+                
+                ctx.beginPath();
+                ctx.arc(0, 0, 5, 0, Math.PI * 2);
+                ctx.fillStyle = "white";
+                ctx.fill();
+                ctx.strokeStyle = "black";
+                ctx.lineWidth = 1.5;
+                ctx.stroke();
+
+                ctx.restore();
             }
 
             for (let i = floatingTexts.length - 1; i >= 0; i--) {
