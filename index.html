@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>리퀘 (Re-Quest) v0.2.44</title>
+    <title>리퀘 (Re-Quest) v0.2.45</title>
     
     <style>
         /* [MOD-001: 기본 화면 및 전체화면 캔버스 스타일] */
@@ -588,7 +588,7 @@
             wind: { id: "wind", name: "바람", type: "wind", cooldown: 3, bonusDmg: 8 }
         };
         
-        // 초기화 (총 회전수를 누적하는 rotationCount 변수 추가)
+        // 초기화 (동그라미 캐릭터 리워크 반영: 플레이어 크기를 반지름 기반으로 호환성 유지)
         if (!player.quickSlots) {
             player.quickSlots = [ MOCK_SKILLS.leap, MOCK_SKILLS.charge, MOCK_SKILLS.slam, MOCK_SKILLS.slash, MOCK_SKILLS.heal, MOCK_SKILLS.fire, MOCK_SKILLS.ice, MOCK_SKILLS.wind ];
             player.currentQuickSlotIdx = 0;
@@ -605,7 +605,6 @@
             if (gameState !== "playing" || player.dashTimer > 0) return;
             
             player.rotationCount++;
-            // 누적 회전수를 8로 나눈 나머지가 현재 진짜 슬롯 번호
             player.currentQuickSlotIdx = ((player.rotationCount % 8) + 8) % 8;
             player.aimingSkill = null; 
             updateQuickSlotUI();
@@ -614,7 +613,6 @@
         function updateQuickSlotUI() {
             const wheel = document.getElementById("quick-slot-wheel");
             if (wheel) {
-                // 인덱스가 아닌 누적 회전수(rotationCount)를 곱해서 무한으로 45도씩 돌아가게 만듦
                 let rotation = -(player.rotationCount * 45);
                 wheel.style.transform = `rotate(${rotation}deg)`;
             }
@@ -627,7 +625,6 @@
                 let skill = player.quickSlots[i];
                 inner.innerHTML = skill ? `<span style="color:white; font-size:11px; font-weight:bold;">${skill.name}</span>` : "";
 
-                // 휠이 돌아간 만큼 안쪽 텍스트를 역회전시켜 항상 똑바로 서있게 보정
                 let counterRotation = -(i * 45) + (player.rotationCount * 45);
                 inner.style.transform = `rotate(${counterRotation}deg)`;
 
@@ -644,18 +641,18 @@
         function aimCurrentQuickSlot() {
             const activeSkill = getActiveQuickSlotSkill();
             if (!activeSkill) {
-                addFloatingText(player.x + player.width/2, player.y - 10, "빈 슬롯입니다.", "gray");
+                addFloatingText(player.x, player.y - 10, "빈 슬롯입니다.", "gray");
                 return;
             }
 
             let cd = player.skillCooldowns[activeSkill.id] || 0;
             if (cd > 0) {
-                addFloatingText(player.x + player.width/2, player.y - 10, `${activeSkill.name} 쿨타임!`, "yellow");
+                addFloatingText(player.x, player.y - 10, `${activeSkill.name} 쿨타임!`, "yellow");
                 return;
             }
 
             player.aimingSkill = activeSkill.type;
-            addFloatingText(player.x + player.width/2, player.y - 30, `[${activeSkill.name}] 조준 중...`, "cyan");
+            addFloatingText(player.x, player.y - 30, `[${activeSkill.name}] 조준 중...`, "cyan");
         }
 
         function startSkillCooldown(skillId, cooldownSec) {
@@ -668,8 +665,8 @@
 
             let wMouseX = mouseX + camera.x;
             let wMouseY = mouseY + camera.y;
-            const pCenterX = player.x + player.width / 2;
-            const pCenterY = player.y + player.height / 2;
+            const pCenterX = player.x;
+            const pCenterY = player.y;
             const aimAngle = Math.atan2(wMouseY - pCenterY, wMouseX - pCenterX);
 
             if (player.aimingSkill === "leap_only") {
@@ -685,15 +682,15 @@
             }
             else if (player.aimingSkill === "jump_slam") {
                 startSkillCooldown(activeSkill.id, activeSkill.cooldown);
-                let targetX = Math.max(0, Math.min(WORLD_WIDTH - player.width, wMouseX - player.width / 2));
-                let targetY = Math.max(0, Math.min(WORLD_HEIGHT - player.height, wMouseY - player.height / 2));
+                let targetX = Math.max(15, Math.min(WORLD_WIDTH - 15, wMouseX));
+                let targetY = Math.max(15, Math.min(WORLD_HEIGHT - 15, wMouseY));
                 
-                if (!checkObstacleCollision(targetX, targetY)) {
+                if (!checkObstacleCollision(targetX - player.width/2, targetY - player.height/2)) {
                     player.x = targetX;
                     player.y = targetY;
                 }
-                const slamX = player.x + player.width / 2;
-                const slamY = player.y + player.height / 2;
+                const slamX = player.x;
+                const slamY = player.y;
                 addVisualEffect(slamX, slamY, 80, "red");
 
                 const totalDmg = (player.stats.str * 3) + activeSkill.bonusDmg;
@@ -717,8 +714,8 @@
                     player.dashDirX = dx / dist;
                     player.dashDirY = dy / dist;
                     player.dashTimer = Math.min(40, Math.ceil(dist / speed));
-                    player.targetX = wMouseX - player.width / 2;
-                    player.targetY = wMouseY - player.height / 2;
+                    player.targetX = wMouseX;
+                    player.targetY = wMouseY;
                     player.activeSkillType = "charge";
                     addVisualEffect(pCenterX, pCenterY, 40, "yellow");
                 }
@@ -747,7 +744,7 @@
                     player.currentHp = player.maxHp;
                     player.currentStamina = player.maxStamina;
                     player.currentMana = player.maxMana;
-                    addFloatingText(player.x + player.width/2, player.y - 30, "LEVEL UP!", "gold");
+                    addFloatingText(player.x, player.y - 30, "LEVEL UP!", "gold");
                 }
             }
         }
@@ -1012,7 +1009,7 @@
         }
         // [MOD-017-END]
 
-       // [MOD-018: 메인 게임 루프 (자동 공격 스테미나 제거 및 Shift 달리기 추가)]
+       // [MOD-018: 메인 게임 루프 (동그라미 캐릭터 및 접수원 삭제 반영)]
         function gameLoop() {
             ctx.clearRect(0, 0, canvas.width, canvas.height);
 
@@ -1020,8 +1017,9 @@
                 requestAnimationFrame(gameLoop); return; 
             }
 
-            const pCenterX = player.x + player.width / 2;
-            const pCenterY = player.y + player.height / 2;
+            const pCenterX = player.x;
+            const pCenterY = player.y;
+            const playerRadius = player.width / 2; // 캐릭터 크기 (반지름 15px)
             
             const activeSkill = typeof getActiveQuickSlotSkill === "function" ? getActiveQuickSlotSkill() : null;
 
@@ -1048,7 +1046,7 @@
                         }
                     }
 
-                    if (nextX <= 0 || nextX >= WORLD_WIDTH - player.width || nextY <= 0 || nextY >= WORLD_HEIGHT - player.height || checkObstacleCollision(nextX, nextY)) {
+                    if (nextX - playerRadius <= 0 || nextX + playerRadius >= WORLD_WIDTH || nextY - playerRadius <= 0 || nextY + playerRadius >= WORLD_HEIGHT || checkObstacleCollision(nextX - playerRadius, nextY - playerRadius)) {
                         player.dashTimer = 0;
                         nextX = player.x; 
                         nextY = player.y; 
@@ -1056,28 +1054,27 @@
 
                     if ((player.activeSkillType === "charge" || player.activeSkillType === "leap_attack") && currentMap === "dungeon" && typeof MAP_DATA !== "undefined" && MAP_DATA.dungeon.goblin.active) {
                         let gob = MAP_DATA.dungeon.goblin;
-                        if (checkRectCollision(nextX, nextY, player.width, player.height, gob.x - gob.size/2, gob.y - gob.size/2, gob.size, gob.size)) {
+                        if (Math.hypot(nextX - gob.x, nextY - gob.y) < playerRadius + gob.size/2) {
                             const dmg = (player.stats.str * 3) + (activeSkill ? activeSkill.bonusDmg : 0);
                             applyDamageToGoblin(dmg);
                         }
                     }
                 } else {
-                    let isMoving = keys["ArrowUp"] || keys["w"] || keys["ArrowDown"] || keys["s"] || keys["ArrowLeft"] || keys["a"] || keys["ArrowRight"] || keys["d"];
+                    let isMoving = keys["ArrowUp"] || keys["w"] || keys["s"] || keys["ArrowDown"] || keys["a"] || keys["ArrowLeft"] || keys["d"] || keys["ArrowRight"];
                     let currentSpeed = player.speed;
                     let isSprinting = false;
 
-                    // [추가] Shift 달리기 로직 (초당 1 스태미나 소모)
                     if (keys["Shift"] && isMoving && player.currentStamina >= 1) {
                         isSprinting = true;
-                        currentSpeed = player.speed * 1.6; // 달리기 속도 (기본속도의 1.6배)
+                        currentSpeed = player.speed * 1.6;
                         
                         player.sprintTimer = (player.sprintTimer || 0) + 1;
-                        if (player.sprintTimer >= 60) { // 60프레임(약 1초)당 스태미나 1 깎임
+                        if (player.sprintTimer >= 60) {
                             player.currentStamina -= 1;
                             player.sprintTimer = 0;
                         }
                     } else {
-                        player.sprintTimer = 0; // 안 달리면 타이머 초기화
+                        player.sprintTimer = 0;
                     }
 
                     if (keys["ArrowUp"] || keys["w"]) nextY -= currentSpeed;
@@ -1085,14 +1082,13 @@
                     if (keys["ArrowLeft"] || keys["a"]) nextX -= currentSpeed;
                     if (keys["ArrowRight"] || keys["d"]) nextX += currentSpeed;
 
-                    nextX = Math.max(0, Math.min(nextX, WORLD_WIDTH - player.width));
-                    nextY = Math.max(0, Math.min(nextY, WORLD_HEIGHT - player.height));
+                    nextX = Math.max(playerRadius, Math.min(nextX, WORLD_WIDTH - playerRadius));
+                    nextY = Math.max(playerRadius, Math.min(nextY, WORLD_HEIGHT - playerRadius));
 
-                    if (checkObstacleCollision(nextX, nextY)) {
+                    if (checkObstacleCollision(nextX - playerRadius, nextY - playerRadius)) {
                         nextX = player.x; nextY = player.y;
                     }
 
-                    // 스태미나 회복 로직 (달리는 중이 아닐 때만 회복)
                     if (!isSprinting && player.currentStamina < player.maxStamina) {
                         player.staminaRegenTimer++;
                         if (player.staminaRegenTimer >= 60) {
@@ -1100,36 +1096,32 @@
                             player.staminaRegenTimer = 0;
                         }
                     } else {
-                        player.staminaRegenTimer = 0; // 달릴 땐 자연 회복 중지
+                        player.staminaRegenTimer = 0;
                     }
                 }
 
                 player.x = nextX;
                 player.y = nextY;
 
-                // [수정] 범위 내 자동 공격 로직 (스태미나 소모 조건 완전 제거)
                 if (attackTimer > 0) attackTimer--;
 
                 if (attackTimer <= 0) { 
-                    const baseRange = 60; // 무기 기본 사거리
+                    const baseRange = 60; 
                     const totalDmg = (player.stats.str * 3) + 5; 
 
                     if (currentMap === "dungeon" && typeof MAP_DATA !== "undefined" && MAP_DATA.dungeon.goblin.active) {
                         const gob = MAP_DATA.dungeon.goblin;
                         let targetToAttack = null;
 
-                        // 1. 고정 타겟(락온) 우선 확인
                         if (player.lockedTarget && Math.hypot(player.lockedTarget.x - pCenterX, player.lockedTarget.y - pCenterY) <= baseRange + player.lockedTarget.size / 2) {
                             targetToAttack = player.lockedTarget;
                         } 
-                        // 2. 고정 타겟이 없거나 멀면, 사거리 내 가장 가까운 적 찾음
                         else if (Math.hypot(gob.x - pCenterX, gob.y - pCenterY) <= baseRange + gob.size / 2) {
                             targetToAttack = gob;
                         }
 
-                        // 타겟이 있다면 자동으로 데미지 입힘 (스태미나 소모 없음)
                         if (targetToAttack) {
-                            attackTimer = 30; // 자동 공격 쿨타임 (약 0.5초당 1타)
+                            attackTimer = 30; 
                             player.lastAttackAngle = Math.atan2(targetToAttack.y - pCenterY, targetToAttack.x - pCenterX);
                             applyDamageToGoblin(totalDmg);
                         }
@@ -1140,15 +1132,15 @@
                 player.x += player.knockbackDirX * 25;
                 player.y += player.knockbackDirY * 5;
                 
-                if (player.x <= 0 || player.x >= WORLD_WIDTH - player.width || player.y <= 0) {
-                    player.x = Math.max(0, Math.min(player.x, WORLD_WIDTH - player.width));
+                if (player.x <= playerRadius || player.x >= WORLD_WIDTH - playerRadius || player.y <= playerRadius) {
+                    player.x = Math.max(playerRadius, Math.min(player.x, WORLD_WIDTH - playerRadius));
                     gameState = "dead";
                     document.getElementById("deathUI").style.display = "flex";
                 }
             }
 
-            camera.x = player.x + player.width / 2 - canvas.width / 2;
-            camera.y = player.y + player.height / 2 - canvas.height / 2;
+            camera.x = player.x - canvas.width / 2;
+            camera.y = player.y - canvas.height / 2;
             camera.x = Math.max(0, Math.min(camera.x, WORLD_WIDTH - canvas.width));
             camera.y = Math.max(0, Math.min(camera.y, WORLD_HEIGHT - canvas.height));
 
@@ -1166,7 +1158,6 @@
             }
 
             if (currentMap === "guild" && typeof MAP_DATA !== "undefined") {
-                const rec = MAP_DATA.guild.receptionist;
                 const por = MAP_DATA.guild.portal;
                 const chs = MAP_DATA.guild.personalChest;
 
@@ -1174,15 +1165,6 @@
                 ctx.fillStyle = "white"; ctx.font = "bold 14px sans-serif"; 
                 ctx.textAlign = "center"; ctx.textBaseline = "middle";
                 ctx.fillText("포탈", por.x + por.w/2, por.y - 15);
-
-                ctx.fillStyle = rec.color; ctx.fillRect(rec.x, rec.y, rec.size, rec.size);
-                
-                const recY = rec.y - rec.size - 10;
-                ctx.fillStyle = "rgba(0, 0, 0, 0.6)"; ctx.fillRect(rec.x - 25, recY, 80, 16);
-                ctx.fillStyle = "white"; ctx.font = "bold 12px sans-serif"; 
-                ctx.textAlign = "center"; ctx.textBaseline = "middle";
-                ctx.fillText("접수원", rec.x + rec.size/2, recY + 8);
-                ctx.fillStyle = "red"; ctx.fillRect(rec.x - 25, recY + 18, 80, 3);
 
                 ctx.fillStyle = chs.color; ctx.fillRect(chs.x, chs.y, chs.w, chs.h);
                 ctx.strokeStyle = "#8B6508"; ctx.lineWidth = 3; ctx.strokeRect(chs.x, chs.y, chs.w, chs.h);
@@ -1239,8 +1221,14 @@
                 if (eff.timer <= 0) visualEffects.splice(i, 1);
             }
 
-            ctx.fillStyle = player.color;
-            ctx.fillRect(player.x, player.y, player.width, player.height);
+            // === [플레이어 렌더링: 파란색 동그라미 + 더 진한 파란색 테두리] ===
+            ctx.beginPath();
+            ctx.arc(player.x, player.y, playerRadius, 0, Math.PI * 2);
+            ctx.fillStyle = "#00a2ff"; // 밝은 파란색 채우기
+            ctx.fill();
+            ctx.lineWidth = 3;
+            ctx.strokeStyle = "#004488"; // 더 진한 파란색 테두리
+            ctx.stroke();
 
             // 무기 조준선 및 스킬 이펙트 렌더링
             if (gameState === "playing") {
