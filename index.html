@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>리퀘 (Re-Quest) v0.2.47</title>
+    <title>리퀘 (Re-Quest) v0.2.48</title>
     
     <style>
         /* [MOD-001: 기본 화면 및 전체화면 캔버스 스타일] */
@@ -1012,7 +1012,7 @@
         }
         // [MOD-017-END]
 
-     // [MOD-018: 메인 게임 루프 (임시 히트박스 및 스윙 궤적 반영)]
+     // [MOD-018: 메인 게임 루프 (안 보이는 팔과 무기 스윙 궤적 반영)]
         function gameLoop() {
             ctx.clearRect(0, 0, canvas.width, canvas.height);
 
@@ -1109,8 +1109,8 @@
                 if (attackTimer > 0) attackTimer--;
 
                 if (attackTimer <= 0) { 
-                    // [수정] 무기 길이(45)와 회전축 오프셋(27)을 더한 실제 도달 거리로 사거리 변경
-                    const baseRange = 72; 
+                    // 무기 길이와 팔의 위치를 고려한 실제 사거리
+                    const baseRange = 60; 
                     const totalDmg = (player.stats.str * 3) + 5; 
 
                     if (currentMap === "dungeon" && typeof MAP_DATA !== "undefined" && MAP_DATA.dungeon.goblin.active) {
@@ -1125,9 +1125,9 @@
                         }
 
                         if (targetToAttack) {
-                            attackTimer = 30; // 스윙 쿨타임 및 애니메이션 시간(30프레임)
+                            attackTimer = 30; 
                             player.lastAttackAngle = Math.atan2(targetToAttack.y - pCenterY, targetToAttack.x - pCenterX);
-                            applyDamageToGoblin(totalDmg); // 현재는 발동 즉시 타격(나중에 궤적 충돌로 고도화 예정)
+                            applyDamageToGoblin(totalDmg);
                         }
                     }
                 }
@@ -1225,7 +1225,7 @@
                 if (eff.timer <= 0) visualEffects.splice(i, 1);
             }
 
-            // === [플레이어 렌더링] ===
+            // === [플레이어 렌더링: 확대된 파란색 동그라미] ===
             ctx.beginPath();
             ctx.arc(player.x, player.y, playerRadius, 0, Math.PI * 2);
             ctx.fillStyle = "#00a2ff"; 
@@ -1234,7 +1234,7 @@
             ctx.strokeStyle = "#004488"; 
             ctx.stroke();
 
-            // [수정] 무기 조준선(기존 부채꼴 제거) 및 스윙 궤적 / 히트박스 렌더링
+            // === [안 보이는 팔 & 무기 히트박스 렌더링] ===
             if (gameState === "playing") {
                 let wMouseX = mouseX + camera.x;
                 let wMouseY = mouseY + camera.y;
@@ -1262,49 +1262,52 @@
                     ctx.strokeStyle = "gold"; ctx.lineWidth = 2; ctx.strokeRect(0, -chargeW / 2, chargeDist, chargeW); ctx.restore();
                 } 
                 else {
-                    // 기본 무기(검/도끼 스윙 계열) 설정
-                    const weaponLength = 45; // 무기 길이
-                    const weaponWidth = 10;  // 무기 두께
-                    const pivotOffset = playerRadius + 5; // 캐릭터 반경 밖 5px 지점 (회전축)
+                    // 무기(검/도끼 계열) 규격
+                    const weaponLength = 50; // 무기 길이
+                    const weaponWidth = 12;  // 무기 두께
+                    const pivotX = 0; // 캐릭터 몸통 중심축 (어깨선)
+                    const pivotY = playerRadius + 10; // 캐릭터 우측으로 10px 떨어진 위치 (안 보이는 오른손)
 
                     let currentAngle = aimAngle; // 평소엔 마우스 방향을 조준
                     let isSwinging = (attackTimer > 0 && player.lastAttackAngle !== undefined);
 
                     if (isSwinging) {
-                        // 스윙 진행률 (30프레임 기준 0.0 -> 1.0)
+                        // 스윙 애니메이션 (30프레임 동안 회전)
                         let progress = 1.0 - (attackTimer / 30); 
                         
-                        // 타겟 방향을 중심으로 약 140도(-70도 ~ +70도) 가량 휘두름
-                        let startAngle = player.lastAttackAngle - Math.PI / 2.5;
-                        let endAngle = player.lastAttackAngle + Math.PI / 2.5;
+                        // 타겟 방향을 중심으로 약 120도(-60도 ~ +60도) 범위로 궤도를 그림
+                        let startAngle = player.lastAttackAngle - Math.PI / 3;
+                        let endAngle = player.lastAttackAngle + Math.PI / 3;
                         
                         currentAngle = startAngle + (endAngle - startAngle) * progress;
 
-                        // 궤적(검기) 렌더링 - 무기 끝부분이 그리는 곡선 표시
+                        // 궤적(검기) 이펙트 렌더링
                         ctx.beginPath();
-                        ctx.arc(pCenterX, pCenterY, pivotOffset + weaponLength, startAngle, currentAngle);
-                        ctx.strokeStyle = "rgba(255, 255, 255, 0.6)";
-                        ctx.lineWidth = 3;
+                        const swingRadius = Math.hypot(weaponLength, pivotY);
+                        const tipOffsetAngle = Math.atan2(pivotY, weaponLength);
+                        ctx.arc(pCenterX, pCenterY, swingRadius, startAngle + tipOffsetAngle, currentAngle + tipOffsetAngle);
+                        ctx.strokeStyle = "rgba(255, 255, 255, 0.4)";
+                        ctx.lineWidth = 15;
                         ctx.stroke();
                     }
 
-                    // 회전축(pivotOffset)을 기준으로 한 히트박스(하얀 네모) 렌더링
+                    // 캔버스 중심을 캐릭터 중심으로 맞추고 각도 회전
                     ctx.save();
                     ctx.translate(pCenterX, pCenterY);
                     ctx.rotate(currentAngle);
                     
-                    // 무기 히트박스 본체
+                    // 무기 히트박스 (안 보이는 오른손 위치에서 앞을 향해 뻗음)
                     ctx.fillStyle = "rgba(255, 255, 255, 0.8)";
-                    ctx.fillRect(pivotOffset, -weaponWidth / 2, weaponLength, weaponWidth);
+                    ctx.fillRect(pivotX, pivotY - weaponWidth / 2, weaponLength, weaponWidth);
                     
                     // 무기 디버그용 붉은 테두리
                     ctx.strokeStyle = "red";
-                    ctx.lineWidth = 1;
-                    ctx.strokeRect(pivotOffset, -weaponWidth / 2, weaponLength, weaponWidth);
+                    ctx.lineWidth = 1.5;
+                    ctx.strokeRect(pivotX, pivotY - weaponWidth / 2, weaponLength, weaponWidth);
                     
-                    // 회전축 표시 (유저 기획안의 흰색 점)
+                    // 회전축 (유저 기획안의 하얀 점 = 오른손)
                     ctx.beginPath();
-                    ctx.arc(pivotOffset, 0, 4, 0, Math.PI * 2);
+                    ctx.arc(pivotX, pivotY, 5, 0, Math.PI * 2);
                     ctx.fillStyle = "white";
                     ctx.fill();
                     ctx.strokeStyle = "black";
