@@ -3,37 +3,42 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>리퀘 (Re-Quest) v0.2.492</title>
+    <title>리퀘 (Re-Quest) v0.2.5</title>
     
     <style>
-        /* [MOD-001: 기본 화면 및 전체화면 캔버스 스타일] */
+        /* [MOD-001: 기본 화면 및 컨테이너 스타일] */
+        /* [MOD-001-1: 전체 바디 및 캔버스 영역] */
+        /* 브라우저 기본 여백을 없애고 스크롤/터치 기본 동작을 막아 게임 화면에 집중하도록 설정합니다. */
         body { background-color: #222; color: white; font-family: sans-serif; margin: 0; overflow: hidden; touch-action: none; -webkit-user-select: none; user-select: none; }
-        h1 { display: none; } /* 전체화면을 위해 기존 텍스트 타이틀 숨김 */
+        h1 { display: none; } /* 게임 캔버스가 전체화면을 덮도록 기존 텍스트 타이틀을 숨김 처리합니다. */
+        
         #gameContainer { 
             position: absolute; 
-            top: 0; 
-            left: 0; 
-            width: 100vw; 
-            height: 100vh; 
-            margin: 0; 
-            border: none; /* 불필요한 테두리 제거 */
-            overflow: hidden; 
-            background-color: #2a2a2a; 
+            top: 0; left: 0; 
+            width: 100vw; height: 100vh; 
+            margin: 0; border: none; overflow: hidden; 
+            background-color: #2a2a2a; /* 캔버스 바깥 여백이 생길 경우 보여질 기본 배경색 */
         }
+        /* 마우스 커서를 조준선(crosshair)으로 변경하여 전투 몰입감을 높입니다. */
         canvas { display: block; width: 100%; height: 100%; cursor: crosshair; }
         /* [MOD-001-END] */
 
         /* [MOD-002: UI 레이어 및 팝업 공통 스타일] */
+        /* [MOD-002-1: 모달 배경 및 패널] */
+        /* 게임 화면을 덮는 반투명 검은색 배경 레이어입니다. z-index를 높여 최상단에 배치합니다. */
         .ui-layer { display: none; position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.85); z-index: 10; }
         .panel { padding: 15px; box-sizing: border-box; overflow-y: auto; }
+        
+        /* [MOD-002-2: 인벤토리 및 직업 리스트 아이템 디자인] */
         .item, .class-item { background: #444; padding: 10px; margin-bottom: 5px; border: 1px solid #777; cursor: pointer; border-radius: 4px; font-weight: bold; }
-        .item:hover { background: #555; }
+        .item:hover { background: #555; } /* 마우스 오버 시 밝아지는 효과 */
         .class-item:hover:not(.locked) { background: #555; }
-        .class-item.selected { border: 2px solid gold; background: #665500; }
-        .class-item.locked { background: #222; color: #555; border: 1px dashed #444; cursor: not-allowed; }
+        .class-item.selected { border: 2px solid gold; background: #665500; } /* 선택된 직업 강조 */
+        .class-item.locked { background: #222; color: #555; border: 1px dashed #444; cursor: not-allowed; } /* 스탯 부족으로 잠긴 직업 */
         /* [MOD-002-END] */
 
-       /* [MOD-003: 버튼 컨트롤 및 모바일 가상 패드(vmin 반응형) 스타일] */
+        /* [MOD-003: 버튼 컨트롤 및 모바일 가상 패드(vmin 반응형) 스타일] */
+        /* [MOD-003-1: 일반 버튼 및 텍스트] */
         .close-btn { position: absolute; top: 10px; right: 20px; padding: 5px 15px; background: red; color: white; border: none; cursor: pointer; font-weight: bold; z-index: 20; }
         .btn { padding: 8px 20px; background: #555; color: white; border: 1px solid #888; cursor: pointer; margin: 5px; font-weight: bold; border-radius: 4px; }
         .btn:hover:not(:disabled) { background: #777; }
@@ -41,11 +46,14 @@
         .nav-btn { padding: 10px; background: #222; color: white; border: 1px solid #666; cursor: pointer; width: 48%; }
         .nav-btn.active { background: #555; font-weight: bold; }
         #ccPlayerName { padding: 8px; font-size: 16px; width: 220px; background: #111; color: white; border: 1px solid #777; text-align: center; margin-bottom: 10px; }
+        
+        /* 캐릭터 생성 창의 스탯 조절 버튼 영역 */
         .stat-control-box { text-align: center; background: #111; padding: 5px; border-radius: 5px; border: 1px solid #444;}
         .stat-btn { background: #333; color: white; border: 1px solid #666; cursor: pointer; width: 25px; height: 25px; font-weight: bold; }
         .stat-btn:hover { background: #555; }
 
-        /* 가상 패드 UI */
+        /* [MOD-003-2: 모바일 가상 조이패드 및 버튼] */
+        /* 화면 크기(vmin)에 비례하여 크기가 변하는 터치 버튼 스타일입니다. */
         .vpad-btn { position: fixed; border-radius: 50%; background: rgba(0, 0, 0, 0.65); border: 2px solid rgba(255, 255, 255, 0.5); color: #fff; font-weight: bold; display: flex; align-items: center; justify-content: center; user-select: none; z-index: 9999; }
         .vpad-btn:active { background: rgba(255, 255, 255, 0.4); }
         
@@ -54,29 +62,30 @@
         #vpad-r { right: 5vmin; bottom: 25vmin; width: 11vmin; height: 11vmin; font-size: 2.5vmin; border-color: #ffaa00; }
         #vpad-e { right: 21vmin; bottom: 21vmin; width: 10vmin; height: 10vmin; font-size: 2.2vmin; border-color: #aaaaaa; }
         
+        /* 가상 조이스틱 배경 및 노브(손잡이) */
         #vpad-stick-base { position: fixed; left: 8vmin; bottom: 8vmin; width: 26vmin; height: 26vmin; border-radius: 50%; background: rgba(0, 0, 0, 0.6); border: 3px solid #00ffff; box-shadow: 0 0 10px rgba(0, 255, 255, 0.5); display: none; z-index: 9999; }
         #vpad-stick-knob { position: absolute; top: 25%; left: 25%; width: 50%; height: 50%; border-radius: 50%; background: #00ffff; box-shadow: 0 0 8px #ffffff; }
 
-        /* [추가] 방사형(Radial) 퀵슬롯 UI - 8칸 리볼버 회전 적용 */
+        /* [MOD-003-3: 방사형 8칸 리볼버 퀵슬롯 UI] */
         #quick-slot-wrapper {
             position: fixed; 
-            bottom: -8vmin; /* UI를 아래로 쑥 내려서 화면을 덜 가리도록 조정 (-8vmin) */
-            left: 50%; 
-            transform: translateX(-50%);
+            bottom: -8vmin; /* UI를 화면 하단으로 내려 시야 확보 */
+            left: 50%; transform: translateX(-50%);
             width: 50vmin; height: 26vmin; z-index: 9000;
-            overflow: hidden; pointer-events: none;
+            overflow: hidden; pointer-events: none; /* 클릭 이벤트 통과 */
         }
         #quick-slot-container {
             position: absolute; bottom: 0; left: 0; width: 50vmin; height: 25vmin;
-            border-radius: 25vmin 25vmin 0 0; 
+            border-radius: 25vmin 25vmin 0 0; /* 반원 형태 */
             background-color: rgba(255, 165, 0, 0.85); border: 3px solid #ffcc00; border-bottom: none;
             box-sizing: border-box; 
         }
         #quick-slot-wheel {
             position: absolute; bottom: 0; left: 50%;
             width: 36vmin; height: 36vmin; margin-left: -18vmin; margin-bottom: -18vmin;
-            border-radius: 50%; transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            border-radius: 50%; transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275); /* 회전 애니메이션 */
         }
+        /* 현재 슬롯을 가리키는 빨간 12시 고정 바늘 */
         .quick-slot-pointer {
             position: absolute; bottom: 0; left: 50%; transform: translateX(-50%);
             width: 0; height: 0; border-left: 2vmin solid transparent; border-right: 2vmin solid transparent;
@@ -88,11 +97,12 @@
             top: 50%; left: 50%; margin-top: -4.5vmin; margin-left: -4.5vmin;
             display: flex; align-items: center; justify-content: center; pointer-events: auto; cursor: pointer;
         }
+        /* 슬롯 내부 텍스트 컨테이너 (바퀴가 돌아도 글씨는 똑바로 서도록 카운터 회전) */
         .q-slot-inner {
             display: flex; align-items: center; justify-content: center; width: 100%; height: 100%;
             transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
         }
-        /* 8개 슬롯을 45도 간격으로 배치 */
+        /* 8개 슬롯을 45도 간격으로 원형 배치 */
         #q-slot-1 { transform: rotate(0deg) translateY(-17vmin); }
         #q-slot-2 { transform: rotate(45deg) translateY(-17vmin); }
         #q-slot-3 { transform: rotate(90deg) translateY(-17vmin); }
@@ -105,9 +115,9 @@
     </style>
 </head>
 <body>
-  <!-- [MOD-004: 타이틀 및 HTML 레이어] -->
+    <!-- [MOD-004: 오버레이 UI 및 캔버스 렌더링 영역] -->
+    <!-- [MOD-004-1: 모바일 가상 패드 및 방사형 퀵슬롯 HTML] -->
     <div id="vpad-container">
-        <!-- [추가] 방사형 퀵슬롯 HTML (8칸 리볼버 기능) -->
         <div id="quick-slot-wrapper">
             <div id="quick-slot-container"></div>
             <div class="quick-slot-pointer"></div>
@@ -132,12 +142,14 @@
 
     <h1>리퀘: 끝없는 성장</h1>
     
+    <!-- [MOD-004-2: 메인 게임 캔버스] -->
     <div id="gameContainer">
-        <!-- 캔버스는 가상 렌더링 크기를 1000x750으로 고정하되 화면비에 맞춰 자동 스케일링 -->
+        <!-- 내부 렌더링 크기는 1000x750 기준이며, JS를 통해 브라우저 해상도에 맞춰 스케일링 됨 -->
         <canvas id="gameCanvas" width="1000" height="750"></canvas>
     <!-- [MOD-004-END] -->
         
         <!-- [MOD-005: 길드 가입 신청서 (캐릭터 생성) UI] -->
+        <!-- [MOD-005-1: 스탯 분배 패널] -->
         <div id="charCreationUI" class="ui-layer" style="display: none; flex-direction: column; align-items: center; justify-content: center;">
             <div class="panel" style="width: 840px; height: 640px; background: #222; border: 2px solid #aaa; display: flex; flex-direction: column; align-items: center; justify-content: flex-start; position: relative;">
                 <h2 style="margin: 5px 0;">모험가 길드 가입 신청서</h2>
@@ -161,6 +173,7 @@
                         </div>
                     </div>
                     
+                    <!-- [MOD-005-2: 직업 선택 패널] -->
                     <div style="width: 48%; border-left: 1px solid #555; padding-left: 12px; display: flex; flex-direction: column;">
                         <h4 style="margin: 0 0 5px 0; color: gold;">직업 목록</h4>
                         <div id="ccClassList" style="height: 310px; overflow-y: auto; padding-right: 5px;"></div>
@@ -172,16 +185,20 @@
         <!-- [MOD-005-END] -->
 
         <!-- [MOD-006: 인벤토리 및 상태창 UI] -->
+        <!-- [MOD-006-1: 가방 및 장비 탭] -->
         <div id="inventoryUI" class="ui-layer" style="display: none; flex-direction: column;">
             <div style="width: 100%; padding: 10px; background: #111; display: flex; justify-content: space-around;">
                 <button id="tabInv" class="nav-btn active" onclick="switchTab('inv')">가방 / 장비</button>
                 <button id="tabStats" class="nav-btn" onclick="switchTab('stats')">능력치 정보</button>
                 <button class="close-btn" onclick="closeUI()">X</button>
             </div>
+            <!-- 인벤토리 뷰 (추후 그리드 시스템으로 교체 예정) -->
             <div id="viewInv" style="display: flex; height: 100%;">
                 <div class="panel" style="width: 33.3%; border-right: 2px solid #666;"><h3 style="margin-top:0;">장비창</h3><div id="equipList"></div></div>
                 <div class="panel" style="width: 66.7%;"><h3 style="margin-top:0;">가방</h3><div id="invBagList"></div></div>
             </div>
+            
+            <!-- [MOD-006-2: 캐릭터 상태 정보 탭] -->
             <div id="viewStats" class="panel" style="display: none; height: 100%; text-align: left; padding: 20px;">
                 <div style="display: flex; justify-content: space-around; align-items: flex-start;">
                     <div style="width: 40%;">
@@ -199,7 +216,7 @@
         </div>
         <!-- [MOD-006-END] -->
 
-        <!-- [MOD-007: 개인 창고 UI] -->
+        <!-- [MOD-007: 개인 창고 UI (추후 그리드 시스템으로 연동 예정)] -->
         <div id="storageUI" class="ui-layer" style="display: none; flex-direction: column;">
             <div style="width: 100%; padding: 10px; background: #111; text-align: center;">
                 <h2 style="color: gold; margin: 0;">개인 창고 <span style="font-size: 14px; color: gray;">(타인 접근 불가)</span></h2>
@@ -212,7 +229,8 @@
         </div>
         <!-- [MOD-007-END] -->
 
-        <!-- [MOD-008: NPC 메뉴 및 사망 모달] -->
+        <!-- [MOD-008: NPC 메뉴 및 사망 모달 팝업] -->
+        <!-- 접수원, 포탈 등 NPC 클릭 시 뜨는 인터랙션 메뉴 -->
         <div id="npcMenuUI" class="ui-layer" style="display: none; justify-content: center; align-items: center;">
             <div class="panel" style="background: #222; border: 2px solid #aaa; min-width: 300px;">
                 <h2 id="npcMenuTitle" style="color: gold; margin-top:0;">메뉴</h2>
@@ -221,6 +239,7 @@
             </div>
         </div>
 
+        <!-- 체력이 0이 되었을 때 표시되는 데스 스크린 -->
         <div id="deathUI" class="ui-layer" style="display: none; flex-direction: column; justify-content: center; align-items: center; background: rgba(150, 0, 0, 0.7);">
             <h1 style="color: white; font-size: 50px;">사망하셨습니다.</h1>
             <h3 style="color: lightgray;">접수원은 매우 강합니다...</h3>
@@ -229,20 +248,23 @@
         <!-- [MOD-008-END] -->
     </div>
 
-    <!-- [MOD-009: 외부 데이터 스크립트 연결] -->
+    <!-- [MOD-009: 외부 데이터 스크립트 파일 연결] -->
+    <!-- 맵 좌표 데이터 및 직업 스탯 데이터 (현재 HTML 환경 내엔 생략됨) -->
     <script src="data/maps.js"></script>
     <script src="data/jobs.js"></script>
     <!-- [MOD-009-END] -->
 
     <script>
-     // [MOD-010: 엔진 Setup 및 월드/카메라/게임 데이터 변수]
+        // [MOD-010: 게임 엔진 초기화 및 전역 변수 선언]
+        // [MOD-010-1: 캔버스 및 카메라 설정]
         const canvas = document.getElementById("gameCanvas");
         const ctx = canvas.getContext("2d");
 
-        const WORLD_WIDTH = 3000;
-        const WORLD_HEIGHT = 3000;
-        let camera = { x: 0, y: 0, width: 1000, height: 750 };
+        const WORLD_WIDTH = 3000;  // 전체 월드의 가로 크기
+        const WORLD_HEIGHT = 3000; // 전체 월드의 세로 크기
+        let camera = { x: 0, y: 0, width: 1000, height: 750 }; // 카메라 뷰포트 영역
 
+        // 창 크기 변경 시 캔버스 해상도를 동기화하여 깨짐 방지
         function resizeCanvas() {
             canvas.width = window.innerWidth;
             canvas.height = window.innerHeight;
@@ -252,51 +274,55 @@
         window.addEventListener('resize', resizeCanvas);
         resizeCanvas();
 
-        let gameState = "playing"; 
-        let currentMap = "guild";
+        // [MOD-010-2: 게임 상태 및 플레이어 데이터 객체]
+        let gameState = "playing"; // 현재 게임 상태 (playing, inventory, charCreation, npcMenu, dead 등)
+        let currentMap = "guild";  // 현재 위치한 맵 이름
 
         let player = {
             name: "방랑자",
-            x: 500, y: 500, width: 30, height: 30, color: "cyan", speed: 5,
-            stats: { hp: 3, str: 3, dex: 3, mana: 3, stamina: 3, charm: 3 },
+            x: 500, y: 500, width: 30, height: 30, color: "cyan", speed: 5, // 기본 위치 및 렌더링 정보 (width/height는 추후 44로 덮어씌워짐)
+            stats: { hp: 3, str: 3, dex: 3, mana: 3, stamina: 3, charm: 3 }, // 기본 스탯
             job: "무소속", 
-            acquiredJobs: [],
+            acquiredJobs: [], // 습득한 직업 목록
             currentSkillIdx: 0,
-            skillCooldowns: {},
-            level: 1, exp: 0, maxExp: 100,
-            maxHp: 9, currentHp: 9,
-            maxStamina: 9, currentStamina: 9, staminaRegenTimer: 0,
-            maxMana: 9, currentMana: 9,
-            knockbackDirX: 0, knockbackDirY: 0,
-            dashSpeed: 0, dashDirX: 0, dashDirY: 0, dashTimer: 0,
-            targetX: 0, targetY: 0,
-            activeSkillType: null,
-            aimingSkill: null, // <-- [해결] 콤마 추가!
-            currentQuickSlotIdx: 0,
-            lockedTarget: null
+            skillCooldowns: {}, // 스킬별 쿨타임 관리 객체
+            level: 1, exp: 0, maxExp: 100, // 레벨업 관련 경험치
+            maxHp: 9, currentHp: 9, // 체력
+            maxStamina: 9, currentStamina: 9, staminaRegenTimer: 0, // 달리기 및 스킬에 소모되는 스태미나
+            maxMana: 9, currentMana: 9, // 마나
+            knockbackDirX: 0, knockbackDirY: 0, // 피격 시 넉백 방향
+            dashSpeed: 0, dashDirX: 0, dashDirY: 0, dashTimer: 0, // 돌진(Charge) 등 이동기 상태
+            targetX: 0, targetY: 0, // 이동기 목표 좌표
+            activeSkillType: null, // 현재 발동 중인 스킬 종류
+            aimingSkill: null, // 마우스 우클릭으로 조준 중인 스킬
+            currentQuickSlotIdx: 0, // 8칸 퀵슬롯 중 현재 활성화된 인덱스
+            lockedTarget: null // 좌클릭으로 고정(락온)한 적 객체
         };
 
-        let quest = { active: false, target: 10, current: 0 };
-        let floatingTexts = [];
-        let visualEffects = [];
-        let inventory = []; 
-        let equipment = []; 
-        let personalStorage = []; 
+        // [MOD-010-3: 시스템, 퀘스트, 이펙트 등 전역 관리 변수]
+        let quest = { active: false, target: 10, current: 0 }; // 퀘스트 진행 상태
+        let floatingTexts = []; // 데미지, 타겟팅 텍스트 등 공중에 뜨는 글자 관리
+        let visualEffects = []; // 스킬 타격 이펙트 (원형 파티클 등) 관리
+        let inventory = []; // 플레이어 가방 (추후 그리드 시스템 연동)
+        let equipment = []; // 장착 중인 장비
+        let personalStorage = []; // 창고 보관 아이템
         
-        let totalFreePoints = 30; 
-        let tempSelectedJobs = [];
+        let totalFreePoints = 30; // 캐릭터 생성 시 주어지는 잔여 스탯 포인트
+        let tempSelectedJobs = []; // 캐릭터 생성 시 임시로 선택한 직업 목록
 
-        let mouseX = 0, mouseY = 0; 
-        let attackTimer = 0;
-        let keys = {};
+        let mouseX = 0, mouseY = 0; // 월드 좌표계 기준 마우스 위치
+        let attackTimer = 0; // 기본 공격 쿨타임 및 무기 스윙 애니메이션 프레임 제어
+        let keys = {}; // 키보드 입력 상태 저장 객체
         const statKeys = ["hp", "str", "dex", "mana", "stamina", "charm"];
         // [MOD-010-END]
         
-        // [MOD-011: 직업 및 스킬 정보 반환 유틸리티]
-      
+        // [MOD-011: 직업 및 스킬 정보 반환 (외부 js 연동 영역)]
+        // 외부 파일(jobs.js)에서 데이터를 불러올 공간입니다.
         // [MOD-011-END]
 
-        // [MOD-012: NPC 상호작용 및 게임 진행 로직]
+        // [MOD-012: NPC 상호작용 및 맵 이동 이벤트 처리]
+        // [MOD-012-1: NPC 메뉴 열기 및 닫기]
+        // 길드 내 오브젝트(접수원, 포탈) 클릭 시 팝업을 띄우는 로직입니다.
         function openNPCMenu(type) {
             gameState = "npcMenu";
             const ui = document.getElementById("npcMenuUI");
@@ -325,12 +351,14 @@
         }
 
         function closeNPCMenu() {
-            gameState = "playing";
+            gameState = "playing"; // 메뉴를 닫고 조작 권한 반환
             document.getElementById("npcMenuUI").style.display = "none";
         }
 
+        // [MOD-012-2: 대화, 공격, 퀘스트 수락 및 부활 액션]
         function talkReceptionist() { openNPCMenu('receptionist_talk'); }
 
+        // 접수원을 공격하면 즉사 후 뒤로 밀려나는 연출(knockback)을 발생시킵니다.
         function attackReceptionist() {
             closeNPCMenu();
             addFloatingText(player.x, player.y, "9999", "red");
@@ -340,12 +368,14 @@
             gameState = "knockback";
         }
 
+        // 데스 스크린에서 '길드에서 부활하기' 버튼 클릭 시 스탯을 모두 회복시키고 길드 중앙으로 좌표를 옮깁니다.
         function respawn() {
             player.currentHp = player.maxHp;
             player.currentStamina = player.maxStamina;
             player.currentMana = player.maxMana;
             player.x = 500; player.y = 500;
             currentMap = "guild";
+            // 던전에 있던 몬스터(고블린)의 상태를 비활성화(어그로 해제) 시킵니다.
             if (typeof MAP_DATA !== "undefined" && MAP_DATA.dungeon) {
                 MAP_DATA.dungeon.goblin.active = false;
             }
@@ -362,9 +392,10 @@
             closeNPCMenu();
         }
 
+        // 포탈을 타고 던전으로 진입할 때 몬스터를 활성화시키고 좌표를 재설정합니다.
         function enterDungeon() {
             currentMap = "dungeon";
-            player.x = 1500; player.y = 1500; // 던전은 맵 중앙 부근에서 시작
+            player.x = 1500; player.y = 1500; 
             if (typeof MAP_DATA !== "undefined" && MAP_DATA.dungeon) {
                 MAP_DATA.dungeon.goblin.hp = MAP_DATA.dungeon.goblin.maxHp; 
                 MAP_DATA.dungeon.goblin.x = 1500; MAP_DATA.dungeon.goblin.y = 1200;
@@ -376,13 +407,15 @@
         }
         // [MOD-012-END]
 
-        // [MOD-013: 개인 창고 UI 로직]
+        // [MOD-013: 개인 창고 보관/꺼내기 로직]
+        // [MOD-013-1: 텍스트 기반 창고 UI 렌더링 (그리드화 전단계)]
         function openStorage() {
             gameState = "storage";
             document.getElementById("storageUI").style.display = "flex";
             renderStorageUI();
         }
 
+        // 인벤토리 배열과 창고 배열 사이의 데이터를 클릭 시 스왑(Push & Splice)하여 이동시킵니다.
         function renderStorageUI() {
             const invDiv = document.getElementById("storageInvList");
             const boxDiv = document.getElementById("storageBoxList");
@@ -404,25 +437,28 @@
         }
         // [MOD-013-END]
 
-        // [MOD-014: 캐릭터 생성(길드 가입) 로직 및 UI]
+        // [MOD-014: 캐릭터 생성(스탯 분배 및 직업 선택) 로직]
+        // [MOD-014-1: 육각형 레이더 차트 렌더링]
         function openCharCreation() {
             closeNPCMenu();
             gameState = "charCreation";
             document.getElementById("charCreationUI").style.display = "flex";
-            tempSelectedJobs = [...player.acquiredJobs];
+            tempSelectedJobs = [...player.acquiredJobs]; // 기존 직업 백업
             updateCharCreationUI();
         }
 
+        // 캔버스 Context를 이용해 플레이어 스탯(6가지)을 오각형/육각형 그래프 척도로 시각화합니다.
         function drawRadarChart(canvasId) {
             const rc = document.getElementById(canvasId);
             if (!rc) return;
             const rctx = rc.getContext("2d");
             const w = rc.width, h = rc.height, cx = w / 2, cy = h / 2;
-            const maxR = cx - 75; 
-            const maxStat = 25; 
+            const maxR = cx - 75; // 반지름 최대치 지정 (여백 확보)
+            const maxStat = 25; // 차트 끝부분에 도달하는 최대 스탯 상한
             rctx.clearRect(0, 0, w, h);
             const labels = ["체력", "힘", "민첩", "마나", "스테미나", "매력"];
 
+            // 1. 거미줄 바탕선 그리기
             rctx.strokeStyle = "#555"; rctx.lineWidth = 1;
             for(let step = 1; step <= 4; step++) {
                 let r = maxR * (step / 4);
@@ -435,6 +471,7 @@
                 rctx.closePath(); rctx.stroke();
             }
 
+            // 2. 방사형 축선 및 라벨 텍스트 그리기
             for(let i=0; i<6; i++) {
                 let angle = (Math.PI / 3) * i - (Math.PI / 2);
                 rctx.beginPath();
@@ -449,6 +486,7 @@
                 rctx.fillText(`${labels[i]}: ${player.stats[statKeys[i]]}`, lx, ly);
             }
 
+            // 3. 현재 스탯을 나타내는 다각형 영역 색칠하기
             rctx.fillStyle = "rgba(255, 215, 0, 0.5)"; 
             rctx.strokeStyle = "gold"; rctx.lineWidth = 2;
             rctx.beginPath();
@@ -462,6 +500,8 @@
             rctx.closePath(); rctx.fill(); rctx.stroke();
         }
 
+        // [MOD-014-2: 스탯 증감 및 UI 업데이트]
+        // 포인트 잔여량과 최소 한계치(3)를 검사하여 스탯을 더하거나 뺍니다.
         function adjustStat(stat, amount) {
             if (amount > 0 && totalFreePoints > 0) {
                 player.stats[stat]++;
@@ -484,6 +524,8 @@
             checkStartBtn();
         }
 
+        // [MOD-014-3: 직업 요구사항 확인 및 토글]
+        // 클릭한 직업의 스탯 요구치(req)를 확인하고 만족하면 배열에 추가/제거합니다.
         function toggleJob(job) {
             let targetVal = job.reqVal || 6;
             let meetsReq = job.req.every(reqStat => player.stats[reqStat] >= targetVal);
@@ -501,6 +543,7 @@
                 }
                 tempSelectedJobs.splice(idx, 1);
             } else {
+                // 상위 직업(기사)과 하위 직업(견습 기사)의 상호 배제 처리
                 if (job.name === "기사") {
                     let kIdx = tempSelectedJobs.indexOf("견습 기사");
                     if (kIdx > -1) tempSelectedJobs.splice(kIdx, 1);
@@ -513,6 +556,7 @@
             updateCharCreationUI();
         }
 
+        // 직업이 최소 1개 선택되었을 때만 '가입 완료' 버튼을 활성화합니다.
         function checkStartBtn() {
             const btn = document.getElementById("ccStartBtn");
             if (tempSelectedJobs.length > 0) {
@@ -524,33 +568,38 @@
             }
         }
 
+        // JOB_DATA를 순회하며 충족 여부에 따라 CSS 클래스(locked, selected 등)를 입혀 리스트 렌더링
         function renderClassList() {
             const listDiv = document.getElementById("ccClassList");
             listDiv.innerHTML = "";
             
-            JOB_DATA.forEach(job => {
-                let targetVal = job.reqVal || 6;
-                let meetsReq = job.req.every(reqStat => player.stats[reqStat] >= targetVal);
-                let isSelected = tempSelectedJobs.includes(job.name);
+            if (typeof JOB_DATA !== "undefined") {
+                JOB_DATA.forEach(job => {
+                    let targetVal = job.reqVal || 6;
+                    let meetsReq = job.req.every(reqStat => player.stats[reqStat] >= targetVal);
+                    let isSelected = tempSelectedJobs.includes(job.name);
 
-                let div = document.createElement("div");
-                div.className = "class-item";
-                
-                if (isSelected) {
-                    div.classList.add("selected");
-                    div.innerHTML = `<span style='color:gold;'>[보유 중]</span> ${job.name} <br><small style="color:white;">R스킬: ${job.skill.name}</small>`;
-                } else if (!meetsReq && job.req.length > 0) {
-                    div.classList.add("locked");
-                    div.innerHTML = `<span style="color:gray;">[조건 미달]</span> ${job.name} <br><small>${job.desc}</small>`;
-                } else {
-                    div.innerHTML = `<span style='color:cyan;'>[습득 가능]</span> ${job.name} <br><small style="color:lightgray;">${job.desc}</small>`;
-                }
-                
-                div.onclick = () => toggleJob(job);
-                listDiv.appendChild(div);
-            });
+                    let div = document.createElement("div");
+                    div.className = "class-item";
+                    
+                    if (isSelected) {
+                        div.classList.add("selected");
+                        div.innerHTML = `<span style='color:gold;'>[보유 중]</span> ${job.name} <br><small style="color:white;">R스킬: ${job.skill.name}</small>`;
+                    } else if (!meetsReq && job.req.length > 0) {
+                        div.classList.add("locked");
+                        div.innerHTML = `<span style="color:gray;">[조건 미달]</span> ${job.name} <br><small>${job.desc}</small>`;
+                    } else {
+                        div.innerHTML = `<span style='color:cyan;'>[습득 가능]</span> ${job.name} <br><small style="color:lightgray;">${job.desc}</small>`;
+                    }
+                    
+                    div.onclick = () => toggleJob(job);
+                    listDiv.appendChild(div);
+                });
+            }
         }
 
+        // [MOD-014-4: 스탯 최종 반영]
+        // 가입 완료 버튼을 누르면 스탯을 기반으로 최대 HP/MP/ST를 계산하여 세팅합니다.
         function finishGuildJoin() {
             const nameInput = document.getElementById("ccPlayerName").value.trim();
             if (!nameInput) { alert("캐릭터 이름을 입력해주세요!"); return; }
@@ -569,14 +618,14 @@
             player.maxMana = player.stats.mana * 3;
             player.currentMana = player.maxMana;
 
-            gameState = "playing";
+            gameState = "playing"; // 게임 상태 복귀
             document.getElementById("charCreationUI").style.display = "none";
         }
         // [MOD-014-END]
 
-       /// [MOD-015: 스킬 시스템 및 전투 연산 로직 (직업 제거 및 8칸 퀵슬롯 기반)]
-        
-        // 8칸 테스트용 꽉 찬 스킬 데이터
+        // [MOD-015: 스킬 시스템 및 전투 연산 로직]
+        // [MOD-015-1: 스킬 데이터 모형 및 퀵슬롯 초기화]
+        // (추후 에디터에서 JSON 형태로 분리될 데이터 구조입니다.)
         const MOCK_SKILLS = {
             leap: { id: "leap", name: "도약", type: "leap_only", cooldown: 2, bonusDmg: 0 },
             charge: { id: "charge", name: "돌진", type: "charge", cooldown: 3, bonusDmg: 10 },
@@ -588,6 +637,7 @@
             wind: { id: "wind", name: "바람", type: "wind", cooldown: 3, bonusDmg: 8 }
         };
         
+        // 8칸 퀵슬롯이 비어있다면 테스트용 스킬로 가득 채워 초기화합니다.
         if (!player.quickSlots) {
             player.quickSlots = [ MOCK_SKILLS.leap, MOCK_SKILLS.charge, MOCK_SKILLS.slam, MOCK_SKILLS.slash, MOCK_SKILLS.heal, MOCK_SKILLS.fire, MOCK_SKILLS.ice, MOCK_SKILLS.wind ];
             player.currentQuickSlotIdx = 0;
@@ -595,7 +645,7 @@
             player.lockedTarget = null;
         }
 
-        // 캐릭터 크기 키우기에 맞춰 플레이어 객체의 width/height도 44로 동기화
+        // 리워크된 캐릭터 동그라미 크기에 맞춰 충돌 판정용 width/height 44px로 덮어쓰기
         player.width = 44;
         player.height = 44;
 
@@ -603,19 +653,21 @@
             return player.quickSlots[player.currentQuickSlotIdx];
         }
 
+        // [MOD-015-2: 리볼버 UI 회전 로직]
+        // R키를 누를 때마다 누적 카운트를 올려 바퀴를 무한 회전시킵니다. (CSS transform 대응)
         function handleRKey() {
             if (gameState !== "playing" || player.dashTimer > 0) return;
             
-            player.rotationCount++;
-            player.currentQuickSlotIdx = ((player.rotationCount % 8) + 8) % 8;
-            player.aimingSkill = null; 
-            updateQuickSlotUI();
+            player.rotationCount++; // 회전수 누적
+            player.currentQuickSlotIdx = ((player.rotationCount % 8) + 8) % 8; // 음수 방어 및 8칸 인덱스 보정
+            player.aimingSkill = null; // 무기(스킬)가 변경되면 조준 상태 해제
+            updateQuickSlotUI(); // DOM 요소 업데이트
         }
 
         function updateQuickSlotUI() {
             const wheel = document.getElementById("quick-slot-wheel");
             if (wheel) {
-                let rotation = -(player.rotationCount * 45);
+                let rotation = -(player.rotationCount * 45); // 1회전당 반시계로 45도 회전
                 wheel.style.transform = `rotate(${rotation}deg)`;
             }
 
@@ -627,9 +679,11 @@
                 let skill = player.quickSlots[i];
                 inner.innerHTML = skill ? `<span style="color:white; font-size:11px; font-weight:bold;">${skill.name}</span>` : "";
 
+                // 바퀴가 돌아도 텍스트 글씨는 항상 똑바로 서있도록 역방향(Counter-Rotation) 회전 적용
                 let counterRotation = -(i * 45) + (player.rotationCount * 45);
                 inner.style.transform = `rotate(${counterRotation}deg)`;
 
+                // 현재 선택된 슬롯(12시 바늘 위치)은 빨간 테두리로 강조
                 if (i === player.currentQuickSlotIdx) {
                     slot.style.border = "3px solid #ff3333";
                     slot.style.background = "rgba(255, 50, 50, 0.6)";
@@ -640,27 +694,22 @@
             }
         }
 
+        // [MOD-015-3: 스킬 조준 및 발동 로직]
+        // 마우스 우클릭 시 현재 선택된 슬롯의 스킬 쿨타임을 점검하고 조준(aiming) 상태로 전환합니다.
         function aimCurrentQuickSlot() {
             const activeSkill = getActiveQuickSlotSkill();
-            if (!activeSkill) {
-                addFloatingText(player.x, player.y - 10, "빈 슬롯입니다.", "gray");
-                return;
-            }
-
+            if (!activeSkill) { addFloatingText(player.x, player.y - 10, "빈 슬롯입니다.", "gray"); return; }
             let cd = player.skillCooldowns[activeSkill.id] || 0;
-            if (cd > 0) {
-                addFloatingText(player.x, player.y - 10, `${activeSkill.name} 쿨타임!`, "yellow");
-                return;
-            }
-
+            if (cd > 0) { addFloatingText(player.x, player.y - 10, `${activeSkill.name} 쿨타임!`, "yellow"); return; }
             player.aimingSkill = activeSkill.type;
             addFloatingText(player.x, player.y - 30, `[${activeSkill.name}] 조준 중...`, "cyan");
         }
 
         function startSkillCooldown(skillId, cooldownSec) {
-            player.skillCooldowns[skillId] = cooldownSec * 60;
+            player.skillCooldowns[skillId] = cooldownSec * 60; // 60프레임 = 1초
         }
 
+        // 마우스 좌클릭 시 조준 중이던 스킬을 마우스 커서 위치(월드 좌표)로 발사/이동시킵니다.
         function executeAimingSkill() {
             const activeSkill = getActiveQuickSlotSkill();
             if (!activeSkill) return false;
@@ -672,6 +721,7 @@
             const aimAngle = Math.atan2(wMouseY - pCenterY, wMouseX - pCenterX);
             const playerRadius = player.width / 2;
 
+            // 이동계 스킬 1: 도약 (마우스 방향으로 짧고 빠르게 전진)
             if (player.aimingSkill === "leap_only") {
                 startSkillCooldown(activeSkill.id, activeSkill.cooldown);
                 player.dashSpeed = 15;
@@ -683,20 +733,23 @@
                 player.aimingSkill = null;
                 return true;
             }
+            // 이동+공격계 스킬: 강타 (마우스 커서 지점으로 텔레포트하듯 점프 후 착지 딜레이/데미지)
             else if (player.aimingSkill === "jump_slam") {
                 startSkillCooldown(activeSkill.id, activeSkill.cooldown);
                 let targetX = Math.max(playerRadius, Math.min(WORLD_WIDTH - playerRadius, wMouseX));
                 let targetY = Math.max(playerRadius, Math.min(WORLD_HEIGHT - playerRadius, wMouseY));
                 
+                // 장애물이 없다면 즉시 좌표 이동
                 if (!checkObstacleCollision(targetX - playerRadius, targetY - playerRadius)) {
                     player.x = targetX;
                     player.y = targetY;
                 }
                 const slamX = player.x;
                 const slamY = player.y;
-                addVisualEffect(slamX, slamY, 80, "red");
+                addVisualEffect(slamX, slamY, 80, "red"); // 붉은 파장 생성
 
                 const totalDmg = (player.stats.str * 3) + activeSkill.bonusDmg;
+                // 고블린이 범위 내에 있다면 광역 데미지
                 if (currentMap === "dungeon" && typeof MAP_DATA !== "undefined" && MAP_DATA.dungeon.goblin.active) {
                     if (Math.hypot(MAP_DATA.dungeon.goblin.x - slamX, MAP_DATA.dungeon.goblin.y - slamY) < 80 + MAP_DATA.dungeon.goblin.size / 2) {
                         applyDamageToGoblin(totalDmg);
@@ -705,6 +758,7 @@
                 player.aimingSkill = null;
                 return true;
             } 
+            // 이동+공격계 스킬: 돌진 (마우스 커서 방향으로 긴 거리를 쭉 밀고 나감)
             else if (player.aimingSkill === "charge") {
                 startSkillCooldown(activeSkill.id, activeSkill.cooldown);
                 const dx = wMouseX - pCenterX;
@@ -728,22 +782,26 @@
             return false;
         }
 
+        // [MOD-015-4: 타격 및 경험치/레벨업 로직]
         function applyDamageToGoblin(dmg) {
             let gob = MAP_DATA.dungeon.goblin;
             gob.hp -= dmg;
-            addFloatingText(gob.x, gob.y - gob.size, dmg, "orange");
+            addFloatingText(gob.x, gob.y - gob.size, dmg, "orange"); // 딜 캐치 텍스트
+            
+            // 고블린 체력 소진 시 맵 랜덤 위치에 즉시 리스폰 및 경험치 처리
             if (gob.hp <= 0) {
                 gob.hp = gob.maxHp;
                 gob.x = Math.random() * (WORLD_WIDTH - 200) + 100;
                 gob.y = Math.random() * (WORLD_HEIGHT - 200) + 100;
                 
-                player.lockedTarget = null;
+                player.lockedTarget = null; // 죽었으므로 락온 해제
 
                 player.exp += gob.expReward;
+                // 경험치 임계치 도달 시 레벨업 및 상태 풀 회복
                 if (player.exp >= player.maxExp) {
                     player.level++;
                     player.exp -= player.maxExp;
-                    player.maxExp = Math.floor(player.maxExp * 1.5);
+                    player.maxExp = Math.floor(player.maxExp * 1.5); // 다음 요구 경험치 1.5배 증가
                     player.currentHp = player.maxHp;
                     player.currentStamina = player.maxStamina;
                     player.currentMana = player.maxMana;
@@ -752,19 +810,23 @@
             }
         }
 
+        // 지정된 좌표에 15프레임간 지속되며 크기가 줄어드는 이펙트 추가
         function addVisualEffect(x, y, radius, color) {
             visualEffects.push({ x: x, y: y, radius: radius, color: color, alpha: 0.6, timer: 15 });
         }
         
-        setTimeout(updateQuickSlotUI, 100);
+        setTimeout(updateQuickSlotUI, 100); // 로드 시 UI 강제 갱신
         // [MOD-015-END]
         
-   // [MOD-016: 입력 이벤트 리스너 (조작계 변경 및 타겟팅 전용)]
+        // [MOD-016: 입력 이벤트 리스너]
+        // [MOD-016-1: 키보드 단축키 (숫자 슬롯 지정 및 인벤토리/R키)]
+        // 숫자 키입력(1~8) 시 R키 누적 회전값(rotationCount)을 계산하여 목표 슬롯으로 정확하게 점프시킵니다.
         function selectQuickSlot(index) {
             if (gameState !== "playing" || player.dashTimer > 0) return;
             
             let currentIdx = ((player.rotationCount % 8) + 8) % 8;
             let diff = index - currentIdx;
+            // 가장 가까운 방향으로 회전하기 위한 최단거리 보정 로직
             if (diff < -4) diff += 8;
             if (diff > 4) diff -= 8;
             
@@ -776,7 +838,7 @@
 
         window.addEventListener("keydown", (e) => {
             keys[e.key] = true;
-            // [버그 수정] Shift 키 조합으로 인해 대문자가 입력되더라도 소문자 키도 같이 true 처리
+            // [버그 수정] Shift와 동시 입력 시 대문자로 들어오는 키맵 방어 (소문자도 무조건 true)
             if (e.key.length === 1) keys[e.key.toLowerCase()] = true;
 
             if (e.key.toLowerCase() === 'r') handleRKey();
@@ -791,22 +853,20 @@
             }
             
             if (gameState === "playing") {
-                if (e.key >= '1' && e.key <= '8') {
-                    selectQuickSlot(parseInt(e.key) - 1);
-                }
+                if (e.key >= '1' && e.key <= '8') { selectQuickSlot(parseInt(e.key) - 1); }
             }
         });
 
         window.addEventListener("keyup", (e) => { 
             keys[e.key] = false; 
-            // [버그 수정] 손을 뗄 때 대문자로 인식되더라도 소문자 키까지 확실하게 false 처리해서 멈추게 함
+            // [버그 수정] 손 뗄 때 무한 걷기 버그 방지를 위해 소문자 상태도 무조건 false 처리
             if (e.key.length === 1) keys[e.key.toLowerCase()] = false;
         });
 
-        window.addEventListener("contextmenu", (e) => {
-            e.preventDefault(); 
-        });
+        // 우클릭 컨텍스트 메뉴 방지 (스킬 조준용으로 사용)
+        window.addEventListener("contextmenu", (e) => { e.preventDefault(); });
 
+        // 화면 퀵슬롯 직접 클릭/터치 이벤트 할당
         for (let i = 1; i <= 8; i++) {
             let el = document.getElementById("q-slot-" + i);
             if (el) {
@@ -815,17 +875,19 @@
             }
         }
 
+        // [MOD-016-2: 마우스 이동 및 클릭 처리]
+        // 캔버스 크기 비율에 맞춰 실제 픽셀 좌표값을 추출합니다.
         canvas.addEventListener("mousemove", (e) => {
             const rect = canvas.getBoundingClientRect();
             mouseX = (e.clientX - rect.left) * (canvas.width / rect.width);
             mouseY = (e.clientY - rect.top) * (canvas.height / rect.height);
         });
 
+        // 텍스트를 약간 랜덤한 좌표(흔들림)에 띄우기 위함
         function addFloatingText(x, y, text, color) {
             floatingTexts.push({ x: x + (Math.random() * 20 - 10), y: y - 10, text: text, color: color, alpha: 1.0, timer: 30 });
         }
 
-        // 메인 마우스/터치 클릭 처리 (조준 및 타겟팅 전용)
         canvas.addEventListener("mousedown", (e) => {
             if (gameState !== "playing") return;
 
@@ -834,19 +896,12 @@
             const pCenterX = player.x + player.width / 2;
             const pCenterY = player.y + player.height / 2;
 
-            // [우클릭] : 현재 퀵슬롯 스킬 조준
-            if (e.button === 2) {
-                aimCurrentQuickSlot();
-                return;
-            }
+            if (e.button === 2) { aimCurrentQuickSlot(); return; } // 우클릭(2) : 조준
 
-            // [좌클릭] : 스킬 발동 또는 수동 타겟팅
-            if (e.button === 0) {
-                if (player.aimingSkill) {
-                    executeAimingSkill();
-                    return;
-                }
+            if (e.button === 0) { // 좌클릭(0) : 발사 및 락온
+                if (player.aimingSkill) { executeAimingSkill(); return; } // 조준 중이면 스킬 발사
 
+                // 길드 로비 NPC(접수원/포탈) 클릭 상호작용
                 if (currentMap === "guild" && typeof MAP_DATA !== "undefined") {
                     const rec = MAP_DATA.guild.receptionist;
                     const por = MAP_DATA.guild.portal;
@@ -858,20 +913,20 @@
                     }
                 }
 
-                // 수동 락온
+                // 던전 내 고블린 수동 락온 시스템 (우선 타겟팅)
                 if (currentMap === "dungeon" && typeof MAP_DATA !== "undefined" && MAP_DATA.dungeon.goblin.active) {
                     const gob = MAP_DATA.dungeon.goblin;
                     if (Math.hypot(wMouseX - gob.x, wMouseY - gob.y) < gob.size) {
                         player.lockedTarget = gob;
                         addFloatingText(gob.x, gob.y - 30, "타겟 고정!", "red");
                     } else {
-                        // 빈 땅을 클릭하면 락온 해제
-                        player.lockedTarget = null; 
+                        player.lockedTarget = null; // 허공 클릭 시 락온 해제
                     }
                 }
             }
         });
 
+        // [MOD-016-3: 모바일 터치 패드 초기화 및 이벤트 연결]
         (function initVirtualPad() {
             const stickBase = document.getElementById("vpad-stick-base");
             const stickKnob = document.getElementById("vpad-stick-knob");
@@ -883,6 +938,7 @@
             let touchId = null;
             let startX = 0, startY = 0;
 
+            // 좌측 화면 터치 시 가상 조이스틱을 생성합니다.
             window.addEventListener("touchstart", (e) => {
                 for (let i = 0; i < e.changedTouches.length; i++) {
                     let t = e.changedTouches[i];
@@ -901,6 +957,7 @@
                 }
             }, { passive: false });
 
+            // 터치 후 드래그 시 키보드 이동키(WASD)를 true로 매핑하고, 조준선(mouseX/Y)을 이동 각도 방향으로 위치시킵니다.
             window.addEventListener("touchmove", (e) => {
                 for (let i = 0; i < e.changedTouches.length; i++) {
                     let t = e.changedTouches[i];
@@ -908,7 +965,7 @@
                         let dx = t.clientX - startX;
                         let dy = t.clientY - startY;
                         let dist = Math.hypot(dx, dy);
-                        let maxR = 45;
+                        let maxR = 45; // 노브가 빠져나가지 못하는 최대 반지름 제한
                         if (dist > maxR) { dx = (dx / dist) * maxR; dy = (dy / dist) * maxR; }
                         if(stickKnob) stickKnob.style.transform = `translate(${dx}px, ${dy}px)`;
 
@@ -939,6 +996,7 @@
             window.addEventListener("touchend", endTouch);
             window.addEventListener("touchcancel", endTouch);
 
+            // 가상 UI 버튼 클릭을 실제 마우스/키보드 이벤트로 브릿지(Bridge) 합니다.
             if(btnAtk) btnAtk.addEventListener("touchstart", (e) => { e.preventDefault(); canvas.dispatchEvent(new MouseEvent("mousedown", { button: 0 })); });
             if(btnSkill) btnSkill.addEventListener("touchstart", (e) => { e.preventDefault(); canvas.dispatchEvent(new MouseEvent("mousedown", { button: 2 })); });
             if(btnR) btnR.addEventListener("touchstart", (e) => { e.preventDefault(); handleRKey(); });
@@ -955,7 +1013,8 @@
         })();
         // [MOD-016-END]
 
-        // [MOD-017: UI 제어 및 충돌 유틸리티]
+        // [MOD-017: UI 제어 및 충돌(Collision) 유틸리티]
+        // [MOD-017-1: 인벤토리 및 스탯창 탭 스위치]
         function switchTab(tabId) {
             if(tabId === 'inv') {
                 document.getElementById("viewInv").style.display = "flex";
@@ -995,10 +1054,12 @@
             document.getElementById("storageUI").style.display = "none";
         }
 
+        // [MOD-017-2: AABB 2D 사각형 충돌 계산 유틸리티]
         function checkRectCollision(x1, y1, w1, h1, x2, y2, w2, h2) {
             return x1 < x2 + w2 && x1 + w1 > x2 && y1 < y2 + h2 && y1 + h1 > y2;
         }
 
+        // 플레이어의 다음 이동 좌표(x, y)에 지형지물(접수원, 포탈, 상자)이 있는지 미리 검사합니다.
         function checkObstacleCollision(x, y) {
             if (currentMap === "guild" && typeof MAP_DATA !== "undefined") {
                 const rec = MAP_DATA.guild.receptionist;
@@ -1012,34 +1073,38 @@
         }
         // [MOD-017-END]
 
-    // [MOD-018: 메인 게임 루프 (스킬 조준 중 무기 증발 버그 수정)]
+        // [MOD-018: 메인 게임 루프 (60프레임 반복 렌더링)]
         function gameLoop() {
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            ctx.clearRect(0, 0, canvas.width, canvas.height); // 프레임 지우기
 
+            // UI 조작 중에는 배경 업데이트 및 연산을 멈춥니다.
             if (gameState === "charCreation" || gameState === "npcMenu") { 
                 requestAnimationFrame(gameLoop); return; 
             }
 
             const pCenterX = player.x;
             const pCenterY = player.y;
-            const playerRadius = player.width / 2; // 확대된 반지름 (22px)
+            const playerRadius = player.width / 2; // 중심 기준 22px
             
             const activeSkill = typeof getActiveQuickSlotSkill === "function" ? getActiveQuickSlotSkill() : null;
 
+            // 스킬 쿨타임 감소 타이머 (-1 프레임씩)
             for (let sId in player.skillCooldowns) {
                 if (player.skillCooldowns[sId] > 0) player.skillCooldowns[sId]--;
             }
 
-            // === [업데이트 로직] ===
+            // === [업데이트 영역] ===
             if (gameState === "playing") {
                 let nextX = player.x;
                 let nextY = player.y;
 
+                // [MOD-018-1: 대시(Charge/Leap) 강제 이동 로직]
                 if (player.dashTimer > 0) {
                     player.dashTimer--;
                     nextX += player.dashDirX * player.dashSpeed;
                     nextY += player.dashDirY * player.dashSpeed;
 
+                    // 차지 중 타겟 좌표에 도달하면 즉시 멈춤
                     if (player.activeSkillType === "charge") {
                         const distToTarget = Math.hypot((player.targetX) - nextX, (player.targetY) - nextY);
                         if (distToTarget <= player.dashSpeed) {
@@ -1049,12 +1114,14 @@
                         }
                     }
 
+                    // 벽에 박으면 멈춤 (원형 충돌 경계 계산)
                     if (nextX - playerRadius <= 0 || nextX + playerRadius >= WORLD_WIDTH || nextY - playerRadius <= 0 || nextY + playerRadius >= WORLD_HEIGHT || checkObstacleCollision(nextX - playerRadius, nextY - playerRadius)) {
                         player.dashTimer = 0;
                         nextX = player.x; 
                         nextY = player.y; 
                     }
 
+                    // 대시 중 몬스터(고블린)를 스치면 충돌 데미지 입힘
                     if ((player.activeSkillType === "charge" || player.activeSkillType === "leap_attack") && currentMap === "dungeon" && typeof MAP_DATA !== "undefined" && MAP_DATA.dungeon.goblin.active) {
                         let gob = MAP_DATA.dungeon.goblin;
                         if (Math.hypot(nextX - gob.x, nextY - gob.y) < playerRadius + gob.size/2) {
@@ -1062,36 +1129,43 @@
                             applyDamageToGoblin(dmg);
                         }
                     }
-                } else {
+                } 
+                // [MOD-018-2: 키보드 이동 및 Shift 달리기 스태미나 소모]
+                else {
                     let isMoving = keys["ArrowUp"] || keys["w"] || keys["s"] || keys["ArrowDown"] || keys["a"] || keys["ArrowLeft"] || keys["d"] || keys["ArrowRight"];
                     let currentSpeed = player.speed;
                     let isSprinting = false;
 
+                    // 스태미나가 1 이상이고, 이동 중이며, Shift를 눌렀을 때만 발동
                     if (keys["Shift"] && isMoving && player.currentStamina >= 1) {
                         isSprinting = true;
-                        currentSpeed = player.speed * 1.6;
+                        currentSpeed = player.speed * 1.6; // 질주 속도 배율
                         
                         player.sprintTimer = (player.sprintTimer || 0) + 1;
-                        if (player.sprintTimer >= 60) {
+                        if (player.sprintTimer >= 60) { // 약 1초당 1 스태미나 소모
                             player.currentStamina -= 1;
                             player.sprintTimer = 0;
                         }
                     } else {
-                        player.sprintTimer = 0;
+                        player.sprintTimer = 0; // 달리기를 멈추면 소모 타이머 초기화
                     }
 
+                    // 상하좌우 조작에 따른 next 좌표 적용
                     if (keys["ArrowUp"] || keys["w"]) nextY -= currentSpeed;
                     if (keys["ArrowDown"] || keys["s"]) nextY += currentSpeed;
                     if (keys["ArrowLeft"] || keys["a"]) nextX -= currentSpeed;
                     if (keys["ArrowRight"] || keys["d"]) nextX += currentSpeed;
 
+                    // 맵 경계선 (월드 밖) 이탈 방지
                     nextX = Math.max(playerRadius, Math.min(nextX, WORLD_WIDTH - playerRadius));
                     nextY = Math.max(playerRadius, Math.min(nextY, WORLD_HEIGHT - playerRadius));
 
+                    // 지형 장애물 충돌 검사
                     if (checkObstacleCollision(nextX - playerRadius, nextY - playerRadius)) {
-                        nextX = player.x; nextY = player.y;
+                        nextX = player.x; nextY = player.y; // 벽에 막히면 이전 좌표로 롤백
                     }
 
+                    // 걷는 중이거나 멈춰있을 때 스태미나 자연 회복 (약 1초당 1 회복)
                     if (!isSprinting && player.currentStamina < player.maxStamina) {
                         player.staminaRegenTimer++;
                         if (player.staminaRegenTimer >= 60) {
@@ -1103,35 +1177,43 @@
                     }
                 }
 
+                // 이동 연산이 끝난 최종 좌표를 플레이어에 반영
                 player.x = nextX;
                 player.y = nextY;
 
+                // [MOD-018-3: 사거리 내 몬스터 자동 감지 및 공격(오토 어택)]
                 if (attackTimer > 0) attackTimer--;
 
+                // 공격 대기시간이 끝났을 때만 검사
                 if (attackTimer <= 0) { 
-                    const baseRange = 85; 
+                    const baseRange = 85; // 무기 스윙 반경(도달거리)
                     const totalDmg = (player.stats.str * 3) + 5; 
 
                     if (currentMap === "dungeon" && typeof MAP_DATA !== "undefined" && MAP_DATA.dungeon.goblin.active) {
                         const gob = MAP_DATA.dungeon.goblin;
                         let targetToAttack = null;
 
+                        // 1순위: 좌클릭으로 고정(락온)해 둔 몬스터가 사거리 내에 있을 때
                         if (player.lockedTarget && Math.hypot(player.lockedTarget.x - pCenterX, player.lockedTarget.y - pCenterY) <= baseRange + player.lockedTarget.size / 2) {
                             targetToAttack = player.lockedTarget;
                         } 
+                        // 2순위: 락온이 없거나 락온된 적이 멀어진 경우, 사거리 안의 고블린 찾기
                         else if (Math.hypot(gob.x - pCenterX, gob.y - pCenterY) <= baseRange + gob.size / 2) {
                             targetToAttack = gob;
                         }
 
+                        // 타겟이 범위 내에 존재하면 스태미나 소모 없이 즉시 무기를 스윙하여 데미지 입힘
                         if (targetToAttack) {
-                            attackTimer = 30; 
+                            attackTimer = 30; // 30프레임 (약 0.5초) 간격으로 타격 및 애니메이션 재생
                             player.lastAttackAngle = Math.atan2(targetToAttack.y - pCenterY, targetToAttack.x - pCenterX);
                             applyDamageToGoblin(totalDmg);
                         }
                     }
                 }
 
-            } else if (gameState === "knockback") {
+            } 
+            // 피격 시 잠시 조작을 잃고 밀려나는 넉백 상태
+            else if (gameState === "knockback") {
                 player.x += player.knockbackDirX * 25;
                 player.y += player.knockbackDirY * 5;
                 
@@ -1142,15 +1224,18 @@
                 }
             }
 
+            // [MOD-018-4: 카메라 트래킹 및 월드 배경 렌더링]
             camera.x = player.x - canvas.width / 2;
             camera.y = player.y - canvas.height / 2;
+            // 카메라가 맵 경계선 밖으로 나가지 않도록 Clamp(제한)
             camera.x = Math.max(0, Math.min(camera.x, WORLD_WIDTH - canvas.width));
             camera.y = Math.max(0, Math.min(camera.y, WORLD_HEIGHT - canvas.height));
 
             // === [월드 렌더링 시작] ===
             ctx.save();
-            ctx.translate(-camera.x, -camera.y);
+            ctx.translate(-camera.x, -camera.y); // 카메라 좌표만큼 전체 캔버스를 오프셋 이동
 
+            // 100px 간격의 타일 격자(그리드) 라인 그리기
             ctx.strokeStyle = "#3a3a3a";
             ctx.lineWidth = 1;
             for(let i = 0; i <= WORLD_WIDTH; i += 100) {
@@ -1160,6 +1245,7 @@
                 ctx.beginPath(); ctx.moveTo(0, i); ctx.lineTo(WORLD_WIDTH, i); ctx.stroke();
             }
 
+            // 길드 내부 지형지물 (포탈, 창고) 렌더링
             if (currentMap === "guild" && typeof MAP_DATA !== "undefined") {
                 const por = MAP_DATA.guild.portal;
                 const chs = MAP_DATA.guild.personalChest;
@@ -1175,15 +1261,18 @@
                 ctx.textAlign = "center"; ctx.textBaseline = "middle";
                 ctx.fillText("개인 창고", chs.x + chs.w/2, chs.y - 10);
             } 
+            // 던전 내부 고블린 로직 및 렌더링
             else if (currentMap === "dungeon" && typeof MAP_DATA !== "undefined") {
                 let gob = MAP_DATA.dungeon.goblin;
                 if (gob.active) {
                     const dx = pCenterX - gob.x, dy = pCenterY - gob.y;
                     const dist = Math.hypot(dx, dy);
                     if (gameState === "playing") {
+                        // 플레이어를 향해 서서히 다가오는 단순 어그로 AI
                         if (dist > 20) {
                             gob.x += (dx / dist) * gob.speed; gob.y += (dy / dist) * gob.speed;
                         } else {
+                            // 완전히 붙으면 낮은 확률로 지속 피해 입힘
                             if (Math.random() < 0.05) { 
                                 player.currentHp -= gob.damage;
                                 addFloatingText(pCenterX, player.y - 10, gob.damage, "red");
@@ -1192,6 +1281,7 @@
                         }
                     }
 
+                    // 타겟 락온이 되어있다면 고블린 밑에 붉은색 점선 원형 강조 표시
                     if (player.lockedTarget === gob) {
                         ctx.beginPath();
                         ctx.arc(gob.x, gob.y, gob.size + 10, 0, Math.PI * 2);
@@ -1202,11 +1292,13 @@
                         ctx.setLineDash([]);
                     }
 
+                    // 몬스터 바디 렌더링 (초록색 삼각형)
                     ctx.fillStyle = "limegreen";
                     ctx.beginPath(); ctx.moveTo(gob.x, gob.y - gob.size / 2);
                     ctx.lineTo(gob.x - gob.size / 2, gob.y + gob.size / 2);
                     ctx.lineTo(gob.x + gob.size / 2, gob.y + gob.size / 2); ctx.fill();
 
+                    // 몬스터 머리 위 이름표 및 체력바
                     const tagY = gob.y - gob.size - 25;
                     ctx.fillStyle = "rgba(0, 0, 0, 0.6)"; ctx.fillRect(gob.x - 40, tagY, 80, 16);
                     ctx.fillStyle = "white"; ctx.font = "bold 12px sans-serif"; 
@@ -1216,6 +1308,7 @@
                 }
             }
 
+            // 시각적 파티클/이펙트(원형 파장) 렌더링 후 타이머 차감 및 제거
             for (let i = visualEffects.length - 1; i >= 0; i--) {
                 let eff = visualEffects[i];
                 ctx.save(); ctx.beginPath(); ctx.arc(eff.x, eff.y, eff.radius, 0, Math.PI * 2);
@@ -1224,7 +1317,8 @@
                 if (eff.timer <= 0) visualEffects.splice(i, 1);
             }
 
-            // === [플레이어 렌더링: 확대된 파란색 동그라미] ===
+            // [MOD-018-5: 플레이어 본체 및 무기 스윙 렌더링]
+            // 파란색 동그라미 본체
             ctx.beginPath();
             ctx.arc(player.x, player.y, playerRadius, 0, Math.PI * 2);
             ctx.fillStyle = "#00a2ff"; 
@@ -1233,13 +1327,13 @@
             ctx.strokeStyle = "#004488"; 
             ctx.stroke();
 
-            // === [안 보이는 팔 & 무기 히트박스 렌더링] ===
+            // 안 보이는 오른팔(오프셋 적용)을 기점으로 한 무기 회전축 시스템
             if (gameState === "playing") {
                 let wMouseX = mouseX + camera.x;
                 let wMouseY = mouseY + camera.y;
-                const aimAngle = Math.atan2(wMouseY - pCenterY, wMouseX - pCenterX);
+                const aimAngle = Math.atan2(wMouseY - pCenterY, wMouseX - pCenterX); // 마우스가 위치한 각도
 
-                // 스킬 조준선 UI 렌더링 (else 구문 제거)
+                // 우클릭으로 꾹 누르고 있는 스킬 조준선 UI를 표시합니다.
                 if (player.aimingSkill === "leap_only") {
                     const fixedLeapDist = player.width * 3;
                     const leapW = player.width + 10;
@@ -1262,28 +1356,32 @@
                     ctx.strokeStyle = "gold"; ctx.lineWidth = 2; ctx.strokeRect(0, -chargeW / 2, chargeDist, chargeW); ctx.restore();
                 } 
                 
-                // 무기(검/도끼 계열)는 스킬 조준 중에도 항상 렌더링
-                const weaponLength = 50; 
-                const weaponWidth = 12;  
-                const pivotX = 0; 
-                const pivotY = playerRadius + 25; 
+                // === 기본 무기 (하얀 네모) 렌더링 ===
+                const weaponLength = 50;  // 무기의 긴 길이
+                const weaponWidth = 12;   // 무기 두께
+                const pivotX = 0;         // 어깨축 (중앙)
+                const pivotY = playerRadius + 25; // 몸통에서 25px 떨어진 위치 (오른손)
 
-                let currentAngle = aimAngle; 
+                let currentAngle = aimAngle; // 평소 캐릭터 어깨가 조준하는 기본 각도
                 let isSwinging = (attackTimer > 0 && player.lastAttackAngle !== undefined);
                 
+                // 평소에는 손목을 안쪽으로 30도 꺾어 가드를 올리고 있는 비스듬한 상태 유지
                 let wristAngle = -Math.PI / 6; 
 
+                // 공격 발동 시 휘두르는 애니메이션 재생 (30프레임 동안 역동적 변화)
                 if (isSwinging) {
-                    let progress = 1.0 - (attackTimer / 30); 
+                    let progress = 1.0 - (attackTimer / 30); // 0.0 -> 1.0
                     
+                    // 타겟 방향 기준 120도 범위를 그으며 스윙
                     let startAngle = player.lastAttackAngle - Math.PI / 3;
                     let endAngle = player.lastAttackAngle + Math.PI / 3;
                     
                     currentAngle = startAngle + (endAngle - startAngle) * progress;
 
+                    // 원심력을 받아 무기가 바깥쪽으로 쫙 펴졌다가(0도) 다시 돌아오는(-30도) 손목 스냅
                     wristAngle = (-Math.PI / 6) * (1 - Math.sin(progress * Math.PI));
 
-                    // 궤적(검기) 이펙트 렌더링
+                    // 무기 끝이 허공에 남기는 검기(궤적) 이펙트 라인
                     ctx.beginPath();
                     const swingRadius = Math.hypot(weaponLength, pivotY);
                     const tipOffsetAngle = Math.atan2(pivotY, weaponLength);
@@ -1293,20 +1391,24 @@
                     ctx.stroke();
                 }
 
+                // 어깨-팔-손목 계층적 관절(Hierarchical Transform) 좌표 연산
                 ctx.save();
-                ctx.translate(pCenterX, pCenterY);
-                ctx.rotate(currentAngle);
+                ctx.translate(pCenterX, pCenterY); // 캐릭터 중심
+                ctx.rotate(currentAngle);          // 어깨 회전
                 
-                ctx.translate(pivotX, pivotY);
-                ctx.rotate(wristAngle);
+                ctx.translate(pivotX, pivotY);     // 오른손 위치로 이동
+                ctx.rotate(wristAngle);            // 손목 꺾기
                 
+                // 실제 무기 렌더링 영역
                 ctx.fillStyle = "rgba(255, 255, 255, 0.8)";
                 ctx.fillRect(0, -weaponWidth / 2, weaponLength, weaponWidth);
                 
+                // 무기 판정용 붉은 테두리 (히트박스 윤곽선)
                 ctx.strokeStyle = "red";
                 ctx.lineWidth = 1.5;
                 ctx.strokeRect(0, -weaponWidth / 2, weaponLength, weaponWidth);
                 
+                // 손 위치를 나타내는 흰색 점 (회전축)
                 ctx.beginPath();
                 ctx.arc(0, 0, 5, 0, Math.PI * 2);
                 ctx.fillStyle = "white";
@@ -1315,9 +1417,10 @@
                 ctx.lineWidth = 1.5;
                 ctx.stroke();
 
-                ctx.restore();
+                ctx.restore(); // 관절 변형 복구
             }
 
+            // 허공으로 날아가는 플로팅 텍스트(데미지 숫자) 렌더링 후 삭제
             for (let i = floatingTexts.length - 1; i >= 0; i--) {
                 let ft = floatingTexts[i];
                 ctx.fillStyle = ft.color; ctx.globalAlpha = ft.alpha;
@@ -1329,9 +1432,9 @@
             ctx.globalAlpha = 1.0; 
 
             ctx.restore(); 
-            // === [월드 렌더링 종료] ===
+            // === [월드 렌더링 종료 - 이후는 카메라에 구애받지 않는 고정 UI] ===
 
-            // === [HUD 렌더링 시작] ===
+            // [MOD-018-6: 좌상단 HUD 및 우상단 퀘스트 창 렌더링]
             const hudX = 10, hudY = 10, hudW = 210, hudH = 95;
 
             ctx.fillStyle = "rgba(0, 0, 0, 0.75)";
@@ -1344,37 +1447,43 @@
             const barW = 180, barH = 10;
             let currentBarY = hudY + 30;
 
+            // HP 게이지 (빨강)
             ctx.fillStyle = "rgba(0, 0, 0, 0.9)"; ctx.fillRect(hudX + 15, currentBarY, barW, barH);
             ctx.fillStyle = "red"; ctx.fillRect(hudX + 15, currentBarY, barW * (Math.max(0, player.currentHp) / player.maxHp), barH);
             ctx.fillStyle = "white"; ctx.font = "10px sans-serif"; ctx.fillText(`HP: ${Math.floor(player.currentHp)}/${player.maxHp}`, hudX + 20, currentBarY - 1);
             currentBarY += 15;
 
+            // ST(스태미나) 게이지 (노랑)
             ctx.fillStyle = "rgba(0, 0, 0, 0.9)"; ctx.fillRect(hudX + 15, currentBarY, barW, barH);
             ctx.fillStyle = "yellow"; ctx.fillRect(hudX + 15, currentBarY, barW * (player.currentStamina / player.maxStamina), barH);
             ctx.fillStyle = "black"; ctx.fillText(`ST: ${Math.floor(player.currentStamina)}/${player.maxStamina}`, hudX + 20, currentBarY - 1);
             currentBarY += 15;
 
+            // MP 게이지 (파랑)
             ctx.fillStyle = "rgba(0, 0, 0, 0.9)"; ctx.fillRect(hudX + 15, currentBarY, barW, barH);
             ctx.fillStyle = "dodgerblue"; ctx.fillRect(hudX + 15, currentBarY, barW * (player.currentMana / player.maxMana), barH);
             ctx.fillStyle = "white"; ctx.fillText(`MP: ${Math.floor(player.currentMana)}/${player.maxMana}`, hudX + 20, currentBarY - 1);
             currentBarY += 15;
 
+            // EXP 게이지 (초록, 게이지 두께가 조금 얇음)
             ctx.fillStyle = "rgba(0, 0, 0, 0.9)"; ctx.fillRect(hudX + 15, currentBarY, barW, barH - 2);
             ctx.fillStyle = "limegreen"; ctx.fillRect(hudX + 15, currentBarY, barW * (player.exp / player.maxExp), barH - 2);
             ctx.fillStyle = "black"; ctx.fillText(`EXP: ${Math.floor(player.exp)}/${player.maxExp}`, hudX + 20, currentBarY - 2);
 
+            // 우측 상단 퀘스트 목표 알리미 창
             ctx.fillStyle = "rgba(0, 0, 0, 0.7)";
             ctx.fillRect(canvas.width - 220, 10, 210, 36);
             ctx.font = "bold 13px sans-serif"; ctx.textAlign = "left"; ctx.textBaseline = "middle";
-            ctx.fillStyle = quest.active && quest.current >= quest.target ? "gold" : "white";
+            ctx.fillStyle = quest.active && quest.current >= quest.target ? "gold" : "white"; // 완료 시 금색 하이라이트
             ctx.fillText(quest.active ? `퀘스트: 고블린 (${quest.current}/${quest.target})` : "진행중인 퀘스트 없음", canvas.width - 210, 28);
 
+            // 다음 프레임 예약 루프 (모니터 주사율에 맞춰 반복)
             requestAnimationFrame(gameLoop);
         }
         // [MOD-018-END]
         
-
         // [MOD-019: 메인 실행부]
+        // 엔진 및 초기 변수 선언이 끝난 후 게임 루프를 킥오프(Kickoff) 합니다.
         gameLoop();
         // [MOD-019-END]
     </script>
