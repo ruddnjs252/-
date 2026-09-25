@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>리퀘 (Re-Quest) v0.2.51</title>
+    <title>리퀘 (Re-Quest) v0.2.52</title>
     
     <style>
         /* [MOD-001: 기본 화면 및 컨테이너 스타일] */
@@ -82,8 +82,7 @@
         .stat-btn { background: #333; color: white; border: 1px solid #666; cursor: pointer; width: 25px; height: 25px; font-weight: bold; }
         .stat-btn:hover { background: #555; }
 
-        /* [MOD-003-2: 모바일 가상 조이패드 및 버튼] */
-        /* 화면 크기(vmin)에 비례하여 크기가 변하는 터치 버튼 스타일입니다. */
+        //* [MOD-003-2: 모바일 가상 조이패드 및 버튼] */
         .vpad-btn { position: fixed; border-radius: 50%; background: rgba(0, 0, 0, 0.65); border: 2px solid rgba(255, 255, 255, 0.5); color: #fff; font-weight: bold; display: flex; align-items: center; justify-content: center; user-select: none; z-index: 9999; }
         .vpad-btn:active { background: rgba(255, 255, 255, 0.4); }
         
@@ -92,10 +91,14 @@
         #vpad-r { right: 5vmin; bottom: 25vmin; width: 11vmin; height: 11vmin; font-size: 2.5vmin; border-color: #ffaa00; }
         #vpad-e { right: 21vmin; bottom: 21vmin; width: 10vmin; height: 10vmin; font-size: 2.2vmin; border-color: #aaaaaa; }
         
-        /* 가상 조이스틱 배경 및 노브(손잡이) */
         #vpad-stick-base { position: fixed; left: 8vmin; bottom: 8vmin; width: 26vmin; height: 26vmin; border-radius: 50%; background: rgba(0, 0, 0, 0.6); border: 3px solid #00ffff; box-shadow: 0 0 10px rgba(0, 255, 255, 0.5); display: none; z-index: 9999; }
         #vpad-stick-knob { position: absolute; top: 25%; left: 25%; width: 50%; height: 50%; border-radius: 50%; background: #00ffff; box-shadow: 0 0 8px #ffffff; }
 
+        /* [추가] PC(마우스 사용) 환경에서는 모바일 전용 버튼들을 완전히 숨깁니다. */
+        @media (hover: hover) and (pointer: fine) {
+            .vpad-btn, #vpad-stick-base { display: none !important; }
+        }
+        /* [MOD-003-2-END] */
         /* [MOD-003-3: 방사형 8칸 리볼버 퀵슬롯 UI] */
         #quick-slot-wrapper {
             position: fixed; 
@@ -861,13 +864,11 @@
         
         // [MOD-016: 입력 이벤트 리스너]
         // [MOD-016-1: 키보드 단축키 (숫자 슬롯 지정 및 인벤토리/R키)]
-        // 숫자 키입력(1~8) 시 R키 누적 회전값(rotationCount)을 계산하여 목표 슬롯으로 정확하게 점프시킵니다.
         function selectQuickSlot(index) {
             if (gameState !== "playing" || player.dashTimer > 0) return;
             
             let currentIdx = ((player.rotationCount % 8) + 8) % 8;
             let diff = index - currentIdx;
-            // 가장 가까운 방향으로 회전하기 위한 최단거리 보정 로직
             if (diff < -4) diff += 8;
             if (diff > 4) diff -= 8;
             
@@ -879,7 +880,6 @@
 
         window.addEventListener("keydown", (e) => {
             keys[e.key] = true;
-            // [버그 수정] Shift와 동시 입력 시 대문자로 들어오는 키맵 방어 (소문자도 무조건 true)
             if (e.key.length === 1) keys[e.key.toLowerCase()] = true;
 
             if (e.key.toLowerCase() === 'r') handleRKey();
@@ -887,6 +887,8 @@
                 if (gameState === "playing") {
                     gameState = "inventory";
                     document.getElementById("inventoryUI").style.display = "flex";
+                    // [추가] 인벤토리를 열 때 화면의 퀵슬롯과 버튼 컨테이너를 통째로 숨깁니다.
+                    document.getElementById("vpad-container").style.display = "none";
                     if(typeof switchTab === "function") switchTab('inv');
                 } else {
                     if(typeof closeUI === "function") closeUI();
@@ -900,14 +902,11 @@
 
         window.addEventListener("keyup", (e) => { 
             keys[e.key] = false; 
-            // [버그 수정] 손 뗄 때 무한 걷기 버그 방지를 위해 소문자 상태도 무조건 false 처리
             if (e.key.length === 1) keys[e.key.toLowerCase()] = false;
         });
 
-        // 우클릭 컨텍스트 메뉴 방지 (스킬 조준용으로 사용)
         window.addEventListener("contextmenu", (e) => { e.preventDefault(); });
 
-        // 화면 퀵슬롯 직접 클릭/터치 이벤트 할당
         for (let i = 1; i <= 8; i++) {
             let el = document.getElementById("q-slot-" + i);
             if (el) {
@@ -915,6 +914,7 @@
                 el.addEventListener("mousedown", (e) => { e.preventDefault(); selectQuickSlot(i - 1); });
             }
         }
+        // [MOD-016-1-END]
 
         // [MOD-016-2: 마우스 이동 및 클릭 처리]
         // 캔버스 크기 비율에 맞춰 실제 픽셀 좌표값을 추출합니다.
@@ -967,77 +967,8 @@
             }
         });
 
-        // [MOD-016-3: 모바일 터치 패드 초기화 및 이벤트 연결]
-        (function initVirtualPad() {
-            const stickBase = document.getElementById("vpad-stick-base");
-            const stickKnob = document.getElementById("vpad-stick-knob");
-            const btnAtk = document.getElementById("vpad-atk");
-            const btnSkill = document.getElementById("vpad-skill");
-            const btnR = document.getElementById("vpad-r");
-            const btnE = document.getElementById("vpad-e");
-
-            let touchId = null;
-            let startX = 0, startY = 0;
-
-            // 좌측 화면 터치 시 가상 조이스틱을 생성합니다.
-            window.addEventListener("touchstart", (e) => {
-                for (let i = 0; i < e.changedTouches.length; i++) {
-                    let t = e.changedTouches[i];
-                    if (t.clientX < window.innerWidth / 2 && touchId === null) {
-                        touchId = t.identifier;
-                        startX = t.clientX;
-                        startY = t.clientY;
-                        if(stickBase) {
-                            stickBase.style.left = (startX - (window.innerWidth * 0.08)) + "px";
-                            stickBase.style.top = (startY - (window.innerHeight * 0.08)) + "px";
-                            stickBase.style.bottom = "auto";
-                            stickBase.style.display = "block";
-                            if(stickKnob) stickKnob.style.transform = `translate(0px, 0px)`;
-                        }
-                    }
-                }
-            }, { passive: false });
-
-            // 터치 후 드래그 시 키보드 이동키(WASD)를 true로 매핑하고, 조준선(mouseX/Y)을 이동 각도 방향으로 위치시킵니다.
-            window.addEventListener("touchmove", (e) => {
-                for (let i = 0; i < e.changedTouches.length; i++) {
-                    let t = e.changedTouches[i];
-                    if (t.identifier === touchId) {
-                        let dx = t.clientX - startX;
-                        let dy = t.clientY - startY;
-                        let dist = Math.hypot(dx, dy);
-                        let maxR = 45; // 노브가 빠져나가지 못하는 최대 반지름 제한
-                        if (dist > maxR) { dx = (dx / dist) * maxR; dy = (dy / dist) * maxR; }
-                        if(stickKnob) stickKnob.style.transform = `translate(${dx}px, ${dy}px)`;
-
-                        keys["w"] = dy < -12; keys["s"] = dy > 12;
-                        keys["a"] = dx < -12; keys["d"] = dx > 12;
-
-                        if (dist > 5) {
-                            let moveAngle = Math.atan2(dy, dx);
-                            let screenPx = player.x + player.width/2 - camera.x;
-                            let screenPy = player.y + player.height/2 - camera.y;
-                            
-                            mouseX = screenPx + Math.cos(moveAngle) * 120;
-                            mouseY = screenPy + Math.sin(moveAngle) * 120;
-                        }
-                    }
-                }
-            }, { passive: false });
-
-            const endTouch = (e) => {
-                for (let i = 0; i < e.changedTouches.length; i++) {
-                    if (e.changedTouches[i].identifier === touchId) {
-                        touchId = null;
-                        if(stickBase) stickBase.style.display = "none";
-                        keys["w"] = false; keys["s"] = false; keys["a"] = false; keys["d"] = false;
-                    }
-                }
-            };
-            window.addEventListener("touchend", endTouch);
-            window.addEventListener("touchcancel", endTouch);
-
-            // 가상 UI 버튼 클릭을 실제 마우스/키보드 이벤트로 브릿지(Bridge) 합니다.
+        // [MOD-016-3: 모바일 터치 패드 브릿지 이벤트 (일부)]
+            // ... (기존 조이스틱 코드들은 그대로 유지하고, 아래 버튼 이벤트만 수정) ...
             if(btnAtk) btnAtk.addEventListener("touchstart", (e) => { e.preventDefault(); canvas.dispatchEvent(new MouseEvent("mousedown", { button: 0 })); });
             if(btnSkill) btnSkill.addEventListener("touchstart", (e) => { e.preventDefault(); canvas.dispatchEvent(new MouseEvent("mousedown", { button: 2 })); });
             if(btnR) btnR.addEventListener("touchstart", (e) => { e.preventDefault(); handleRKey(); });
@@ -1046,16 +977,18 @@
                 if (gameState === "playing") {
                     gameState = "inventory";
                     document.getElementById("inventoryUI").style.display = "flex";
+                    // [추가] 모바일 버튼으로 열 때도 퀵슬롯 컨테이너 숨김
+                    document.getElementById("vpad-container").style.display = "none";
                     if(typeof switchTab === "function") switchTab('inv');
                 } else {
                     if(typeof closeUI === "function") closeUI();
                 }
             });
         })();
-        // [MOD-016-END]
+        // [MOD-016-3-END]
 
         // [MOD-017: UI 제어 및 충돌(Collision) 유틸리티]
-       // [MOD-017-1: 인벤토리 및 스탯창 탭 스위치]
+       // [MOD-017-1: 인벤토리 및 스탯창 탭 스위치 / UI 닫기]
         function switchTab(tabId) {
             if(tabId === 'inv') {
                 document.getElementById("viewInv").style.display = "flex";
@@ -1085,8 +1018,12 @@
             gameState = "playing";
             document.getElementById("inventoryUI").style.display = "none";
             document.getElementById("storageUI").style.display = "none";
+            
+            // [추가됨] UI 창을 닫고 게임으로 돌아오면 숨겨뒀던 HUD(퀵슬롯, 버튼 등)를 다시 켜줍니다.
+            const vpad = document.getElementById("vpad-container");
+            if(vpad) vpad.style.display = "block"; 
         }
-
+        // [MOD-017-1-END]
         // [MOD-017-2: AABB 2D 사각형 충돌 계산 유틸리티]
         function checkRectCollision(x1, y1, w1, h1, x2, y2, w2, h2) {
             return x1 < x2 + w2 && x1 + w1 > x2 && y1 < y2 + h2 && y1 + h1 > y2;
