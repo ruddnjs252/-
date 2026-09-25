@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>리퀘 (Re-Quest) v0.2.52</title>
+    <title>리퀘 (Re-Quest) v0.2.53</title>
     
     <style>
         /* [MOD-001: 기본 화면 및 컨테이너 스타일] */
@@ -82,7 +82,7 @@
         .stat-btn { background: #333; color: white; border: 1px solid #666; cursor: pointer; width: 25px; height: 25px; font-weight: bold; }
         .stat-btn:hover { background: #555; }
 
-        //* [MOD-003-2: 모바일 가상 조이패드 및 버튼] */
+        /* [MOD-003-2: 모바일 가상 조이패드 및 버튼] */
         .vpad-btn { position: fixed; border-radius: 50%; background: rgba(0, 0, 0, 0.65); border: 2px solid rgba(255, 255, 255, 0.5); color: #fff; font-weight: bold; display: flex; align-items: center; justify-content: center; user-select: none; z-index: 9999; }
         .vpad-btn:active { background: rgba(255, 255, 255, 0.4); }
         
@@ -967,18 +967,85 @@
             }
         });
 
-        // [MOD-016-3: 모바일 터치 패드 브릿지 이벤트 (일부)]
-            // ... (기존 조이스틱 코드들은 그대로 유지하고, 아래 버튼 이벤트만 수정) ...
+        // [MOD-016-3: 모바일 터치 패드 초기화 및 이벤트 연결]
+        (function initVirtualPad() {
+            const stickBase = document.getElementById("vpad-stick-base");
+            const stickKnob = document.getElementById("vpad-stick-knob");
+            const btnAtk = document.getElementById("vpad-atk");
+            const btnSkill = document.getElementById("vpad-skill");
+            const btnR = document.getElementById("vpad-r");
+            const btnE = document.getElementById("vpad-e");
+
+            let touchId = null;
+            let startX = 0, startY = 0;
+
+            window.addEventListener("touchstart", (e) => {
+                for (let i = 0; i < e.changedTouches.length; i++) {
+                    let t = e.changedTouches[i];
+                    if (t.clientX < window.innerWidth / 2 && touchId === null) {
+                        touchId = t.identifier;
+                        startX = t.clientX;
+                        startY = t.clientY;
+                        if(stickBase) {
+                            stickBase.style.left = (startX - (window.innerWidth * 0.08)) + "px";
+                            stickBase.style.top = (startY - (window.innerHeight * 0.08)) + "px";
+                            stickBase.style.bottom = "auto";
+                            stickBase.style.display = "block";
+                            if(stickKnob) stickKnob.style.transform = `translate(0px, 0px)`;
+                        }
+                    }
+                }
+            }, { passive: false });
+
+            window.addEventListener("touchmove", (e) => {
+                for (let i = 0; i < e.changedTouches.length; i++) {
+                    let t = e.changedTouches[i];
+                    if (t.identifier === touchId) {
+                        let dx = t.clientX - startX;
+                        let dy = t.clientY - startY;
+                        let dist = Math.hypot(dx, dy);
+                        let maxR = 45; 
+                        if (dist > maxR) { dx = (dx / dist) * maxR; dy = (dy / dist) * maxR; }
+                        if(stickKnob) stickKnob.style.transform = `translate(${dx}px, ${dy}px)`;
+
+                        keys["w"] = dy < -12; keys["s"] = dy > 12;
+                        keys["a"] = dx < -12; keys["d"] = dx > 12;
+
+                        if (dist > 5) {
+                            let moveAngle = Math.atan2(dy, dx);
+                            let screenPx = player.x + player.width/2 - camera.x;
+                            let screenPy = player.y + player.height/2 - camera.y;
+                            
+                            mouseX = screenPx + Math.cos(moveAngle) * 120;
+                            mouseY = screenPy + Math.sin(moveAngle) * 120;
+                        }
+                    }
+                }
+            }, { passive: false });
+
+            const endTouch = (e) => {
+                for (let i = 0; i < e.changedTouches.length; i++) {
+                    if (e.changedTouches[i].identifier === touchId) {
+                        touchId = null;
+                        if(stickBase) stickBase.style.display = "none";
+                        keys["w"] = false; keys["s"] = false; keys["a"] = false; keys["d"] = false;
+                    }
+                }
+            };
+            window.addEventListener("touchend", endTouch);
+            window.addEventListener("touchcancel", endTouch);
+
             if(btnAtk) btnAtk.addEventListener("touchstart", (e) => { e.preventDefault(); canvas.dispatchEvent(new MouseEvent("mousedown", { button: 0 })); });
             if(btnSkill) btnSkill.addEventListener("touchstart", (e) => { e.preventDefault(); canvas.dispatchEvent(new MouseEvent("mousedown", { button: 2 })); });
             if(btnR) btnR.addEventListener("touchstart", (e) => { e.preventDefault(); handleRKey(); });
+            
+            // 가방 버튼(E) 터치 시 그리드 인벤토리 호출 및 HUD 숨김 처리
             if(btnE) btnE.addEventListener("touchstart", (e) => {
                 e.preventDefault();
                 if (gameState === "playing") {
                     gameState = "inventory";
                     document.getElementById("inventoryUI").style.display = "flex";
-                    // [추가] 모바일 버튼으로 열 때도 퀵슬롯 컨테이너 숨김
-                    document.getElementById("vpad-container").style.display = "none";
+                    document.getElementById("vpad-container").style.display = "none"; // HUD 숨김
                     if(typeof switchTab === "function") switchTab('inv');
                 } else {
                     if(typeof closeUI === "function") closeUI();
