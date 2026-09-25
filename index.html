@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>리퀘 (Re-Quest) v0.2.54</title>
+    <title>리퀘 (Re-Quest) v0.2.55</title>
     
     <style>
         /* [MOD-001: 기본 화면 및 컨테이너 스타일] */
@@ -35,47 +35,43 @@
         .class-item:hover:not(.locked) { background: #555; }
         .class-item.selected { border: 2px solid gold; background: #665500; } /* 선택된 직업 강조 */
         .class-item.locked { background: #222; color: #555; border: 1px dashed #444; cursor: not-allowed; } /* 스탯 부족으로 잠긴 직업 */
-        /* [MOD-002-3: 그리드 인벤토리 스타일] */
+       
+        /* [MOD-002-3: 그리드 인벤토리 스타일 (테트리스형 비정형 블록)] */
         .inventory-board {
             position: relative;
             background-color: #1a1a1a;
             border: 2px solid #555;
-            width: 320px; 
-            height: 400px; 
+            width: 320px; height: 400px; 
             background-image: linear-gradient(#333 1px, transparent 1px), linear-gradient(90deg, #333 1px, transparent 1px);
             background-size: 40px 40px;
         }
         
-        .grid-item {
+        /* 아이템의 부모(투명한 껍데기) */
+        .grid-item-wrapper {
             position: absolute;
-            background-color: rgba(100, 100, 100, 0.9);
-            border: 1px solid #aaa; 
-            box-sizing: border-box; 
             cursor: grab;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 11px;
-            color: white;
-            font-weight: bold;
-            text-align: center;
-            user-select: none; 
-            box-shadow: inset 0 0 10px rgba(0,0,0,0.5); 
-            transition: border 0.2s, background-color 0.15s ease-out; /* 배경색 변환 효과 추가 (에러 깜빡임용) */
+            user-select: none;
+            z-index: 2;
         }
 
-        .grid-item:hover {
-            border: 2px solid #fff;
+        /* 실제 1x1 칸을 채우는 색상 블록 */
+        .grid-item-block {
+            position: absolute;
+            box-sizing: border-box;
+            border: 1px solid #aaa;
+            box-shadow: inset 0 0 10px rgba(0,0,0,0.5);
+            transition: border 0.2s, filter 0.2s, background-color 0.15s ease-out;
+        }
+
+        .grid-item-wrapper:hover .grid-item-block {
+            border: 1px solid #fff;
             filter: brightness(1.2);
         }
 
-        /* [추가] 우측 상단 모서리 회전 축(핸들) */
+        /* 우측 상단 모서리 회전 축(핸들) */
         .rotate-handle {
             position: absolute;
-            top: 3px;
-            right: 3px;
-            width: 12px;
-            height: 12px;
+            width: 12px; height: 12px;
             background-color: gold;
             border-radius: 50%;
             border: 1px solid #000;
@@ -90,11 +86,21 @@
         }
 
         /* 드래그 중인 유령(Ghost) 아이템 스타일 */
-        .grid-item.dragging {
+        .grid-item-wrapper.dragging {
             opacity: 0.8;
-            pointer-events: none; /* 마우스 이벤트를 통과시켜 보드 좌표를 읽을 수 있게 함 */
+            pointer-events: none; 
             z-index: 9999;
-            box-shadow: 0 10px 20px rgba(0,0,0,0.7);
+            filter: drop-shadow(0 10px 20px rgba(0,0,0,0.7));
+        }
+
+        /* 아이템 이름 텍스트 */
+        .item-label {
+            position: absolute;
+            transform: translate(-50%, -50%);
+            color: white; font-size: 11px; font-weight: bold;
+            pointer-events: none; text-align: center; width: 50px;
+            text-shadow: 1px 1px 2px black;
+            z-index: 4;
         }
         /* [MOD-002-3-END] */
 
@@ -1550,7 +1556,7 @@
         }
         // [MOD-018-END]
 
-// [MOD-020: 그리드 인벤토리 시스템 (데이터, 렌더링, D&D, 회전)]
+// [MOD-020: 그리드 인벤토리 시스템 (비정형 테트리스 렌더링 및 4방향 회전)]
         
         // [MOD-020-1: 그리드 환경 변수]
         const GRID_CELL_SIZE = 40; 
@@ -1559,136 +1565,169 @@
         
         let gridMap = Array.from({ length: INV_ROWS }, () => Array(INV_COLS).fill(null));
         
-        // [MOD-020-2: 아이템 규격 데이터베이스]
+        // [MOD-020-2: 아이템 규격 데이터베이스 (Shape Matrix 기반)]
+        // 1은 꽉 찬 공간, 0은 빈 공간을 뜻합니다.
         const ITEM_DB = {
-            "sword_basic": { name: "기본 검", w: 1, h: 3, color: "rgba(120, 120, 150, 0.9)" }, 
-            "armor_iron":  { name: "철갑옷", w: 2, h: 2, color: "rgba(80, 80, 80, 0.9)" },    
-            "potion_hp":   { name: "체력 포션", w: 1, h: 1, color: "rgba(200, 50, 50, 0.9)" } 
+            "sword_basic": { name: "기본 검", shape: [[1],[1],[1]], color: "rgba(120, 120, 150, 0.9)" }, // 1x3
+            "armor_iron":  { name: "철갑옷",  shape: [[1, 1], [1, 1]], color: "rgba(80, 80, 80, 0.9)" },    // 2x2
+            "potion_hp":   { name: "포션",   shape: [[1]], color: "rgba(200, 50, 50, 0.9)" }, // 1x1
+            "axe_battle":  { name: "ㄱ자 도끼", shape: [[1, 1], [1, 0], [1, 0]], color: "rgba(180, 100, 50, 0.9)" } // 비정형 ㄱ자 아이템!
         };
 
-        // 초기 테스트용 아이템 목록
+        // isRotated(bool) 대신 rot(0~3)으로 4방향 회전값을 가집니다.
         let myInventoryItems = [
-            { uid: "item_1", baseId: "sword_basic", gridX: 0, gridY: 0, isRotated: false },
-            { uid: "item_2", baseId: "armor_iron",  gridX: 2, gridY: 0, isRotated: false },
-            { uid: "item_3", baseId: "potion_hp",   gridX: 4, gridY: 0, isRotated: false },
-            { uid: "item_4", baseId: "sword_basic", gridX: 0, gridY: 4, isRotated: true }  
+            { uid: "item_1", baseId: "sword_basic", gridX: 0, gridY: 0, rot: 0 },
+            { uid: "item_2", baseId: "armor_iron",  gridX: 2, gridY: 0, rot: 0 },
+            { uid: "item_3", baseId: "potion_hp",   gridX: 4, gridY: 0, rot: 0 },
+            { uid: "item_4", baseId: "sword_basic", gridX: 0, gridY: 4, rot: 1 }, // 90도 회전된 검 
+            { uid: "item_5", baseId: "axe_battle",  gridX: 5, gridY: 5, rot: 0 }  // 추가된 ㄱ자 도끼
         ];
 
-        // [MOD-020-3: 드래그 상태 관리 객체]
+        // [MOD-020-3: 배열 회전 유틸리티 함수]
+        // 2차원 배열(Shape)을 시계방향으로 90도씩 주어진 횟수(rot)만큼 회전시킵니다.
+        function getRotatedShape(shape, rot) {
+            let s = shape;
+            for(let step = 0; step < rot; step++) {
+                const rows = s.length;
+                const cols = s[0].length;
+                let newS = Array.from({length: cols}, () => Array(rows).fill(0));
+                for(let r = 0; r < rows; r++) {
+                    for(let c = 0; c < cols; c++) {
+                        newS[c][rows - 1 - r] = s[r][c]; 
+                    }
+                }
+                s = newS;
+            }
+            return s;
+        }
+
+        // [MOD-020-4: 드래그 상태 관리 객체]
         let dragItemState = {
-            active: false,
-            itemRef: null,    
-            ghostEl: null,    
-            offsetX: 0, offsetY: 0, 
-            origX: 0, origY: 0, 
-            isValid: false,   
-            currentGridX: 0, currentGridY: 0,
+            active: false, itemRef: null, ghostEl: null, 
+            offsetX: 0, offsetY: 0, origX: 0, origY: 0, 
+            isValid: false, currentGridX: 0, currentGridY: 0,
             lastClientX: 0, lastClientY: 0
         };
 
-        // [MOD-020-4: 그리드 렌더링 및 모서리 회전 이벤트 연결]
+        // [MOD-020-5: 비정형 그리드 렌더링 로직]
         function renderGridInventory() {
             const board = document.getElementById("inventoryBoard");
             if (!board) return;
             board.innerHTML = ""; 
-
-            // 충돌 맵 초기화
             gridMap = Array.from({ length: INV_ROWS }, () => Array(INV_COLS).fill(null));
 
             myInventoryItems.forEach(item => {
                 const baseItem = ITEM_DB[item.baseId];
                 if (!baseItem) return;
 
-                const actualW = item.isRotated ? baseItem.h : baseItem.w;
-                const actualH = item.isRotated ? baseItem.w : baseItem.h;
+                const shape = getRotatedShape(baseItem.shape, item.rot);
+                const h = shape.length;
+                const w = shape[0].length;
 
-                for(let y = item.gridY; y < item.gridY + actualH; y++) {
-                    for(let x = item.gridX; x < item.gridX + actualW; x++) {
-                        if(y >= 0 && y < INV_ROWS && x >= 0 && x < INV_COLS) {
-                            gridMap[y][x] = item.uid;
+                // 충돌 맵에 1이 있는 부위만 uid 기록
+                for(let r = 0; r < h; r++) {
+                    for(let c = 0; c < w; c++) {
+                        if(shape[r][c] === 1) {
+                            let gy = item.gridY + r, gx = item.gridX + c;
+                            if(gy >= 0 && gy < INV_ROWS && gx >= 0 && gx < INV_COLS) gridMap[gy][gx] = item.uid;
                         }
                     }
                 }
 
-                let div = document.createElement("div");
-                div.className = "grid-item";
-                div.id = item.uid;
-                div.style.width = (actualW * GRID_CELL_SIZE) + "px";
-                div.style.height = (actualH * GRID_CELL_SIZE) + "px";
-                div.style.left = (item.gridX * GRID_CELL_SIZE) + "px";
-                div.style.top = (item.gridY * GRID_CELL_SIZE) + "px";
-                div.style.backgroundColor = baseItem.color;
-                div.innerHTML = `<span>${baseItem.name}</span>`;
+                // 래퍼 생성
+                let wrapper = document.createElement("div");
+                wrapper.className = "grid-item-wrapper";
+                wrapper.id = item.uid;
+                wrapper.style.width = (w * GRID_CELL_SIZE) + "px";
+                wrapper.style.height = (h * GRID_CELL_SIZE) + "px";
+                wrapper.style.left = (item.gridX * GRID_CELL_SIZE) + "px";
+                wrapper.style.top = (item.gridY * GRID_CELL_SIZE) + "px";
 
-                // [추가] 모서리 회전 핸들 (노란색 점)
+                // 1이 위치한 곳마다 시각적 블록 추가
+                let labelPlaced = false;
+                for(let r = 0; r < h; r++) {
+                    for(let c = 0; c < w; c++) {
+                        if(shape[r][c] === 1) {
+                            let block = document.createElement("div");
+                            block.className = "grid-item-block";
+                            block.style.width = GRID_CELL_SIZE + "px";
+                            block.style.height = GRID_CELL_SIZE + "px";
+                            block.style.left = (c * GRID_CELL_SIZE) + "px";
+                            block.style.top = (r * GRID_CELL_SIZE) + "px";
+                            block.style.backgroundColor = baseItem.color;
+                            wrapper.appendChild(block);
+
+                            // 이름 라벨은 모양 내 첫 번째 블록 중앙에 배치
+                            if(!labelPlaced) {
+                                let title = document.createElement("div");
+                                title.className = "item-label";
+                                title.innerText = baseItem.name;
+                                title.style.left = (c * GRID_CELL_SIZE + GRID_CELL_SIZE/2) + "px";
+                                title.style.top = (r * GRID_CELL_SIZE + GRID_CELL_SIZE/2) + "px";
+                                wrapper.appendChild(title);
+                                labelPlaced = true;
+                            }
+                        }
+                    }
+                }
+
+                // 회전 핸들: 맨 윗줄의 가장 오른쪽 블록 위에 부착
+                let handleC = 0;
+                for(let c = w - 1; c >= 0; c--) {
+                    if(shape[0][c] === 1) { handleC = c; break; }
+                }
                 let rotateHandle = document.createElement("div");
                 rotateHandle.className = "rotate-handle";
+                rotateHandle.style.left = (handleC * GRID_CELL_SIZE + GRID_CELL_SIZE - 15) + "px";
+                rotateHandle.style.top = "3px";
                 
-                // 회전 핸들 클릭 이벤트 (드래그로 안 넘어가게 방지)
-                const triggerRotate = (e) => {
-                    e.stopPropagation(); // 부모(몸통)의 드래그 이벤트 막기
-                    e.preventDefault();
-                    attemptRotate(item, div);
-                };
+                const triggerRotate = (e) => { e.stopPropagation(); e.preventDefault(); attemptRotate(item, wrapper); };
                 rotateHandle.addEventListener("mousedown", triggerRotate);
                 rotateHandle.addEventListener("touchstart", triggerRotate, { passive: false });
-                
-                div.appendChild(rotateHandle);
+                wrapper.appendChild(rotateHandle);
 
-                // 몸통(아이템) 클릭 시 드래그 시작 이벤트 연결
-                div.addEventListener("mousedown", (e) => startDrag(e, item, div));
-                div.addEventListener("touchstart", (e) => startDrag(e, item, div), { passive: false });
-                
-                board.appendChild(div);
+                wrapper.addEventListener("mousedown", (e) => startDrag(e, item, wrapper));
+                wrapper.addEventListener("touchstart", (e) => startDrag(e, item, wrapper), { passive: false });
+                board.appendChild(wrapper);
             });
         }
 
-        // [MOD-020-5: 엄격형(방향A) 제자리 회전 검사 로직]
+        // [MOD-020-6: 비정형 블록 제자리 회전 충돌 검사 로직]
         function attemptRotate(itemObj, htmlEl) {
             const baseItem = ITEM_DB[itemObj.baseId];
-            
-            // 기존과 회전 후의 크기 계산
-            let oldW = itemObj.isRotated ? baseItem.h : baseItem.w;
-            let oldH = itemObj.isRotated ? baseItem.w : baseItem.h;
-            let newW = oldH;
-            let newH = oldW;
-
+            let nextRot = (itemObj.rot + 1) % 4; // 0 -> 1 -> 2 -> 3 순환
+            const newShape = getRotatedShape(baseItem.shape, nextRot);
+            const newH = newShape.length, newW = newShape[0].length;
             let canRotate = true;
 
-            // 판정 1: 회전했을 때 가방 경계를 벗어나는가?
-            if (itemObj.gridX + newW > INV_COLS || itemObj.gridY + newH > INV_ROWS) {
-                canRotate = false;
-            } else {
-                // 판정 2: 본인을 제외한 다른 아이템과 겹치는가?
-                for(let y = itemObj.gridY; y < itemObj.gridY + newH; y++) {
-                    for(let x = itemObj.gridX; x < itemObj.gridX + newW; x++) {
-                        // 빈칸이 아니면서, 나 자신(uid)이 아닌 다른 아이템이 있다면 충돌
-                        if(gridMap[y][x] !== null && gridMap[y][x] !== itemObj.uid) {
-                            canRotate = false;
-                            break;
-                        }
+            for(let r = 0; r < newH; r++) {
+                for(let c = 0; c < newW; c++) {
+                    if(newShape[r][c] === 1) {
+                        let gy = itemObj.gridY + r, gx = itemObj.gridX + c;
+                        // 공간 경계 및 충돌 판정
+                        if(gy < 0 || gy >= INV_ROWS || gx < 0 || gx >= INV_COLS) { canRotate = false; break; }
+                        if(gridMap[gy][gx] !== null && gridMap[gy][gx] !== itemObj.uid) { canRotate = false; break; }
                     }
-                    if(!canRotate) break;
                 }
+                if(!canRotate) break;
             }
 
-            // 공간이 충분하면 회전 적용 후 리렌더링
             if (canRotate) {
-                itemObj.isRotated = !itemObj.isRotated;
+                itemObj.rot = nextRot;
                 renderGridInventory(); 
             } else {
-                // 공간 부족 시: 빨간색으로 0.2초간 깜빡이는 에러 피드백
-                const originalColor = baseItem.color;
-                htmlEl.style.backgroundColor = "rgba(255, 0, 0, 0.8)";
-                setTimeout(() => {
-                    htmlEl.style.backgroundColor = originalColor;
-                }, 200);
+                let blocks = htmlEl.querySelectorAll('.grid-item-block');
+                blocks.forEach(b => {
+                    const originalColor = b.style.backgroundColor;
+                    b.style.backgroundColor = "rgba(255, 0, 0, 0.8)";
+                    setTimeout(() => { b.style.backgroundColor = originalColor; }, 200);
+                });
             }
         }
 
-        // [MOD-020-6: 드래그 앤 드롭 핵심 함수]
+        // [MOD-020-7: 드래그 앤 드롭 함수]
         function startDrag(e, itemObj, htmlEl) {
-            if (e.type === "mousedown" && e.button !== 0) return; // 좌클릭만 허용
+            if (e.type === "mousedown" && e.button !== 0) return; 
 
             dragItemState.active = true;
             dragItemState.itemRef = itemObj;
@@ -1698,34 +1737,33 @@
             let clientX = e.type.includes("touch") ? e.touches[0].clientX : e.clientX;
             let clientY = e.type.includes("touch") ? e.touches[0].clientY : e.clientY;
 
-            // 클릭 지점 오프셋 계산 (아이템의 부드러운 이동을 위함)
             const rect = htmlEl.getBoundingClientRect();
             dragItemState.offsetX = clientX - rect.left;
             dragItemState.offsetY = clientY - rect.top;
             dragItemState.lastClientX = clientX;
             dragItemState.lastClientY = clientY;
 
-            // 드래그 중인 아이템을 gridMap 배열에서 임시 삭제 (겹침 판정을 위함)
+            // 드래그 중인 1 파츠만 맵에서 지우기
             const baseItem = ITEM_DB[itemObj.baseId];
-            let w = itemObj.isRotated ? baseItem.h : baseItem.w;
-            let h = itemObj.isRotated ? baseItem.w : baseItem.h;
-            for(let y = itemObj.gridY; y < itemObj.gridY + h; y++) {
-                for(let x = itemObj.gridX; x < itemObj.gridX + w; x++) {
-                    if(y >= 0 && y < INV_ROWS && x >= 0 && x < INV_COLS) gridMap[y][x] = null;
+            const shape = getRotatedShape(baseItem.shape, itemObj.rot);
+            const h = shape.length, w = shape[0].length;
+            for(let r = 0; r < h; r++) {
+                for(let c = 0; c < w; c++) {
+                    if(shape[r][c] === 1) {
+                        let gy = itemObj.gridY + r, gx = itemObj.gridX + c;
+                        if(gy >= 0 && gy < INV_ROWS && gx >= 0 && gx < INV_COLS) gridMap[gy][gx] = null;
+                    }
                 }
             }
 
-            // 마우스를 따라다닐 고스트 엘리먼트 생성
             let ghost = document.createElement("div");
-            ghost.className = "grid-item dragging"; 
+            ghost.className = "grid-item-wrapper dragging"; 
             ghost.style.width = htmlEl.style.width;
             ghost.style.height = htmlEl.style.height;
-            ghost.innerHTML = htmlEl.innerHTML; // 회전 핸들까지 복사되지만 pointer-events: none으로 눌리지 않음
+            ghost.innerHTML = htmlEl.innerHTML; 
             
             document.getElementById("inventoryBoard").appendChild(ghost);
             dragItemState.ghostEl = ghost;
-
-            // 원본 DOM 숨기기
             htmlEl.style.display = "none";
 
             document.addEventListener("mousemove", onDragMove);
@@ -1738,8 +1776,6 @@
 
         function onDragMove(e) {
             if (!dragItemState.active) return;
-            
-            // 모바일 화면의 E 버튼 등을 눌렀을 때 드래그가 끊기지 않게 방어
             if(e.type === "touchmove" && e.touches.length > 0) {
                 dragItemState.lastClientX = e.touches[0].clientX;
                 dragItemState.lastClientY = e.touches[0].clientY;
@@ -1755,49 +1791,44 @@
             if(!board) return;
             const boardRect = board.getBoundingClientRect();
 
-            // 보드 내부 로컬 마우스 좌표계 계산
             let localX = dragItemState.lastClientX - boardRect.left;
             let localY = dragItemState.lastClientY - boardRect.top;
 
-            // 오프셋을 뺀 좌표를 40px 단위로 반올림하여 스냅(Snap)될 그리드 칸 계산
             let rawGridX = Math.round((localX - dragItemState.offsetX) / GRID_CELL_SIZE);
             let rawGridY = Math.round((localY - dragItemState.offsetY) / GRID_CELL_SIZE);
 
             const baseItem = ITEM_DB[dragItemState.itemRef.baseId];
-            let w = dragItemState.itemRef.isRotated ? baseItem.h : baseItem.w;
-            let h = dragItemState.itemRef.isRotated ? baseItem.w : baseItem.h;
+            const shape = getRotatedShape(baseItem.shape, dragItemState.itemRef.rot);
+            const h = shape.length, w = shape[0].length;
 
             dragItemState.currentGridX = rawGridX;
             dragItemState.currentGridY = rawGridY;
             dragItemState.isValid = true;
             
-            // 충돌 판정 1: 가방(8x10) 밖으로 나갔는가?
-            if (rawGridX < 0 || rawGridY < 0 || rawGridX + w > INV_COLS || rawGridY + h > INV_ROWS) {
-                dragItemState.isValid = false;
-            } else {
-                // 충돌 판정 2: 다른 아이템의 uid가 존재하는가?
-                for(let y = rawGridY; y < rawGridY + h; y++) {
-                    for(let x = rawGridX; x < rawGridX + w; x++) {
-                        if (gridMap[y][x] !== null) {
-                            dragItemState.isValid = false;
-                            break;
-                        }
+            for(let r = 0; r < h; r++) {
+                for(let c = 0; c < w; c++) {
+                    if(shape[r][c] === 1) {
+                        let gy = rawGridY + r, gx = rawGridX + c;
+                        if (gy < 0 || gy >= INV_ROWS || gx < 0 || gx >= INV_COLS) { dragItemState.isValid = false; break; }
+                        if (gridMap[gy][gx] !== null) { dragItemState.isValid = false; break; }
                     }
-                    if(!dragItemState.isValid) break;
                 }
+                if(!dragItemState.isValid) break;
             }
 
-            // 고스트 위치 및 색상 업데이트 (시각적 피드백)
             dragItemState.ghostEl.style.left = (rawGridX * GRID_CELL_SIZE) + "px";
             dragItemState.ghostEl.style.top = (rawGridY * GRID_CELL_SIZE) + "px";
             
-            if (dragItemState.isValid) {
-                dragItemState.ghostEl.style.backgroundColor = "rgba(0, 255, 0, 0.5)"; // 설치 가능 (초록)
-                dragItemState.ghostEl.style.border = "2px solid #0f0";
-            } else {
-                dragItemState.ghostEl.style.backgroundColor = "rgba(255, 0, 0, 0.5)"; // 설치 불가 (빨강)
-                dragItemState.ghostEl.style.border = "2px solid #f00";
-            }
+            let blocks = dragItemState.ghostEl.querySelectorAll('.grid-item-block');
+            blocks.forEach(b => {
+                if (dragItemState.isValid) {
+                    b.style.backgroundColor = "rgba(0, 255, 0, 0.5)"; 
+                    b.style.border = "2px solid #0f0";
+                } else {
+                    b.style.backgroundColor = "rgba(255, 0, 0, 0.5)"; 
+                    b.style.border = "2px solid #f00";
+                }
+            });
         }
 
         function onDragEnd(e) {
@@ -1807,7 +1838,6 @@
             document.removeEventListener("touchmove", onDragMove);
             document.removeEventListener("touchend", onDragEnd);
 
-            // 놓을 수 있는 자리면 새로운 좌표 확정, 아니면 기존 좌표로 롤백
             if (dragItemState.isValid) {
                 dragItemState.itemRef.gridX = dragItemState.currentGridX;
                 dragItemState.itemRef.gridY = dragItemState.currentGridY;
@@ -1821,8 +1851,6 @@
                 dragItemState.ghostEl.remove();
                 dragItemState.ghostEl = null;
             }
-
-            // 배치 결과에 맞춰 맵 전체 리렌더링
             renderGridInventory();
         }
         // [MOD-020-END]
