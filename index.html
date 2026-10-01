@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>리퀘 (Re-Quest) v0.2.591</title>
+    <title>리퀘 (Re-Quest) v0.2.592</title>
     
     <style>
         /* [MOD-001: 기본 화면 및 컨테이너 스타일] */
@@ -87,7 +87,7 @@
         .slot-throwable { top: 105px; left: 215px; width: 34px; height: 34px; }
         .slot-throwable::after { content: "투척"; position: absolute; bottom: -18px; font-size: 10px; color: #888; }
 
-        /* 아티팩트 영역: 텍스트를 위로 올리고 슬롯들은 가운데 정렬 */
+        /* 아티팩트 영역 */
         #artifactSection { display: flex; gap: 6px; justify-content: center; align-items: flex-end; height: 65px; padding-bottom: 10px; background: #222; border-bottom: 2px solid #333; position: relative; box-sizing: border-box; }
         .artifact-label { position: absolute; top: 5px; left: 50%; transform: translateX(-50%); font-size: 11px; color: #888; font-weight: bold; }
         .artifact-slot { width: 34px; height: 34px; background-color: #2a2a2a; border: 2px solid #555; border-radius: 4px; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: 0.2s; box-sizing: border-box; }
@@ -96,7 +96,6 @@
         /* 스탯 및 포인트 박스 영역 */
         #statSection { flex: 1; position: relative; display: flex; justify-content: center; align-items: center; background: #1a1a1a; overflow: hidden; }
         
-        /* 텍스트 대신 깔끔한 네모 박스 형태의 잔여 포인트 칸 */
         .point-box {
             position: absolute; top: 15px; left: 15px; width: 30px; height: 30px;
             background-color: #2a2a2a; border: 2px solid gold; border-radius: 4px;
@@ -105,15 +104,15 @@
             box-shadow: 0 0 5px rgba(255, 215, 0, 0.3);
         }
         
-        /* 스탯 조절 [-] [+] HTML 버튼 디자인 */
-        .stat-pm-btn {
-            background: #333; color: white; border: 1px solid #555; border-radius: 3px;
-            width: 18px; height: 18px; font-size: 12px; font-weight: bold; cursor: pointer;
-            display: flex; align-items: center; justify-content: center; padding: 0;
-            line-height: 1; outline: none; transition: 0.1s;
+        /* 텍스트 일체형 ◀ ▶ 화살표 버튼 디자인 */
+        .stat-arrow-btn {
+            background: transparent; color: #777; border: none; 
+            font-size: 12px; cursor: pointer; padding: 0 3px; 
+            display: flex; align-items: center; justify-content: center;
+            outline: none; transition: 0.1s;
         }
-        .stat-pm-btn:hover { background: #555; border-color: gold; color: gold; }
-        .stat-pm-btn:active { transform: scale(0.9); }
+        .stat-arrow-btn:hover { color: gold; text-shadow: 0 0 5px rgba(255, 215, 0, 0.8); }
+        .stat-arrow-btn:active { transform: scale(0.8); }
         /* [MOD-002-4-END] */
 
         /* [MOD-003: 버튼 컨트롤 및 모바일 가상 패드(vmin 반응형) 스타일] */
@@ -551,13 +550,13 @@
             let fontSize = 12;
             let textOffset = 35;
             
-            // HTML 오버레이 컨테이너를 비웁니다.
             let labelsContainer = document.getElementById(canvasId + "_labels");
             if (labelsContainer) labelsContainer.innerHTML = "";
             
             if (canvasId === "infoRadarCanvas") {
-                maxR = 60; // 버튼이 들어갈 공간 확보를 위해 약간 더 축소
-                textOffset = 55; 
+                // 공간이 절약된 만큼 육각형의 크기(maxR)를 60에서 80으로 대폭 확대!
+                maxR = 80; 
+                textOffset = 35; 
             } else {
                 maxR = cx - 75;
                 fontSize = 12;
@@ -568,7 +567,6 @@
             rctx.clearRect(0, 0, w, h);
             const labels = ["체력", "힘", "민첩", "마나", "스테미나", "매력"];
 
-            // 1. 거미줄 바탕선
             rctx.strokeStyle = "#555"; 
             rctx.lineWidth = (canvasId === "infoRadarCanvas" ? 2 : 1); 
             for(let step = 1; step <= 4; step++) {
@@ -582,7 +580,6 @@
                 rctx.closePath(); rctx.stroke();
             }
 
-            // 2. 방사형 축선 및 라벨/버튼 렌더링
             for(let i=0; i<6; i++) {
                 let angle = (Math.PI / 3) * i - (Math.PI / 2);
                 rctx.beginPath();
@@ -593,9 +590,8 @@
                 let lx = cx + Math.cos(angle) * (maxR + textOffset);
                 let ly = cy + Math.sin(angle) * (maxR + textOffset);
 
-                // 인벤토리 창인 경우 캔버스 텍스트 대신 HTML 엘리먼트(버튼 포함)를 생성해 오버레이로 올립니다.
                 if (canvasId === "infoRadarCanvas" && labelsContainer) {
-                    let scaledX = lx / 2; // 고해상도 캔버스 크기를 CSS 크기로 반 나누기
+                    let scaledX = lx / 2; 
                     let scaledY = ly / 2;
                     
                     let div = document.createElement("div");
@@ -609,18 +605,17 @@
                     div.style.fontWeight = "bold";
                     div.style.display = "flex";
                     div.style.alignItems = "center";
-                    div.style.gap = "4px";
+                    div.style.gap = "0px"; // 화살표와 글씨 사이 간격 최소화
                     div.style.whiteSpace = "nowrap";
                     
-                    // [-] 스탯이름: 0 [+] 형식
+                    // ◀ 스탯이름: 0 ▶ 형식으로 깔끔하게 렌더링
                     div.innerHTML = `
-                        <button class="stat-pm-btn" onclick="adjustStatFromUI('${statKeys[i]}', -1)">-</button>
-                        <span style="min-width: 45px; text-align: center;">${labels[i]}: ${player.stats[statKeys[i]]}</span>
-                        <button class="stat-pm-btn" onclick="adjustStatFromUI('${statKeys[i]}', 1)">+</button>
+                        <button class="stat-arrow-btn" onclick="adjustStatFromUI('${statKeys[i]}', -1)">◀</button>
+                        <span style="min-width: 48px; text-align: center;">${labels[i]}: ${player.stats[statKeys[i]]}</span>
+                        <button class="stat-arrow-btn" onclick="adjustStatFromUI('${statKeys[i]}', 1)">▶</button>
                     `;
                     labelsContainer.appendChild(div);
                 } else {
-                    // 기존 캐릭터 생성창 캔버스 텍스트
                     rctx.fillStyle = "white"; 
                     rctx.font = `bold ${fontSize}px sans-serif`;
                     rctx.textAlign = "center"; rctx.textBaseline = "middle";
@@ -628,7 +623,6 @@
                 }
             }
 
-            // 3. 다각형 색칠
             rctx.fillStyle = "rgba(255, 215, 0, 0.5)"; 
             rctx.strokeStyle = "gold"; 
             rctx.lineWidth = (canvasId === "infoRadarCanvas" ? 3 : 2);
@@ -643,26 +637,23 @@
             rctx.closePath(); rctx.fill(); rctx.stroke();
         }
 
-        // 포인트 클릭 시 스탯을 실시간 조작하고 최대 HP/MP/ST를 갱신하는 함수
         function adjustStatFromUI(stat, amount) {
             if (typeof player.statPoints === "undefined") player.statPoints = 0;
             
             if (amount > 0 && player.statPoints > 0) {
                 player.stats[stat]++;
                 player.statPoints--;
-            } else if (amount < 0 && player.stats[stat] > 3) { // 기본 스탯 3 밑으로는 내릴 수 없음
+            } else if (amount < 0 && player.stats[stat] > 3) {
                 player.stats[stat]--;
                 player.statPoints++;
             } else {
-                return; // 포인트가 없거나 한계치 도달 시 무시
+                return; 
             }
             
-            // 변경 사항을 차트와 포인트 박스에 즉시 렌더링
             drawRadarChart("infoRadarCanvas");
             let ptBox = document.getElementById("statPoints");
             if (ptBox) ptBox.innerText = player.statPoints;
             
-            // 플레이어 최대치 갱신
             player.maxHp = player.stats.hp * 3;
             player.maxStamina = player.stats.stamina * 3;
             player.maxMana = player.stats.mana * 3;
@@ -671,7 +662,7 @@
             player.currentMana = Math.min(player.currentMana, player.maxMana);
         }
         // [MOD-014-1-END]
-
+        
         // [MOD-014-2: 스탯 증감 및 UI 업데이트]
         // 포인트 잔여량과 최소 한계치(3)를 검사하여 스탯을 더하거나 뺍니다.
         function adjustStat(stat, amount) {
