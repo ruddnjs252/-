@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>리퀘 (Re-Quest) v0.2.592</title>
+    <title>리퀘 (Re-Quest) v0.2.593</title>
     
     <style>
         /* [MOD-001: 기본 화면 및 컨테이너 스타일] */
@@ -96,11 +96,12 @@
         /* 스탯 및 포인트 박스 영역 */
         #statSection { flex: 1; position: relative; display: flex; justify-content: center; align-items: center; background: #1a1a1a; overflow: hidden; }
         
+        /* [MOD-002-4] 중 포인트 박스 부분 수정 */
         .point-box {
-            position: absolute; top: 15px; left: 15px; width: 30px; height: 30px;
+            position: absolute; top: 15px; left: 15px; width: 38px; height: 22px; /* 납작한 직사각형으로 변경 */
             background-color: #2a2a2a; border: 2px solid gold; border-radius: 4px;
             display: flex; justify-content: center; align-items: center;
-            color: gold; font-weight: bold; font-size: 15px; z-index: 5;
+            color: gold; font-weight: bold; font-size: 13px; z-index: 5;
             box-shadow: 0 0 5px rgba(255, 215, 0, 0.3);
         }
         
@@ -535,7 +536,7 @@
         // [MOD-013-END]
 
         // [MOD-014: 캐릭터 생성(스탯 분배 및 직업 선택) 로직]
-        // [MOD-014-1: 육각형 레이더 차트 렌더링 및 스탯 조작 연동]
+       // [MOD-014-1: 육각형 레이더 차트 렌더링 및 스탯 조작 연동]
         function drawRadarChart(canvasId) {
             const rc = document.getElementById(canvasId);
             if (!rc) return;
@@ -554,9 +555,9 @@
             if (labelsContainer) labelsContainer.innerHTML = "";
             
             if (canvasId === "infoRadarCanvas") {
-                // 공간이 절약된 만큼 육각형의 크기(maxR)를 60에서 80으로 대폭 확대!
                 maxR = 80; 
-                textOffset = 35; 
+                // 텍스트를 차트 바깥으로 시원하게 밀어내기 위해 간격 대폭 증가
+                textOffset = 52; 
             } else {
                 maxR = cx - 75;
                 fontSize = 12;
@@ -601,17 +602,17 @@
                     div.style.transform = "translate(-50%, -50%)";
                     div.style.pointerEvents = "auto"; 
                     div.style.color = "white";
-                    div.style.fontSize = "11px";
+                    // 폰트 크기 축소
+                    div.style.fontSize = "10px";
                     div.style.fontWeight = "bold";
                     div.style.display = "flex";
                     div.style.alignItems = "center";
-                    div.style.gap = "0px"; // 화살표와 글씨 사이 간격 최소화
+                    div.style.gap = "0px"; 
                     div.style.whiteSpace = "nowrap";
                     
-                    // ◀ 스탯이름: 0 ▶ 형식으로 깔끔하게 렌더링
                     div.innerHTML = `
                         <button class="stat-arrow-btn" onclick="adjustStatFromUI('${statKeys[i]}', -1)">◀</button>
-                        <span style="min-width: 48px; text-align: center;">${labels[i]}: ${player.stats[statKeys[i]]}</span>
+                        <span style="min-width: 40px; text-align: center;">${labels[i]}: ${player.stats[statKeys[i]]}</span>
                         <button class="stat-arrow-btn" onclick="adjustStatFromUI('${statKeys[i]}', 1)">▶</button>
                     `;
                     labelsContainer.appendChild(div);
