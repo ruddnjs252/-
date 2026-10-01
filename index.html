@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>리퀘 (Re-Quest) v0.2.593</title>
+    <title>리퀘 (Re-Quest) v0.2.594</title>
     
     <style>
         /* [MOD-001: 기본 화면 및 컨테이너 스타일] */
@@ -549,19 +549,18 @@
             
             let maxR = 0;
             let fontSize = 12;
-            let textOffset = 35;
+            let baseTextOffset = 35;
             
             let labelsContainer = document.getElementById(canvasId + "_labels");
             if (labelsContainer) labelsContainer.innerHTML = "";
             
             if (canvasId === "infoRadarCanvas") {
                 maxR = 80; 
-                // 텍스트를 차트 바깥으로 시원하게 밀어내기 위해 간격 대폭 증가
-                textOffset = 52; 
+                baseTextOffset = 52; 
             } else {
                 maxR = cx - 75;
                 fontSize = 12;
-                textOffset = 35;
+                baseTextOffset = 35;
             }
 
             const maxStat = 25; 
@@ -588,8 +587,15 @@
                 rctx.lineTo(cx + Math.cos(angle) * maxR, cy + Math.sin(angle) * maxR);
                 rctx.stroke();
 
-                let lx = cx + Math.cos(angle) * (maxR + textOffset);
-                let ly = cy + Math.sin(angle) * (maxR + textOffset);
+                let currentOffset = baseTextOffset;
+                
+                // 측면 스탯들(힘:1, 민첩:2, 스테미나:4, 매력:5)은 바깥으로 더 밀어냅니다.
+                if (canvasId === "infoRadarCanvas" && (i === 1 || i === 2 || i === 4 || i === 5)) {
+                    currentOffset = 70; // 52 -> 70으로 대폭 밀어냄
+                }
+
+                let lx = cx + Math.cos(angle) * (maxR + currentOffset);
+                let ly = cy + Math.sin(angle) * (maxR + currentOffset);
 
                 if (canvasId === "infoRadarCanvas" && labelsContainer) {
                     let scaledX = lx / 2; 
@@ -602,19 +608,37 @@
                     div.style.transform = "translate(-50%, -50%)";
                     div.style.pointerEvents = "auto"; 
                     div.style.color = "white";
-                    // 폰트 크기 축소
                     div.style.fontSize = "10px";
                     div.style.fontWeight = "bold";
                     div.style.display = "flex";
-                    div.style.alignItems = "center";
-                    div.style.gap = "0px"; 
                     div.style.whiteSpace = "nowrap";
                     
-                    div.innerHTML = `
-                        <button class="stat-arrow-btn" onclick="adjustStatFromUI('${statKeys[i]}', -1)">◀</button>
-                        <span style="min-width: 40px; text-align: center;">${labels[i]}: ${player.stats[statKeys[i]]}</span>
-                        <button class="stat-arrow-btn" onclick="adjustStatFromUI('${statKeys[i]}', 1)">▶</button>
-                    `;
+                    // 측면 4개 스탯: 상하 배치(column) 적용
+                    if (i === 1 || i === 2 || i === 4 || i === 5) {
+                        div.style.flexDirection = "column";
+                        div.style.alignItems = "center";
+                        div.style.gap = "2px"; 
+                        
+                        div.innerHTML = `
+                            <span style="text-align: center;">${labels[i]}: ${player.stats[statKeys[i]]}</span>
+                            <div style="display: flex; gap: 15px; margin-top: 1px;">
+                                <button class="stat-arrow-btn" onclick="adjustStatFromUI('${statKeys[i]}', -1)">◀</button>
+                                <button class="stat-arrow-btn" onclick="adjustStatFromUI('${statKeys[i]}', 1)">▶</button>
+                            </div>
+                        `;
+                    } 
+                    // 위아래 2개 스탯(체력, 마나): 기존 좌우 배치(row) 유지
+                    else {
+                        div.style.flexDirection = "row";
+                        div.style.alignItems = "center";
+                        div.style.gap = "0px"; 
+                        
+                        div.innerHTML = `
+                            <button class="stat-arrow-btn" onclick="adjustStatFromUI('${statKeys[i]}', -1)">◀</button>
+                            <span style="min-width: 40px; text-align: center;">${labels[i]}: ${player.stats[statKeys[i]]}</span>
+                            <button class="stat-arrow-btn" onclick="adjustStatFromUI('${statKeys[i]}', 1)">▶</button>
+                        `;
+                    }
                     labelsContainer.appendChild(div);
                 } else {
                     rctx.fillStyle = "white"; 
