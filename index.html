@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>리퀘 (Re-Quest) v0.2.59</title>
+    <title>리퀘 (Re-Quest) v0.2.591</title>
     
     <style>
         /* [MOD-001: 기본 화면 및 컨테이너 스타일] */
@@ -38,70 +38,32 @@
        
         /* [MOD-002-3: 그리드 인벤토리 스타일 (테트리스형 비정형 블록)] */
         .inventory-board {
-            position: relative;
-            background-color: #1a1a1a;
-            border: 2px solid #555;
-            width: 320px; height: 400px; 
+            position: relative; background-color: #1a1a1a; border: 2px solid #555; width: 320px; height: 400px; 
             background-image: linear-gradient(#333 1px, transparent 1px), linear-gradient(90deg, #333 1px, transparent 1px);
             background-size: 40px 40px;
         }
         
-        /* 아이템의 부모(투명한 껍데기) */
         .grid-item-wrapper {
-            position: absolute;
-            cursor: grab;
-            user-select: none;
-            z-index: 2;
+            position: absolute; cursor: grab; user-select: none; z-index: 2;
+            pointer-events: none; /* [버그수정] 껍데기의 빈 공간은 클릭(드래그)을 무시하도록 설정 */
         }
 
-        /* 실제 1x1 칸을 채우는 색상 블록 */
         .grid-item-block {
-            position: absolute;
-            box-sizing: border-box;
-            border: 1px solid #aaa;
-            box-shadow: inset 0 0 10px rgba(0,0,0,0.5);
+            position: absolute; box-sizing: border-box; border: 1px solid #aaa; box-shadow: inset 0 0 10px rgba(0,0,0,0.5);
             transition: border 0.2s, filter 0.2s, background-color 0.15s ease-out;
+            pointer-events: auto; /* [버그수정] 실제 색칠된 1x1 블록 칸들만 클릭을 허용 */
         }
 
-        .grid-item-wrapper:hover .grid-item-block {
-            border: 1px solid #fff;
-            filter: brightness(1.2);
-        }
+        .grid-item-wrapper:hover .grid-item-block { border: 1px solid #fff; filter: brightness(1.2); }
 
-        /* 우측 상단 모서리 회전 축(핸들) */
         .rotate-handle {
-            position: absolute;
-            width: 12px; height: 12px;
-            background-color: gold;
-            border-radius: 50%;
-            border: 1px solid #000;
-            cursor: pointer;
-            z-index: 5;
-            transition: transform 0.1s;
+            position: absolute; width: 12px; height: 12px; background-color: gold; border-radius: 50%; border: 1px solid #000; cursor: pointer; z-index: 5; transition: transform 0.1s;
+            pointer-events: auto; /* [버그수정] 회전 핸들 클릭 허용 */
         }
-        
-        .rotate-handle:hover {
-            background-color: #ffaa00;
-            transform: scale(1.3);
-        }
+        .rotate-handle:hover { background-color: #ffaa00; transform: scale(1.3); }
 
-        /* 드래그 중인 유령(Ghost) 아이템 스타일 */
-        .grid-item-wrapper.dragging {
-            opacity: 0.8;
-            pointer-events: none; 
-            z-index: 9999;
-            filter: drop-shadow(0 10px 20px rgba(0,0,0,0.7));
-        }
-
-        /* 아이템 이름 텍스트 */
-        .item-label {
-            position: absolute;
-            transform: translate(-50%, -50%);
-            color: white; font-size: 11px; font-weight: bold;
-            pointer-events: none; text-align: center; width: 50px;
-            text-shadow: 1px 1px 2px black;
-            z-index: 4;
-        }
+        .grid-item-wrapper.dragging { opacity: 0.8; pointer-events: none; z-index: 9999; filter: drop-shadow(0 10px 20px rgba(0,0,0,0.7)); }
+        .item-label { position: absolute; transform: translate(-50%, -50%); color: white; font-size: 11px; font-weight: bold; pointer-events: none; text-align: center; width: 50px; text-shadow: 1px 1px 2px black; z-index: 4; }
         /* [MOD-002-3-END] */
 
         /* [MOD-002-4: 장착 장비 및 아티팩트 UI 패널 (ui_1)] */
@@ -110,32 +72,48 @@
         
         #leftPanel { width: 280px; height: 400px; display: flex; flex-direction: column; background: #1a1a1a; border: 2px solid #444; box-sizing: border-box; }
         
-        /* 십자가 장비 영역 크기 및 여백 축소 */
+        /* 십자가 장비 영역 */
         #equipSection { position: relative; width: 100%; height: 160px; background: #222; border-bottom: 2px solid #333; }
         .equip-slot { position: absolute; width: 40px; height: 40px; background-color: #2a2a2a; border: 2px solid #555; display: flex; align-items: center; justify-content: center; border-radius: 4px; box-sizing: border-box; transition: 0.2s; cursor: pointer; }
         .equip-slot:hover { border-color: gold; box-shadow: 0 0 8px rgba(255, 215, 0, 0.5); }
         .slot-hint { font-size: 11px; color: #666; pointer-events: none; }
         
-        /* 십자가 슬롯 오밀조밀하게 재배치 (중앙 기준 120px) */
         .slot-head { top: 15px; left: 120px; }
         .slot-mainWeapon { top: 60px; left: 75px; }
         .slot-chest { top: 60px; left: 120px; }
         .slot-subWeapon { top: 60px; left: 165px; }
         .slot-shoes { top: 105px; left: 120px; }
         
-        /* 투척 무기 */
         .slot-throwable { top: 105px; left: 215px; width: 34px; height: 34px; }
         .slot-throwable::after { content: "투척"; position: absolute; bottom: -18px; font-size: 10px; color: #888; }
 
-        /* 아티팩트 영역 */
-        #artifactSection { display: flex; gap: 6px; justify-content: flex-end; align-items: center; height: 60px; padding: 0 15px; background: #222; border-bottom: 2px solid #333; position: relative; }
-        .artifact-label { position: absolute; left: 15px; font-size: 11px; color: #888; font-weight: bold; }
+        /* 아티팩트 영역: 텍스트를 위로 올리고 슬롯들은 가운데 정렬 */
+        #artifactSection { display: flex; gap: 6px; justify-content: center; align-items: flex-end; height: 65px; padding-bottom: 10px; background: #222; border-bottom: 2px solid #333; position: relative; box-sizing: border-box; }
+        .artifact-label { position: absolute; top: 5px; left: 50%; transform: translateX(-50%); font-size: 11px; color: #888; font-weight: bold; }
         .artifact-slot { width: 34px; height: 34px; background-color: #2a2a2a; border: 2px solid #555; border-radius: 4px; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: 0.2s; box-sizing: border-box; }
         .artifact-slot:hover { border-color: #00ffcc; }
 
-        /* 스탯 및 레이더 영역 */
+        /* 스탯 및 포인트 박스 영역 */
         #statSection { flex: 1; position: relative; display: flex; justify-content: center; align-items: center; background: #1a1a1a; overflow: hidden; }
-        .point-text { position: absolute; top: 10px; left: 15px; font-size: 12px; color: #aaa; line-height: 1.5; z-index: 5; }
+        
+        /* 텍스트 대신 깔끔한 네모 박스 형태의 잔여 포인트 칸 */
+        .point-box {
+            position: absolute; top: 15px; left: 15px; width: 30px; height: 30px;
+            background-color: #2a2a2a; border: 2px solid gold; border-radius: 4px;
+            display: flex; justify-content: center; align-items: center;
+            color: gold; font-weight: bold; font-size: 15px; z-index: 5;
+            box-shadow: 0 0 5px rgba(255, 215, 0, 0.3);
+        }
+        
+        /* 스탯 조절 [-] [+] HTML 버튼 디자인 */
+        .stat-pm-btn {
+            background: #333; color: white; border: 1px solid #555; border-radius: 3px;
+            width: 18px; height: 18px; font-size: 12px; font-weight: bold; cursor: pointer;
+            display: flex; align-items: center; justify-content: center; padding: 0;
+            line-height: 1; outline: none; transition: 0.1s;
+        }
+        .stat-pm-btn:hover { background: #555; border-color: gold; color: gold; }
+        .stat-pm-btn:active { transform: scale(0.9); }
         /* [MOD-002-4-END] */
 
         /* [MOD-003: 버튼 컨트롤 및 모바일 가상 패드(vmin 반응형) 스타일] */
@@ -288,15 +266,13 @@
         </div>
         <!-- [MOD-005-END] -->
 
-      <!-- [MOD-006: 그리드 인벤토리 및 상태창 통합 UI (ui_1)] -->
+     <!-- [MOD-006: 그리드 인벤토리 및 상태창 통합 UI (ui_1)] -->
         <div id="inventoryUI" class="ui-layer">
             <div class="inv-container">
-                <!-- 닫기 버튼 -->
                 <button class="close-btn" style="top: -15px; right: -15px; border-radius: 50%; width: 35px; height: 35px; padding: 0;" onclick="closeUI()">X</button>
                 
                 <!-- 좌측 패널: 장비창 & 능력치 -->
                 <div id="leftPanel">
-                    <!-- 상단: 십자가 장비 및 투척 -->
                     <div id="equipSection">
                         <div class="equip-slot slot-head" data-slot="head"><span class="slot-hint">머리</span></div>
                         <div class="equip-slot slot-mainWeapon" data-slot="mainWeapon"><span class="slot-hint">주무기</span></div>
@@ -306,7 +282,6 @@
                         <div class="equip-slot slot-throwable" data-slot="throwable"><span class="slot-hint"></span></div>
                     </div>
                     
-                    <!-- 중단: 아티팩트 5칸 -->
                     <div id="artifactSection">
                         <span class="artifact-label">아티팩트</span>
                         <div class="artifact-slot" data-slot="artifact_0"></div>
@@ -316,20 +291,21 @@
                         <div class="artifact-slot" data-slot="artifact_4"></div>
                     </div>
                     
-                    <!-- 하단: 능력치 (레이더 차트) -->
                     <div id="statSection">
-                        <div class="point-text">레벨업시<br><span style="color: gold;">포인트 +<span id="statPoints">0</span></span></div>
-                        <!-- 해상도를 2배로 늘리고 CSS로 크기를 억제하여 선명도(안티앨리어싱) 확보 -->
-                        <canvas id="infoRadarCanvas" width="560" height="360" style="width: 280px; height: 180px; background: transparent; border: none; cursor: default;"></canvas>
+                        <!-- 잔여 포인트를 표시하는 네모 박스 -->
+                        <div class="point-box" id="statPoints" title="잔여 스탯 포인트">0</div>
+                        
+                        <div style="position: relative; width: 280px; height: 180px;">
+                            <canvas id="infoRadarCanvas" width="560" height="360" style="width: 280px; height: 180px; background: transparent; border: none; cursor: default; display: block;"></canvas>
+                            <!-- 깨짐 방지용 HTML 버튼 & 텍스트 오버레이 영역 -->
+                            <div id="infoRadarCanvas_labels" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none;"></div>
+                        </div>
                     </div>
                 </div>
                 
                 <!-- 우측 패널: 가방 -->
                 <div id="rightPanel" style="display: flex; position: relative;">
-                    <!-- ui_2 인챈트 창으로 넘어가는 토글 버튼 -->
                     <button id="modeSwitchBtn" style="position: absolute; left: -27px; top: 10px; background: #333; color: white; border: 2px solid #555; padding: 15px 5px; cursor: pointer; z-index: 10; border-radius: 4px 0 0 4px;">&raquo;</button>
-                    
-                    <!-- 8x10 가방 보드 -->
                     <div class="panel" style="padding: 0;">
                         <div id="inventoryBoard" class="inventory-board"></div>
                     </div>
@@ -560,29 +536,30 @@
         // [MOD-013-END]
 
         // [MOD-014: 캐릭터 생성(스탯 분배 및 직업 선택) 로직]
-        // [MOD-014-1: 육각형 레이더 차트 렌더링 (해상도 및 크기 보정 기능 추가)]
+        // [MOD-014-1: 육각형 레이더 차트 렌더링 및 스탯 조작 연동]
         function drawRadarChart(canvasId) {
             const rc = document.getElementById(canvasId);
             if (!rc) return;
             const rctx = rc.getContext("2d");
             
-            // 캔버스의 내부 렌더링 해상도
             const w = rc.width;
             const h = rc.height;
             const cx = w / 2;
-            const cy = h / 2 + 10; // 상단 '포인트' 텍스트와 안 겹치게 살짝 아래로 내림
+            const cy = h / 2 + 10; 
             
-            // infoRadarCanvas(인벤토리창)인지 ccRadarCanvas(캐릭터생성)인지 구분하여 스케일 조절
             let maxR = 0;
             let fontSize = 12;
             let textOffset = 35;
             
+            // HTML 오버레이 컨테이너를 비웁니다.
+            let labelsContainer = document.getElementById(canvasId + "_labels");
+            if (labelsContainer) labelsContainer.innerHTML = "";
+            
             if (canvasId === "infoRadarCanvas") {
-                maxR = 75;       // 인벤토리 창에서는 육각형 크기를 콤팩트하게 줄임
-                fontSize = 24;   // 내부 해상도가 2배(560x360)이므로 폰트 크기도 2배로 키워야 또렷하게 보임
-                textOffset = 45; // 텍스트 여백 
+                maxR = 60; // 버튼이 들어갈 공간 확보를 위해 약간 더 축소
+                textOffset = 55; 
             } else {
-                maxR = cx - 75;  // 기존 캐릭터 생성 창 로직
+                maxR = cx - 75;
                 fontSize = 12;
                 textOffset = 35;
             }
@@ -591,9 +568,9 @@
             rctx.clearRect(0, 0, w, h);
             const labels = ["체력", "힘", "민첩", "마나", "스테미나", "매력"];
 
-            // 1. 거미줄 바탕선 그리기
+            // 1. 거미줄 바탕선
             rctx.strokeStyle = "#555"; 
-            rctx.lineWidth = (canvasId === "infoRadarCanvas" ? 2 : 1); // 고해상도 선 두께 보정
+            rctx.lineWidth = (canvasId === "infoRadarCanvas" ? 2 : 1); 
             for(let step = 1; step <= 4; step++) {
                 let r = maxR * (step / 4);
                 rctx.beginPath();
@@ -605,7 +582,7 @@
                 rctx.closePath(); rctx.stroke();
             }
 
-            // 2. 방사형 축선 및 라벨 텍스트 그리기
+            // 2. 방사형 축선 및 라벨/버튼 렌더링
             for(let i=0; i<6; i++) {
                 let angle = (Math.PI / 3) * i - (Math.PI / 2);
                 rctx.beginPath();
@@ -613,18 +590,48 @@
                 rctx.lineTo(cx + Math.cos(angle) * maxR, cy + Math.sin(angle) * maxR);
                 rctx.stroke();
 
-                rctx.fillStyle = "white"; 
-                rctx.font = `bold ${fontSize}px sans-serif`;
-                rctx.textAlign = "center"; rctx.textBaseline = "middle";
                 let lx = cx + Math.cos(angle) * (maxR + textOffset);
                 let ly = cy + Math.sin(angle) * (maxR + textOffset);
-                rctx.fillText(`${labels[i]}: ${player.stats[statKeys[i]]}`, lx, ly);
+
+                // 인벤토리 창인 경우 캔버스 텍스트 대신 HTML 엘리먼트(버튼 포함)를 생성해 오버레이로 올립니다.
+                if (canvasId === "infoRadarCanvas" && labelsContainer) {
+                    let scaledX = lx / 2; // 고해상도 캔버스 크기를 CSS 크기로 반 나누기
+                    let scaledY = ly / 2;
+                    
+                    let div = document.createElement("div");
+                    div.style.position = "absolute";
+                    div.style.left = scaledX + "px";
+                    div.style.top = scaledY + "px";
+                    div.style.transform = "translate(-50%, -50%)";
+                    div.style.pointerEvents = "auto"; 
+                    div.style.color = "white";
+                    div.style.fontSize = "11px";
+                    div.style.fontWeight = "bold";
+                    div.style.display = "flex";
+                    div.style.alignItems = "center";
+                    div.style.gap = "4px";
+                    div.style.whiteSpace = "nowrap";
+                    
+                    // [-] 스탯이름: 0 [+] 형식
+                    div.innerHTML = `
+                        <button class="stat-pm-btn" onclick="adjustStatFromUI('${statKeys[i]}', -1)">-</button>
+                        <span style="min-width: 45px; text-align: center;">${labels[i]}: ${player.stats[statKeys[i]]}</span>
+                        <button class="stat-pm-btn" onclick="adjustStatFromUI('${statKeys[i]}', 1)">+</button>
+                    `;
+                    labelsContainer.appendChild(div);
+                } else {
+                    // 기존 캐릭터 생성창 캔버스 텍스트
+                    rctx.fillStyle = "white"; 
+                    rctx.font = `bold ${fontSize}px sans-serif`;
+                    rctx.textAlign = "center"; rctx.textBaseline = "middle";
+                    rctx.fillText(`${labels[i]}: ${player.stats[statKeys[i]]}`, lx, ly);
+                }
             }
 
-            // 3. 현재 스탯을 나타내는 다각형 영역 색칠하기
+            // 3. 다각형 색칠
             rctx.fillStyle = "rgba(255, 215, 0, 0.5)"; 
             rctx.strokeStyle = "gold"; 
-            rctx.lineWidth = (canvasId === "infoRadarCanvas" ? 3 : 2); // 고해상도 테두리 보정
+            rctx.lineWidth = (canvasId === "infoRadarCanvas" ? 3 : 2);
             rctx.beginPath();
             for(let i=0; i<6; i++) {
                 let angle = (Math.PI / 3) * i - (Math.PI / 2);
@@ -634,6 +641,34 @@
                 if(i===0) rctx.moveTo(x, y); else rctx.lineTo(x, y);
             }
             rctx.closePath(); rctx.fill(); rctx.stroke();
+        }
+
+        // 포인트 클릭 시 스탯을 실시간 조작하고 최대 HP/MP/ST를 갱신하는 함수
+        function adjustStatFromUI(stat, amount) {
+            if (typeof player.statPoints === "undefined") player.statPoints = 0;
+            
+            if (amount > 0 && player.statPoints > 0) {
+                player.stats[stat]++;
+                player.statPoints--;
+            } else if (amount < 0 && player.stats[stat] > 3) { // 기본 스탯 3 밑으로는 내릴 수 없음
+                player.stats[stat]--;
+                player.statPoints++;
+            } else {
+                return; // 포인트가 없거나 한계치 도달 시 무시
+            }
+            
+            // 변경 사항을 차트와 포인트 박스에 즉시 렌더링
+            drawRadarChart("infoRadarCanvas");
+            let ptBox = document.getElementById("statPoints");
+            if (ptBox) ptBox.innerText = player.statPoints;
+            
+            // 플레이어 최대치 갱신
+            player.maxHp = player.stats.hp * 3;
+            player.maxStamina = player.stats.stamina * 3;
+            player.maxMana = player.stats.mana * 3;
+            player.currentHp = Math.min(player.currentHp, player.maxHp);
+            player.currentStamina = Math.min(player.currentStamina, player.maxStamina);
+            player.currentMana = Math.min(player.currentMana, player.maxMana);
         }
         // [MOD-014-1-END]
 
