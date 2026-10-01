@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>리퀘 (Re-Quest) v0.2.57</title>
+    <title>리퀘 (Re-Quest) v0.2.58</title>
     
     <style>
         /* [MOD-001: 기본 화면 및 컨테이너 스타일] */
@@ -106,8 +106,9 @@
 
         /* [MOD-002-4: 장착 장비 및 아티팩트 UI 패널 (ui_1)] */
         #inventoryUI { display: none; justify-content: center; align-items: center; background: rgba(0,0,0,0.85); }
-        .inv-container { background: #111; padding: 15px; border: 3px solid #555; border-radius: 8px; display: flex; gap: 15px; position: relative; }
         
+        /* 아래 inv-container 줄 끝에 transform-origin: center; 가 추가되었습니다. */
+        .inv-container { background: #111; padding: 15px; border: 3px solid #555; border-radius: 8px; display: flex; gap: 15px; position: relative; transform-origin: center; }
         #leftPanel { width: 280px; height: 400px; display: flex; flex-direction: column; background: #1a1a1a; border: 2px solid #444; box-sizing: border-box; }
         
         /* 십자가 장비 영역 */
@@ -1133,15 +1134,42 @@
 
         // [MOD-017: UI 제어 및 충돌(Collision) 유틸리티]
        // [MOD-017: UI 제어 및 충돌(Collision) 유틸리티]
-        // [MOD-017-1: 인벤토리 통합 UI 열기/닫기]
+       // [MOD-017: UI 제어 및 충돌(Collision) 유틸리티]
+        // [MOD-017-1: 인벤토리 통합 UI 열기/닫기 및 자동 스케일링]
+        
+        function autoScaleInventory() {
+            const container = document.querySelector('.inv-container');
+            if (!container) return;
+            
+            // 인벤토리 UI의 대략적인 원본 총 해상도 (가로 약 650px, 세로 약 450px)
+            const baseW = 650;
+            const baseH = 450;
+            
+            // 현재 화면의 85%를 덮도록 배율 계산
+            const scaleX = (window.innerWidth * 0.85) / baseW;
+            const scaleY = (window.innerHeight * 0.85) / baseH;
+            
+            // 가로와 세로 중 더 타이트한 쪽에 맞춰서 비율 유지 (찌그러짐 방지)
+            let scale = Math.min(scaleX, scaleY);
+            
+            // 너무 작아지거나 너무 커지지 않도록 한계선 설정 (최소 0.5배 ~ 최대 2.5배)
+            scale = Math.max(0.5, Math.min(scale, 2.5));
+            
+            container.style.transform = `scale(${scale})`;
+        }
+        
+        // 브라우저 창 크기가 변할 때 실시간 대응
+        window.addEventListener('resize', autoScaleInventory);
+
         function switchTab(tabId) {
-            // ui_1 뷰에서는 탭이 통합되었으므로, E키를 누르면 가방과 레이더 차트를 한 번에 렌더링합니다.
             if (typeof renderGridInventory === "function") renderGridInventory();
             if (typeof drawRadarChart === "function") drawRadarChart("infoRadarCanvas");
             
-            // 보유 스탯 포인트 UI 갱신 (추후 레벨업 시스템과 연동)
             const ptEl = document.getElementById("statPoints");
             if(ptEl) ptEl.innerText = "0"; 
+            
+            // 가방을 열 때 자동으로 스케일링 함수 실행
+            autoScaleInventory();
         }
 
         function closeUI() {
@@ -1787,7 +1815,7 @@
             }
         }
 
-        // [MOD-020-7: 드래그 앤 드롭 함수]
+        // [MOD-020-7: 드래그 앤 드롭 함수 (스케일링 대응 완벽 패치)]
         function startDrag(e, itemObj, htmlEl) {
             if (e.type === "mousedown" && e.button !== 0) return; 
 
@@ -1799,9 +1827,14 @@
             let clientX = e.type.includes("touch") ? e.touches[0].clientX : e.clientX;
             let clientY = e.type.includes("touch") ? e.touches[0].clientY : e.clientY;
 
-            const rect = htmlEl.getBoundingClientRect();
-            dragItemState.offsetX = clientX - rect.left;
-            dragItemState.offsetY = clientY - rect.top;
+            const boardRect = document.getElementById("inventoryBoard").getBoundingClientRect();
+            const elRect = htmlEl.getBoundingClientRect();
+            
+            // [스케일 보정] 화면이 확대/축소된 배율(scale)을 역산하여 원본 픽셀 기준 오프셋을 구합니다.
+            const currentScale = boardRect.width / (INV_COLS * GRID_CELL_SIZE);
+
+            dragItemState.offsetX = (clientX - elRect.left) / currentScale;
+            dragItemState.offsetY = (clientY - elRect.top) / currentScale;
             dragItemState.lastClientX = clientX;
             dragItemState.lastClientY = clientY;
 
@@ -1849,14 +1882,18 @@
 
         function updateDragGhost() {
             const board = document.getElementById("inventoryBoard");
-            if(!board) return;
+            if(!board || !dragItemState.ghostEl) return;
             const boardRect = board.getBoundingClientRect();
+            
+            // [스케일 보정] 
+            const currentScale = boardRect.width / (INV_COLS * GRID_CELL_SIZE);
 
-            let localX = dragItemState.lastClientX - boardRect.left;
-            let localY = dragItemState.lastClientY - boardRect.top;
+            // 마우스 좌표를 배율로 나누어 실제 보드 내부의 40px 단위 쌩픽셀 좌표계로 변환합니다.
+            let localX = (dragItemState.lastClientX - boardRect.left) / currentScale - dragItemState.offsetX;
+            let localY = (dragItemState.lastClientY - boardRect.top) / currentScale - dragItemState.offsetY;
 
-            let rawGridX = Math.round((localX - dragItemState.offsetX) / GRID_CELL_SIZE);
-            let rawGridY = Math.round((localY - dragItemState.offsetY) / GRID_CELL_SIZE);
+            let rawGridX = Math.round(localX / GRID_CELL_SIZE);
+            let rawGridY = Math.round(localY / GRID_CELL_SIZE);
 
             const baseItem = ITEM_DB[dragItemState.itemRef.baseId];
             const shape = getRotatedShape(baseItem.shape, dragItemState.itemRef.rot);
@@ -1893,6 +1930,7 @@
         }
 
         function onDragEnd(e) {
+            // (onDragEnd 함수는 기존 내용과 완전히 동일하게 유지하시면 됩니다. 생략 없이 기존 코드 그대로 두거나 덮어씌워주세요.)
             if (!dragItemState.active) return;
             document.removeEventListener("mousemove", onDragMove);
             document.removeEventListener("mouseup", onDragEnd);
@@ -1914,7 +1952,7 @@
             }
             renderGridInventory();
         }
-        // [MOD-020-END]
+        // [MOD-020-7-END]
         
         // [MOD-019: 메인 실행부]
         // 엔진 및 초기 변수 선언이 끝난 후 게임 루프를 킥오프(Kickoff) 합니다.
