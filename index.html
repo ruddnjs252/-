@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>리퀘 (Re-Quest) v0.2.5995</title>
+    <title>리퀘 (Re-Quest) v0.2.5996</title>
     
     <style>
         /* [MOD-001: 기본 화면 및 컨테이너 스타일] */
@@ -1210,13 +1210,12 @@
         let currentRightView = 'inventory'; 
         let currentEnchantTargetSlot = null; 
 
-        // [핵심] 가방에서 아이템 더블클릭 시 장착!
         document.getElementById("inventoryBoard").addEventListener("dblclick", function(e) {
             let wrapper = e.target.closest(".grid-item-wrapper");
             if(!wrapper) return;
             
-            // id 대신 uid를 사용하여 정확한 아이템 객체를 찾습니다.
-            let item = myInventoryItems.find(i => i.uid === wrapper.id);
+            // 데이터 배열에서 클릭한 아이템을 정확하게 찾기 위해 호환성 검사
+            let item = myInventoryItems.find(i => (i.id || i.uid) === wrapper.id);
             
             if(item && ITEM_DB[item.baseId].type === "equip") {
                 equipItem(item);
@@ -1232,8 +1231,7 @@
                 return;
             }
 
-            // uid로 가방에서 아이템 제거 후 장비창으로 이동
-            let idx = myInventoryItems.findIndex(i => i.uid === itemObj.uid);
+            let idx = myInventoryItems.findIndex(i => (i.id || i.uid) === (itemObj.id || itemObj.uid));
             if(idx > -1) myInventoryItems.splice(idx, 1);
             
             if(!itemObj.sockets) itemObj.sockets = Array(baseItem.maxSockets).fill(null);
@@ -1245,7 +1243,6 @@
             renderEquipSlotsUI();
         }
 
-        // 장착된 아이템을 십자가 슬롯에 색칠하고 보여주는 함수
         function renderEquipSlotsUI() {
             for(let slot in player.equipment) {
                 let el = document.querySelector(`.slot-${slot}, [data-slot="${slot}"]`);
@@ -1264,7 +1261,6 @@
             }
         }
 
-        // 장착템 + 인챈트 스탯을 계산하여 육각형 차트에 반영
         function updatePlayerTotalStats() {
             for(let key in player.baseStats) player.stats[key] = player.baseStats[key];
 
@@ -1299,9 +1295,8 @@
                 viewInv.style.display = 'none'; viewEnc.style.display = 'flex';
                 btn.innerHTML = '&laquo;'; 
                 
-                // uid를 올바르게 적용하여 테스트용 두루마리 생성
                 if(!myInventoryItems.some(i => i.baseId === "scroll_smite")) {
-                    myInventoryItems.push({ uid: "scroll_" + Date.now(), baseId: "scroll_smite", rot: 0, gridX: 0, gridY: 0 });
+                    myInventoryItems.push({ id: "scroll_" + Date.now(), baseId: "scroll_smite", rot: 0, gridX: 0, gridY: 0 });
                 }
             } else {
                 currentRightView = 'inventory';
@@ -1363,10 +1358,9 @@
                 popup.innerHTML = `<div style="color:gray; font-size:11px; text-align:center;">가방에 인챈트 두루마리가<br>없습니다.</div>
                 <button onclick="document.getElementById('enchantPopupUI').style.display='none'" style="margin-top:10px; background:#444; color:#fff; border:none; padding:5px; border-radius:4px;">닫기</button>`;
             } else {
-                // scroll.id 속성 대신 scroll.uid를 사용하도록 수정
                 let listHtml = scrolls.map(scroll => {
                     let base = ITEM_DB[scroll.baseId];
-                    return `<div class="enchant-scroll-item" onclick="applyEnchant('${slotKey}', ${socketIndex}, '${scroll.uid}')">
+                    return `<div class="enchant-scroll-item" onclick="applyEnchant('${slotKey}', ${socketIndex}, '${scroll.id || scroll.uid}')">
                         ${base.name} <span style="color:gold; font-size:10px;">${base.enchantEffect.name}</span>
                     </div>`;
                 }).join('');
@@ -1378,10 +1372,9 @@
             popup.style.display = 'flex';
         }
 
-        function applyEnchant(slotKey, socketIndex, scrollUid) {
+        function applyEnchant(slotKey, socketIndex, scrollId) {
             let item = player.equipment[slotKey];
-            // uid를 사용하여 정확한 두루마리를 찾습니다.
-            let scrollIdx = myInventoryItems.findIndex(i => i.uid === scrollUid);
+            let scrollIdx = myInventoryItems.findIndex(i => (i.id || i.uid) === scrollId);
             let scroll = myInventoryItems[scrollIdx];
             
             myInventoryItems.splice(scrollIdx, 1);
@@ -1853,14 +1846,13 @@
 
 // [MOD-020: 그리드 인벤토리 및 장비창 시스템 통합 관리]
         
-        // [MOD-020-1: 그리드 환경 변수 및 장비 슬롯 정의]
+       // [MOD-020-1: 그리드 환경 변수 및 장비 슬롯 정의]
         const GRID_CELL_SIZE = 40; 
         const INV_COLS = 8;        
         const INV_ROWS = 10;       
         
         let gridMap = Array.from({ length: INV_ROWS }, () => Array(INV_COLS).fill(null));
         
-        // 장비 슬롯 데이터 상태 (착용된 아이템 고유 ID 또는 null)
         let equipmentSlots = {
             helmet: null,   
             armor: "item_2",    
@@ -1868,7 +1860,6 @@
             accessory: null 
         };
 
-        // 기존 아이템 정보에 스탯, 인챈트, 소켓 정보를 하나로 통합!
         const ITEM_DB = {
             "sword_basic":  { name: "기본 검", type: "equip", equipSlot: "mainWeapon", shape: [[1],[1],[1]], color: "rgba(120, 120, 150, 0.9)", stats: { 힘: 5 }, maxSockets: 3 }, 
             "armor_iron":   { name: "철갑옷", type: "armor", shape: [[1, 1], [1, 1]], color: "rgba(80, 80, 80, 0.9)" },    
@@ -1877,14 +1868,16 @@
             "scroll_smite": { name: "강타 두루마리", type: "enchant", shape: [[1]], color: "#ff4444", enchantEffect: { stat: "힘", value: 5, name: "강타(+5)" } }
         };
 
+        // 기존에 uid로 되어있던 것을 모두 id로 변경
         let myInventoryItems = [
-            { uid: "item_1", baseId: "sword_basic", gridX: 0, gridY: 0, rot: 0 },
-            { uid: "item_2", baseId: "armor_iron",  gridX: 2, gridY: 0, rot: 0 },
-            { uid: "item_3", baseId: "potion_hp",   gridX: 4, gridY: 0, rot: 0 },
-            { uid: "item_4", baseId: "sword_basic", gridX: 0, gridY: 4, rot: 1 }, 
-            { uid: "item_5", baseId: "axe_battle",  gridX: 5, gridY: 5, rot: 0 }  
+            { id: "item_1", baseId: "sword_basic", gridX: 0, gridY: 0, rot: 0 },
+            { id: "item_2", baseId: "armor_iron",  gridX: 2, gridY: 0, rot: 0 },
+            { id: "item_3", baseId: "potion_hp",   gridX: 4, gridY: 0, rot: 0 },
+            { id: "item_4", baseId: "sword_basic", gridX: 0, gridY: 4, rot: 1 }, 
+            { id: "item_5", baseId: "axe_battle",  gridX: 5, gridY: 5, rot: 0 }  
         ];
-
+        // [MOD-020-1-END]
+        
         // [MOD-020-3: 배열 회전 유틸리티 함수]
         function getRotatedShape(shape, rot) {
             let s = shape;
@@ -1909,9 +1902,9 @@
             lastClientX: 0, lastClientY: 0
         };
 
-        // [MOD-020-4: 인벤토리 및 장비창 동시 렌더링]
+      // [MOD-020-4: 인벤토리 및 장비창 동시 렌더링]
         function renderGridInventory() {
-            renderEquipmentUI(); // 장비 슬롯 렌더링 호출
+            renderEquipmentUI(); 
             
             const board = document.getElementById("inventoryBoard");
             if (!board) return;
@@ -1930,14 +1923,14 @@
                     for(let c = 0; c < w; c++) {
                         if(shape[r][c] === 1) {
                             let gy = item.gridY + r, gx = item.gridX + c;
-                            if(gy >= 0 && gy < INV_ROWS && gx >= 0 && gx < INV_COLS) gridMap[gy][gx] = item.uid;
+                            if(gy >= 0 && gy < INV_ROWS && gx >= 0 && gx < INV_COLS) gridMap[gy][gx] = item.id || item.uid;
                         }
                     }
                 }
 
                 let wrapper = document.createElement("div");
                 wrapper.className = "grid-item-wrapper";
-                wrapper.id = item.uid;
+                wrapper.id = item.id || item.uid;
                 wrapper.style.width = (w * GRID_CELL_SIZE) + "px";
                 wrapper.style.height = (h * GRID_CELL_SIZE) + "px";
                 wrapper.style.left = (item.gridX * GRID_CELL_SIZE) + "px";
@@ -1988,7 +1981,8 @@
                 board.appendChild(wrapper);
             });
         }
-
+        // [MOD-020-4-END]
+        
         // [MOD-020-5: 장비창 UI 렌더링 함수]
         function renderEquipmentUI() {
             const equipDiv = document.getElementById("equipList");
@@ -2040,7 +2034,8 @@
                     if(newShape[r][c] === 1) {
                         let gy = itemObj.gridY + r, gx = itemObj.gridX + c;
                         if(gy < 0 || gy >= INV_ROWS || gx < 0 || gx >= INV_COLS) { canRotate = false; break; }
-                        if(gridMap[gy][gx] !== null && gridMap[gy][gx] !== itemObj.uid) { canRotate = false; break; }
+                        // id || uid 호환 처리
+                        if(gridMap[gy][gx] !== null && gridMap[gy][gx] !== (itemObj.id || itemObj.uid)) { canRotate = false; break; }
                     }
                 }
                 if(!canRotate) break;
@@ -2058,6 +2053,7 @@
                 });
             }
         }
+        // [MOD-020-6-END]
 
         // [MOD-020-7: 드래그 앤 드롭 함수 (스케일링 대응 완벽 패치)]
         function startDrag(e, itemObj, htmlEl) {
