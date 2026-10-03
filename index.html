@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>리퀘 (Re-Quest) v0.2.5992</title>
+    <title>리퀘 (Re-Quest) v0.2.5993</title>
     
     <style>
         /* [MOD-001: 기본 화면 및 컨테이너 스타일] */
@@ -110,6 +110,33 @@
         .enchant-target-hint { font-size: 10px; color: #555; text-align: center; pointer-events: none; }
         
         /* [MOD-002-4-END] */
+
+        /* [MOD-002-5: 인챈트 애니메이션 및 팝업 스타일] */
+        @keyframes slideFadeUp {
+            0% { opacity: 0; transform: translateY(15px); }
+            100% { opacity: 1; transform: translateY(0); }
+        }
+        .socket-animated {
+            animation: slideFadeUp 0.4s ease forwards;
+            opacity: 0; /* 처음엔 투명하게 시작 */
+        }
+        /* 각 소켓마다 0.15초씩 딜레이를 주어 순서대로 스스륵 나타나게 함 */
+        .socket-animated:nth-child(1) { animation-delay: 0.1s; }
+        .socket-animated:nth-child(2) { animation-delay: 0.25s; }
+        .socket-animated:nth-child(3) { animation-delay: 0.4s; }
+
+        .enchant-popup {
+            position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+            background: #222; border: 2px solid gold; border-radius: 8px; padding: 15px;
+            display: none; flex-direction: column; gap: 8px; z-index: 100;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.9); width: 200px; box-sizing: border-box;
+        }
+        .enchant-scroll-item {
+            background: #333; border: 1px solid #555; color: white; padding: 10px;
+            font-size: 12px; cursor: pointer; text-align: center; transition: 0.2s; border-radius: 4px;
+        }
+        .enchant-scroll-item:hover { background: #444; border-color: gold; color: gold; box-shadow: 0 0 8px rgba(255,215,0,0.5); }
+        /* [MOD-002-5-END] */
         
         /* [MOD-003: 버튼 컨트롤 및 모바일 가상 패드(vmin 반응형) 스타일] */
         /* [MOD-003-1: 일반 버튼 및 텍스트] */
@@ -266,24 +293,24 @@
             <div class="inv-container">
                 <button class="close-btn" style="top: -15px; right: -15px; border-radius: 50%; width: 35px; height: 35px; padding: 0;" onclick="closeUI()">X</button>
                 
-                <!-- 좌측 패널: 장비창 & 능력치 (폭 150px로 3:7 비율 달성) -->
                 <div id="leftPanel">
                     <div id="equipSection">
-                        <div class="equip-slot slot-head" data-slot="head" onclick="selectEquipSlotForEnchant('머리')"><span class="slot-hint">머리</span></div>
-                        <div class="equip-slot slot-mainWeapon" data-slot="mainWeapon" onclick="selectEquipSlotForEnchant('주무기')"><span class="slot-hint">주무기</span></div>
-                        <div class="equip-slot slot-chest" data-slot="chest" onclick="selectEquipSlotForEnchant('갑옷')"><span class="slot-hint">갑옷</span></div>
-                        <div class="equip-slot slot-subWeapon" data-slot="subWeapon" onclick="selectEquipSlotForEnchant('부무기')"><span class="slot-hint">부무기</span></div>
-                        <div class="equip-slot slot-shoes" data-slot="shoes" onclick="selectEquipSlotForEnchant('신발')"><span class="slot-hint">신발</span></div>
-                        <div class="equip-slot slot-throwable" data-slot="throwable" onclick="selectEquipSlotForEnchant('투척')"><span class="slot-hint"></span></div>
+                        <!-- 장착 부위 시스템 키(head, mainWeapon 등) 연동 -->
+                        <div class="equip-slot slot-head" data-slot="head" onclick="selectEquipSlotForEnchant('머리', 'head')"><span class="slot-hint">머리</span></div>
+                        <div class="equip-slot slot-mainWeapon" data-slot="mainWeapon" onclick="selectEquipSlotForEnchant('주무기', 'mainWeapon')"><span class="slot-hint">주무기</span></div>
+                        <div class="equip-slot slot-chest" data-slot="chest" onclick="selectEquipSlotForEnchant('갑옷', 'chest')"><span class="slot-hint">갑옷</span></div>
+                        <div class="equip-slot slot-subWeapon" data-slot="subWeapon" onclick="selectEquipSlotForEnchant('부무기', 'subWeapon')"><span class="slot-hint">부무기</span></div>
+                        <div class="equip-slot slot-shoes" data-slot="shoes" onclick="selectEquipSlotForEnchant('신발', 'shoes')"><span class="slot-hint">신발</span></div>
+                        <div class="equip-slot slot-throwable" data-slot="throwable" onclick="selectEquipSlotForEnchant('투척', 'throwable')"><span class="slot-hint"></span></div>
                     </div>
                     
                     <div id="artifactSection">
                         <span class="artifact-label">아티팩트</span>
-                        <div class="artifact-slot" data-slot="artifact_0" onclick="selectEquipSlotForEnchant('아티팩트1')"></div>
-                        <div class="artifact-slot" data-slot="artifact_1" onclick="selectEquipSlotForEnchant('아티팩트2')"></div>
-                        <div class="artifact-slot" data-slot="artifact_2" onclick="selectEquipSlotForEnchant('아티팩트3')"></div>
-                        <div class="artifact-slot" data-slot="artifact_3" onclick="selectEquipSlotForEnchant('아티팩트4')"></div>
-                        <div class="artifact-slot" data-slot="artifact_4" onclick="selectEquipSlotForEnchant('아티팩트5')"></div>
+                        <div class="artifact-slot" data-slot="artifact_0" onclick="selectEquipSlotForEnchant('아티팩트1', 'artifact_0')"></div>
+                        <div class="artifact-slot" data-slot="artifact_1" onclick="selectEquipSlotForEnchant('아티팩트2', 'artifact_1')"></div>
+                        <div class="artifact-slot" data-slot="artifact_2" onclick="selectEquipSlotForEnchant('아티팩트3', 'artifact_2')"></div>
+                        <div class="artifact-slot" data-slot="artifact_3" onclick="selectEquipSlotForEnchant('아티팩트4', 'artifact_3')"></div>
+                        <div class="artifact-slot" data-slot="artifact_4" onclick="selectEquipSlotForEnchant('아티팩트5', 'artifact_4')"></div>
                     </div>
                     
                     <div id="statSection">
@@ -294,43 +321,37 @@
                     </div>
                 </div>
                 
-                <!-- 우측 패널: 가방(ui_1) OR 인챈트(ui_2) (320px 고정) -->
                 <div id="rightPanel" style="display: flex; position: relative;">
                     <button id="modeSwitchBtn" onclick="toggleRightPanelView()" style="position: absolute; left: -27px; top: 10px; background: #333; color: white; border: 2px solid #555; padding: 15px 5px; cursor: pointer; z-index: 10; border-radius: 4px 0 0 4px;">&raquo;</button>
                     
-                    <!-- 뷰 1: 가방 -->
                     <div id="viewInventory" style="padding: 0; display: block;">
                         <div id="inventoryBoard" class="inventory-board"></div>
                     </div>
 
-                    <!-- 뷰 2: 인챈트 및 스킬 -->
-                    <div id="viewEnchant" style="padding: 0; display: none; width: 320px; height: 400px; background-color: #1a1a1a; border: 2px solid #555; flex-direction: column; box-sizing: content-box;">
+                    <div id="viewEnchant" style="padding: 0; display: none; width: 320px; height: 400px; background-color: #1a1a1a; border: 2px solid #555; flex-direction: column; box-sizing: content-box; position: relative;">
                         
-                        <!-- 상단: 인챈트 관리 (좌우 분할 레이아웃) -->
                         <div style="flex: 1; border-bottom: 2px solid #333; display: flex; flex-direction: row; padding: 15px 0;">
-                            
-                            <!-- 좌측: 타겟 장비 슬롯 (빨간 네모 위치) -->
                             <div style="width: 80px; display: flex; justify-content: center; align-items: flex-start; border-right: 2px solid #333; padding-top: 5px;">
                                 <div id="enchantTargetSlot" class="enchant-target-slot">
                                     <span class="enchant-target-hint" id="enchantTargetHint">장비<br>등록</span>
                                 </div>
                             </div>
                             
-                            <!-- 우측: 인챈트 소켓 정보 -->
                             <div style="flex: 1; display: flex; flex-direction: column; padding: 0 15px;">
                                 <h3 style="margin: 0 0 10px 0; color: gold; font-size: 14px; text-align: center;">장비 인챈트</h3>
                                 <div id="enchantContent" style="flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; color: gray; font-size: 12px; text-align: center;">
-                                    좌측 장비창에서 장비를<br>클릭하거나 끌어다 놓으세요.
+                                    좌측 장비창에서 장비를<br>클릭하여 올려주세요.
                                 </div>
                             </div>
-
                         </div>
                         
-                        <!-- 하단: 스킬 리스트 -->
                         <div style="height: 160px; padding: 15px;">
                             <h3 style="margin: 0 0 10px 0; color: #00ffcc; font-size: 14px; text-align: center;">활성 스킬</h3>
                             <div style="color: #555; text-align: center; margin-top: 30px; font-size: 11px;">(추후 스킬 리스트 구현 예정)</div>
                         </div>
+
+                        <!-- 인챈트 두루마리 선택 팝업창 -->
+                        <div id="enchantPopupUI" class="enchant-popup"></div>
                     </div>
                 </div>
             </div>
@@ -419,6 +440,30 @@
             currentQuickSlotIdx: 0, // 8칸 퀵슬롯 중 현재 활성화된 인덱스
             lockedTarget: null // 좌클릭으로 고정(락온)한 적 객체
         };
+
+        // [MOD-030: 아이템 스펙 및 두루마리 DB 추가]
+        
+        // 1. 기존 '기본 검'에 실질적인 스탯과 3개의 소켓 부여
+        ITEM_DB["sword_basic"] = {
+            name: "기본 검", color: "#8888cc", shape: [[1,1], [1,1], [1,1]],
+            type: "equip", equipSlot: "mainWeapon", 
+            stats: { 힘: 5 }, // 장착 시 힘 +5 상승
+            maxSockets: 3
+        };
+        
+        // 2. 강타 두루마리 아이템 신규 생성
+        ITEM_DB["scroll_smite"] = {
+            name: "강타 두루마리", color: "#ff4444", shape: [[1]],
+            type: "enchant", enchantEffect: { stat: "힘", value: 5, name: "강타(+5)" }
+        };
+
+        // 3. 플레이어 장비 슬롯 객체와 기본 스탯(Base) 분리
+        player.baseStats = { 힘: 3, 민첩: 3, 매력: 3, 체력: 3, 스테미나: 3, 마나: 3 };
+        player.equipment = { 
+            head: null, mainWeapon: null, chest: null, subWeapon: null, shoes: null, throwable: null,
+            artifact_0: null, artifact_1: null, artifact_2: null, artifact_3: null, artifact_4: null
+        };
+        // [MOD-030-END]
 
         // [MOD-010-3: 시스템, 퀘스트, 이펙트 등 전역 관리 변수]
         let quest = { active: false, target: 10, current: 0 }; // 퀘스트 진행 상태
@@ -1178,9 +1223,206 @@
 
         // [MOD-017: UI 제어 및 충돌(Collision) 유틸리티]
         
-      // [MOD-017-1: 인벤토리 통합 UI 열기/닫기 및 뷰 전환(Toggle)]
-        let currentRightView = 'inventory'; // 현재 우측 패널 상태 추적
+     // [MOD-017-1: 더블클릭 장착 시스템 및 인챈트 로직 통합]
+        let currentRightView = 'inventory'; 
+        let currentEnchantTargetSlot = null; 
 
+        // [핵심] 가방에서 아이템 더블클릭 시 장착!
+        document.getElementById("inventoryBoard").addEventListener("dblclick", function(e) {
+            let wrapper = e.target.closest(".grid-item-wrapper");
+            if(!wrapper) return;
+            
+            // 클릭한 블록의 좌표를 역산하여 아이템 객체를 찾음
+            let gx = Math.round(parseInt(wrapper.style.left) / 40);
+            let gy = Math.round(parseInt(wrapper.style.top) / 40);
+            let item = myInventoryItems.find(i => i.gridX === gx && i.gridY === gy);
+            
+            if(item && ITEM_DB[item.baseId].type === "equip") {
+                equipItem(item);
+            }
+        });
+
+        function equipItem(itemObj) {
+            const baseItem = ITEM_DB[itemObj.baseId];
+            const slot = baseItem.equipSlot;
+            
+            if(player.equipment[slot]) {
+                alert("이미 해당 부위에 장비가 있습니다!");
+                return;
+            }
+
+            // 가방에서 아이템 제거 후 장비창으로 이동
+            let idx = myInventoryItems.findIndex(i => i.id === itemObj.id);
+            if(idx > -1) myInventoryItems.splice(idx, 1);
+            
+            if(!itemObj.sockets) itemObj.sockets = Array(baseItem.maxSockets).fill(null);
+            
+            player.equipment[slot] = itemObj;
+            
+            updatePlayerTotalStats();
+            renderGridInventory();
+            renderEquipSlotsUI();
+        }
+
+        // 장착된 아이템을 십자가 슬롯에 색칠하고 보여주는 함수
+        function renderEquipSlotsUI() {
+            for(let slot in player.equipment) {
+                let el = document.querySelector(`.slot-${slot}, [data-slot="${slot}"]`);
+                if(!el) continue;
+                
+                let item = player.equipment[slot];
+                if(item) {
+                    let baseItem = ITEM_DB[item.baseId];
+                    el.style.backgroundColor = baseItem.color;
+                    el.innerHTML = `<span style="color:white; font-size:9px; font-weight:bold; pointer-events:none; text-align:center;">${baseItem.name}</span>`;
+                } else {
+                    el.style.backgroundColor = "#2a2a2a";
+                    let hintText = document.querySelector(`.slot-${slot} .slot-hint`)?.innerText || "";
+                    el.innerHTML = `<span class="slot-hint">${hintText}</span>`;
+                }
+            }
+        }
+
+        // 장착템 + 인챈트 스탯을 계산하여 육각형 차트에 반영
+        function updatePlayerTotalStats() {
+            for(let key in player.baseStats) player.stats[key] = player.baseStats[key];
+
+            for(let slot in player.equipment) {
+                let item = player.equipment[slot];
+                if(!item) continue;
+                
+                let baseItem = ITEM_DB[item.baseId];
+                if(baseItem.stats) {
+                    for(let sKey in baseItem.stats) player.stats[sKey] += baseItem.stats[sKey];
+                }
+                
+                if(item.sockets) {
+                    item.sockets.forEach(scrollId => {
+                        if(scrollId) {
+                            let enchData = ITEM_DB[scrollId].enchantEffect;
+                            player.stats[enchData.stat] += enchData.value;
+                        }
+                    });
+                }
+            }
+            if (typeof drawRadarChart === "function") drawRadarChart("infoRadarCanvas");
+        }
+
+        function toggleRightPanelView() {
+            const btn = document.getElementById("modeSwitchBtn");
+            const viewInv = document.getElementById("viewInventory");
+            const viewEnc = document.getElementById("viewEnchant");
+            
+            if (currentRightView === 'inventory') {
+                currentRightView = 'enchant';
+                viewInv.style.display = 'none'; viewEnc.style.display = 'flex';
+                btn.innerHTML = '&laquo;'; 
+                
+                // [테스트용 편의기능] 인챈트 창 열 때 가방에 강타 두루마리가 없으면 1개 자동 지급
+                if(!myInventoryItems.some(i => i.baseId === "scroll_smite")) {
+                    myInventoryItems.push({ id: "scroll_" + Date.now(), baseId: "scroll_smite", rot: 0, gridX: 0, gridY: 0 });
+                }
+            } else {
+                currentRightView = 'inventory';
+                viewInv.style.display = 'block'; viewEnc.style.display = 'none';
+                btn.innerHTML = '&raquo;';
+                document.getElementById('enchantPopupUI').style.display = 'none';
+                if (typeof renderGridInventory === "function") renderGridInventory();
+            }
+        }
+
+        function selectEquipSlotForEnchant(slotNameKOR, slotKey) {
+            if (currentRightView !== 'enchant') return;
+            
+            const content = document.getElementById("enchantContent");
+            const targetSlotHint = document.getElementById("enchantTargetHint");
+            const targetSlot = document.getElementById("enchantTargetSlot");
+            
+            currentEnchantTargetSlot = slotKey;
+            let item = player.equipment[slotKey];
+
+            if(!item) {
+                targetSlotHint.innerHTML = `장비<br>등록`;
+                targetSlot.style.borderColor = "#666"; targetSlot.style.backgroundColor = "#222";
+                content.innerHTML = `좌측 장비창에서 장비를<br>클릭하여 올려주세요.`;
+                return;
+            }
+
+            let baseItem = ITEM_DB[item.baseId];
+            targetSlotHint.innerHTML = `<span style="color: white; font-weight: bold; font-size: 11px;">${baseItem.name}</span>`;
+            targetSlot.style.borderColor = "gold"; targetSlot.style.backgroundColor = baseItem.color;
+
+            // [핵심] 스스륵 나타나는 소켓 애니메이션 렌더링
+            let socketsHtml = '';
+            for(let i = 0; i < baseItem.maxSockets; i++) {
+                let scrollId = item.sockets[i];
+                if(scrollId) {
+                    let effect = ITEM_DB[scrollId].enchantEffect;
+                    socketsHtml += `<div class="socket-slot socket-animated" style="background:#ff4444; border-color:white;">
+                        <span style="font-size:9px; color:#fff; font-weight:bold;">${effect.stat}+${effect.value}</span>
+                    </div>`;
+                } else {
+                    socketsHtml += `<div class="socket-slot socket-animated" onclick="openEnchantPopup('${slotKey}', ${i})"></div>`;
+                }
+            }
+
+            content.innerHTML = `
+                <div style="color: white; font-weight: bold; margin-bottom: 20px; font-size: 13px;">[${slotNameKOR}] 소켓 정보</div>
+                <div style="display: flex; gap: 15px; justify-content: center; margin-bottom: 20px;">
+                    ${socketsHtml}
+                </div>
+                <div style="font-size: 11px; color: #888;">빈 소켓을 클릭하면<br>인챈트 북 목록이 표시됩니다.</div>
+            `;
+        }
+
+        function openEnchantPopup(slotKey, socketIndex) {
+            let scrolls = myInventoryItems.filter(i => ITEM_DB[i.baseId].type === "enchant");
+            let popup = document.getElementById("enchantPopupUI");
+            
+            if(scrolls.length === 0) {
+                popup.innerHTML = `<div style="color:gray; font-size:11px; text-align:center;">가방에 인챈트 두루마리가<br>없습니다.</div>
+                <button onclick="document.getElementById('enchantPopupUI').style.display='none'" style="margin-top:10px; background:#444; color:#fff; border:none; padding:5px; border-radius:4px;">닫기</button>`;
+            } else {
+                let listHtml = scrolls.map(scroll => {
+                    let base = ITEM_DB[scroll.baseId];
+                    return `<div class="enchant-scroll-item" onclick="applyEnchant('${slotKey}', ${socketIndex}, '${scroll.id}')">
+                        ${base.name} <span style="color:gold; font-size:10px;">${base.enchantEffect.name}</span>
+                    </div>`;
+                }).join('');
+                
+                popup.innerHTML = `<div style="color:gold; font-weight:bold; font-size:12px; margin-bottom:10px; text-align:center;">인챈트 선택</div>
+                ${listHtml}
+                <button onclick="document.getElementById('enchantPopupUI').style.display='none'" style="margin-top:10px; background:#444; color:#fff; border:none; padding:5px; border-radius:4px;">취소</button>`;
+            }
+            popup.style.display = 'flex';
+        }
+
+        function applyEnchant(slotKey, socketIndex, scrollId) {
+            let item = player.equipment[slotKey];
+            let scrollIdx = myInventoryItems.findIndex(i => i.id === scrollId);
+            let scroll = myInventoryItems[scrollIdx];
+            
+            // 인벤에서 두루마리 삭제 후 소켓에 기록
+            myInventoryItems.splice(scrollIdx, 1);
+            item.sockets[socketIndex] = scroll.baseId;
+            
+            document.getElementById('enchantPopupUI').style.display = 'none';
+            
+            updatePlayerTotalStats();
+            
+            // 화면 갱신을 위해 현재 선택된 슬롯 다시 클릭
+            let slotNameKOR = document.querySelector(`[data-slot="${slotKey}"]`).innerText;
+            selectEquipSlotForEnchant(slotNameKOR, slotKey);
+        }
+
+        function closeUI() {
+            gameState = "playing";
+            document.getElementById("inventoryUI").style.display = "none";
+            if (currentRightView === 'enchant') toggleRightPanelView(); 
+            const vpad = document.getElementById("vpad-container");
+            if(vpad) vpad.style.display = "block"; 
+        }
+        
         function autoScaleInventory() {
             const container = document.querySelector('.inv-container');
             if (!container) return;
@@ -1194,67 +1436,10 @@
         window.addEventListener('resize', autoScaleInventory);
 
         function switchTab(tabId) {
+            renderEquipSlotsUI(); // 탭 열 때 장착슬롯 시각화 업데이트
             if (typeof renderGridInventory === "function") renderGridInventory();
-            if (typeof drawRadarChart === "function") drawRadarChart("infoRadarCanvas");
+            updatePlayerTotalStats(); // 열 때마다 육각형 스탯 갱신
             autoScaleInventory();
-        }
-
-        function closeUI() {
-            gameState = "playing";
-            document.getElementById("inventoryUI").style.display = "none";
-            
-            // 닫을 때 항상 기본 가방(ui_1) 모드로 리셋
-            if (currentRightView === 'enchant') toggleRightPanelView(); 
-
-            const vpad = document.getElementById("vpad-container");
-            if(vpad) vpad.style.display = "block"; 
-        }
-
-        function toggleRightPanelView() {
-            const btn = document.getElementById("modeSwitchBtn");
-            const viewInv = document.getElementById("viewInventory");
-            const viewEnc = document.getElementById("viewEnchant");
-            const encContent = document.getElementById("enchantContent");
-            
-            if (currentRightView === 'inventory') {
-                currentRightView = 'enchant';
-                viewInv.style.display = 'none';
-                viewEnc.style.display = 'flex';
-                btn.innerHTML = '&laquo;'; // 화살표 방향 반전
-                encContent.innerHTML = '좌측 장비창에서 장비를<br>클릭하거나 끌어다 놓으세요.';
-            } else {
-                currentRightView = 'inventory';
-                viewInv.style.display = 'block';
-                viewEnc.style.display = 'none';
-                btn.innerHTML = '&raquo;';
-                
-                // 가방 화면이 깨지지 않게 그리드 다시 렌더링
-                if (typeof renderGridInventory === "function") renderGridInventory();
-            }
-        }
-
-        function selectEquipSlotForEnchant(slotName) {
-            if (currentRightView !== 'enchant') return; // 가방 모드일 때는 무시
-            
-            const content = document.getElementById("enchantContent");
-            const targetSlotHint = document.getElementById("enchantTargetHint");
-            const targetSlot = document.getElementById("enchantTargetSlot");
-            
-            // 1. 타겟 슬롯(빨간 네모) 시각적 피드백
-            targetSlotHint.innerHTML = `<span style="color: white; font-weight: bold; font-size: 12px;">${slotName}</span>`;
-            targetSlot.style.borderColor = "gold";
-            targetSlot.style.backgroundColor = "#2a2a2a";
-
-            // 2. 우측 인챈트 소켓 렌더링
-            content.innerHTML = `
-                <div style="color: white; font-weight: bold; margin-bottom: 20px; font-size: 13px;">[${slotName}] 소켓 정보</div>
-                <div style="display: flex; gap: 15px; justify-content: center; margin-bottom: 20px;">
-                    <div class="socket-slot" onclick="alert('가방에서 인챈트 북을 필터링하여 띄우는 기능 추가 예정!')"></div>
-                    <div class="socket-slot" onclick="alert('가방에서 인챈트 북을 필터링하여 띄우는 기능 추가 예정!')"></div>
-                    <div class="socket-slot" onclick="alert('가방에서 인챈트 북을 필터링하여 띄우는 기능 추가 예정!')"></div>
-                </div>
-                <div style="font-size: 11px; color: #888;">빈 소켓을 클릭하면<br>인챈트 북 목록이 표시됩니다.</div>
-            `;
         }
         // [MOD-017-1-END]
         
