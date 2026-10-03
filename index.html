@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>리퀘 (Re-Quest) v0.2.598</title>
+    <title>리퀘 (Re-Quest) v0.2.599</title>
     
     <style>
         /* [MOD-001: 기본 화면 및 컨테이너 스타일] */
@@ -70,20 +70,22 @@
         #inventoryUI { display: none; justify-content: center; align-items: center; background: rgba(0,0,0,0.85); }
         .inv-container { background: #111; padding: 15px; border: 3px solid #555; border-radius: 8px; display: flex; gap: 15px; position: relative; transform-origin: center; }
         
-        #leftPanel { width: 280px; height: 400px; display: flex; flex-direction: column; background: #1a1a1a; border: 2px solid #444; box-sizing: border-box; }
+        /* 좌측 패널 넓이를 280px -> 230px로 축소 (4:6 비율 완성) */
+        #leftPanel { width: 230px; height: 400px; display: flex; flex-direction: column; background: #1a1a1a; border: 2px solid #444; box-sizing: border-box; }
         
         #equipSection { position: relative; width: 100%; height: 160px; background: #222; border-bottom: 2px solid #333; }
         .equip-slot { position: absolute; width: 40px; height: 40px; background-color: #2a2a2a; border: 2px solid #555; display: flex; align-items: center; justify-content: center; border-radius: 4px; box-sizing: border-box; transition: 0.2s; cursor: pointer; }
         .equip-slot:hover { border-color: gold; box-shadow: 0 0 8px rgba(255, 215, 0, 0.5); }
         .slot-hint { font-size: 11px; color: #666; pointer-events: none; }
         
-        .slot-head { top: 15px; left: 120px; }
-        .slot-mainWeapon { top: 60px; left: 75px; }
-        .slot-chest { top: 60px; left: 120px; }
-        .slot-subWeapon { top: 60px; left: 165px; }
-        .slot-shoes { top: 105px; left: 120px; }
+        /* 좁아진 230px 넓이에 맞춘 새로운 십자가 좌표 (중앙 115px 기준) */
+        .slot-head { top: 15px; left: 95px; }
+        .slot-mainWeapon { top: 60px; left: 50px; }
+        .slot-chest { top: 60px; left: 95px; }
+        .slot-subWeapon { top: 60px; left: 140px; }
+        .slot-shoes { top: 105px; left: 95px; }
         
-        .slot-throwable { top: 105px; left: 215px; width: 34px; height: 34px; }
+        .slot-throwable { top: 105px; left: 185px; width: 34px; height: 34px; }
         .slot-throwable::after { content: "투척"; position: absolute; bottom: -18px; font-size: 10px; color: #888; }
 
         #artifactSection { display: flex; gap: 6px; justify-content: center; align-items: flex-end; height: 65px; padding-bottom: 10px; background: #222; border-bottom: 2px solid #333; position: relative; box-sizing: border-box; }
@@ -93,7 +95,6 @@
 
         #statSection { flex: 1; position: relative; display: flex; justify-content: center; align-items: center; background: #1a1a1a; overflow: hidden; }
 
-        /* [추가됨] ui_2 전용 인챈트 소켓 디자인 */
         .socket-slot {
             width: 36px; height: 36px; background-color: #222; border: 2px dashed #666;
             border-radius: 50%; cursor: pointer; transition: 0.2s;
@@ -252,12 +253,12 @@
         </div>
         <!-- [MOD-005-END] -->
 
-     <!-- [MOD-006: 통합 UI (ui_1 가방 & ui_2 인챈트/스킬)] -->
+    <!-- [MOD-006: 통합 UI (ui_1 가방 & ui_2 인챈트/스킬)] -->
         <div id="inventoryUI" class="ui-layer">
             <div class="inv-container">
                 <button class="close-btn" style="top: -15px; right: -15px; border-radius: 50%; width: 35px; height: 35px; padding: 0;" onclick="closeUI()">X</button>
                 
-                <!-- 좌측 패널: 장비창 & 능력치 -->
+                <!-- 좌측 패널: 장비창 & 능력치 (230px) -->
                 <div id="leftPanel">
                     <div id="equipSection">
                         <div class="equip-slot slot-head" data-slot="head" onclick="selectEquipSlotForEnchant('머리')"><span class="slot-hint">머리</span></div>
@@ -278,41 +279,39 @@
                     </div>
                     
                     <div id="statSection">
-                        <div style="position: relative; width: 280px; height: 180px;">
-                            <canvas id="infoRadarCanvas" width="560" height="360" style="width: 280px; height: 180px; background: transparent; border: none; cursor: default; display: block;"></canvas>
+                        <!-- 캔버스 넓이도 280px -> 230px(해상도 460px)로 축소하여 여백 맞춤 -->
+                        <div style="position: relative; width: 230px; height: 180px;">
+                            <canvas id="infoRadarCanvas" width="460" height="360" style="width: 230px; height: 180px; background: transparent; border: none; cursor: default; display: block;"></canvas>
                             <div id="infoRadarCanvas_labels" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none;"></div>
                         </div>
                     </div>
                 </div>
                 
-                <!-- 우측 패널: 가방(ui_1) OR 인챈트(ui_2) -->
+                <!-- 우측 패널: 가방(ui_1) OR 인챈트(ui_2) (320px) -->
                 <div id="rightPanel" style="display: flex; position: relative;">
-                    <!-- ui 전환 토글 버튼 -->
                     <button id="modeSwitchBtn" onclick="toggleRightPanelView()" style="position: absolute; left: -27px; top: 10px; background: #333; color: white; border: 2px solid #555; padding: 15px 5px; cursor: pointer; z-index: 10; border-radius: 4px 0 0 4px;">&raquo;</button>
                     
-                    <!-- 뷰 1: 가방 (기본 화면) -->
+                    <!-- 뷰 1: 가방 -->
                     <div id="viewInventory" style="padding: 0; display: block;">
                         <div id="inventoryBoard" class="inventory-board"></div>
                     </div>
 
-                    <!-- 뷰 2: 인챈트 및 스킬 (크기 완벽 동기화) -->
-                    <!-- box-sizing: content-box를 명시하여 가방 창과 테두리 픽셀 계산을 완전히 똑같이 맞춤 -->
+                    <!-- 뷰 2: 인챈트 및 스킬 -->
                     <div id="viewEnchant" style="padding: 0; display: none; width: 320px; height: 400px; background-color: #1a1a1a; border: 2px solid #555; flex-direction: column; box-sizing: content-box;">
-                        <!-- 상단: 인챈트 관리 -->
                         <div style="flex: 1; border-bottom: 2px solid #333; padding: 15px; display: flex; flex-direction: column;">
                             <h3 style="margin: 0 0 10px 0; color: gold; font-size: 14px; text-align: center;">장비 인챈트</h3>
                             <div id="enchantContent" style="flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; color: gray; font-size: 12px; text-align: center;">
                                 좌측 장비창에서<br>인챈트할 장비를 선택해주세요.
                             </div>
                         </div>
-                        
-                        <!-- 하단: 스킬 리스트 (일단 빈 칸으로 유지) -->
                         <div style="height: 160px; padding: 15px;">
                             <h3 style="margin: 0 0 10px 0; color: #00ffcc; font-size: 14px; text-align: center;">활성 스킬</h3>
                             <div style="color: #555; text-align: center; margin-top: 30px; font-size: 11px;">(추후 스킬 리스트 구현 예정)</div>
                         </div>
                     </div>
                 </div>
+            </div>
+        </div>
         <!-- [MOD-006-END] -->
 
         <!-- [MOD-007: 개인 창고 UI (추후 그리드 시스템으로 연동 예정)] -->
@@ -537,7 +536,7 @@
         // [MOD-013-END]
 
         // [MOD-014: 캐릭터 생성(스탯 분배 및 직업 선택) 로직]
-     // [MOD-014-1: 육각형 레이더 차트 렌더링 (결과 출력 읽기 전용 & 텍스트 간격 최적화)]
+     // [MOD-014-1: 육각형 레이더 차트 렌더링 (230px 축소된 폭에 최적화)]
         function drawRadarChart(canvasId) {
             const rc = document.getElementById(canvasId);
             if (!rc) return;
@@ -556,9 +555,9 @@
             if (labelsContainer) labelsContainer.innerHTML = "";
             
             if (canvasId === "infoRadarCanvas") {
-                // 육각형 크기를 100으로 살짝 조정하고 기본 여백 설정
-                maxR = 100; 
-                textOffset = 25; 
+                // 공간이 230px로 좁아졌으므로 반지름(85)과 기본 텍스트 여백(18) 재조정
+                maxR = 85; 
+                textOffset = 18; 
             } else {
                 maxR = cx - 75;
                 fontSize = 12;
@@ -597,9 +596,9 @@
                 rctx.stroke();
 
                 let currentOffset = textOffset;
-                // 측면 4개 스탯(힘, 민첩, 스테미나, 매력)은 글자 폭을 고려해 바깥으로 더 밀어냅니다.
+                // 측면 스탯들(힘, 민첩, 스테미나, 매력)이 좁아진 테두리를 뚫고 나가지 않도록 +12 보정
                 if (canvasId === "infoRadarCanvas" && (i === 1 || i === 2 || i === 4 || i === 5)) {
-                    currentOffset += 20; 
+                    currentOffset += 12; 
                 }
 
                 let lx = cx + Math.cos(angle) * (maxR + currentOffset);
