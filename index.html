@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>리퀘 (Re-Quest) v0.2.595</title>
+    <title>리퀘 (Re-Quest) v0.2.596</title>
     
     <style>
         /* [MOD-001: 기본 화면 및 컨테이너 스타일] */
@@ -515,7 +515,7 @@
         // [MOD-013-END]
 
         // [MOD-014: 캐릭터 생성(스탯 분배 및 직업 선택) 로직]
-      // [MOD-014-1: 육각형 레이더 차트 렌더링 (결과 출력 읽기 전용 & 떨림 버그 픽스)]
+     // [MOD-014-1: 육각형 레이더 차트 렌더링 (결과 출력 읽기 전용 & 텍스트 간격 최적화)]
         function drawRadarChart(canvasId) {
             const rc = document.getElementById(canvasId);
             if (!rc) return;
@@ -523,9 +523,8 @@
             
             const w = rc.width;
             const h = rc.height;
-            // 좌표 소수점으로 인한 미세 떨림(Sub-pixel Jitter)을 막기 위해 Math.round 처리
             const cx = Math.round(w / 2);
-            const cy = Math.round(h / 2); // 버튼 공간이 사라졌으므로 다시 정중앙 배치
+            const cy = Math.round(h / 2); 
             
             let maxR = 0;
             let fontSize = 12;
@@ -535,9 +534,9 @@
             if (labelsContainer) labelsContainer.innerHTML = "";
             
             if (canvasId === "infoRadarCanvas") {
-                // 공간 방해물이 모두 사라졌으므로 육각형 반지름(maxR)을 105까지 웅장하게 확대!
-                maxR = 105; 
-                textOffset = 28; // 텍스트 간격 적당히 조절
+                // 육각형 크기를 100으로 살짝 조정하고 기본 여백 설정
+                maxR = 100; 
+                textOffset = 25; 
             } else {
                 maxR = cx - 75;
                 fontSize = 12;
@@ -575,10 +574,15 @@
                 rctx.lineTo(xEnd, yEnd);
                 rctx.stroke();
 
-                let lx = cx + Math.cos(angle) * (maxR + textOffset);
-                let ly = cy + Math.sin(angle) * (maxR + textOffset);
+                let currentOffset = textOffset;
+                // 측면 4개 스탯(힘, 민첩, 스테미나, 매력)은 글자 폭을 고려해 바깥으로 더 밀어냅니다.
+                if (canvasId === "infoRadarCanvas" && (i === 1 || i === 2 || i === 4 || i === 5)) {
+                    currentOffset += 20; 
+                }
 
-                // HTML 오버레이를 이용한 깨짐 없는 텍스트 렌더링
+                let lx = cx + Math.cos(angle) * (maxR + currentOffset);
+                let ly = cy + Math.sin(angle) * (maxR + currentOffset);
+
                 if (canvasId === "infoRadarCanvas" && labelsContainer) {
                     let scaledX = Math.round(lx / 2); 
                     let scaledY = Math.round(ly / 2);
@@ -590,7 +594,7 @@
                     div.style.transform = "translate(-50%, -50%)";
                     div.style.pointerEvents = "none"; 
                     div.style.color = "white";
-                    div.style.fontSize = "12px"; // 글자 크기 조금 더 선명하게 회복
+                    div.style.fontSize = "12px"; 
                     div.style.fontWeight = "bold";
                     div.style.whiteSpace = "nowrap";
                     
