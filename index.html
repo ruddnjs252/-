@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>리퀘 (Re-Quest) v0.2.599</title>
+    <title>리퀘 (Re-Quest) v0.2.5991</title>
     
     <style>
         /* [MOD-001: 기본 화면 및 컨테이너 스타일] */
@@ -66,40 +66,37 @@
         .item-label { position: absolute; transform: translate(-50%, -50%); color: white; font-size: 11px; font-weight: bold; pointer-events: none; text-align: center; width: 50px; text-shadow: 1px 1px 2px black; z-index: 4; }
         /* [MOD-002-3-END] */
 
-      /* [MOD-002-4: 장착 장비 및 아티팩트 UI 패널 (ui_1, ui_2 공통)] */
+     /* [MOD-002-4: 장착 장비 및 아티팩트 UI 패널 (3:7 비율 압축 버전)] */
         #inventoryUI { display: none; justify-content: center; align-items: center; background: rgba(0,0,0,0.85); }
         .inv-container { background: #111; padding: 15px; border: 3px solid #555; border-radius: 8px; display: flex; gap: 15px; position: relative; transform-origin: center; }
         
-        /* 좌측 패널 넓이를 280px -> 230px로 축소 (4:6 비율 완성) */
-        #leftPanel { width: 230px; height: 400px; display: flex; flex-direction: column; background: #1a1a1a; border: 2px solid #444; box-sizing: border-box; }
+        /* 좌측 패널 넓이를 150px로 극단적 축소 (3:7 비율) */
+        #leftPanel { width: 150px; height: 400px; display: flex; flex-direction: column; background: #1a1a1a; border: 2px solid #444; box-sizing: border-box; }
         
-        #equipSection { position: relative; width: 100%; height: 160px; background: #222; border-bottom: 2px solid #333; }
-        .equip-slot { position: absolute; width: 40px; height: 40px; background-color: #2a2a2a; border: 2px solid #555; display: flex; align-items: center; justify-content: center; border-radius: 4px; box-sizing: border-box; transition: 0.2s; cursor: pointer; }
+        #equipSection { position: relative; width: 100%; height: 140px; background: #222; border-bottom: 2px solid #333; }
+        .equip-slot { position: absolute; width: 34px; height: 34px; background-color: #2a2a2a; border: 2px solid #555; display: flex; align-items: center; justify-content: center; border-radius: 4px; box-sizing: border-box; transition: 0.2s; cursor: pointer; }
         .equip-slot:hover { border-color: gold; box-shadow: 0 0 8px rgba(255, 215, 0, 0.5); }
-        .slot-hint { font-size: 11px; color: #666; pointer-events: none; }
+        .slot-hint { font-size: 9px; color: #666; pointer-events: none; }
         
-        /* 좁아진 230px 넓이에 맞춘 새로운 십자가 좌표 (중앙 115px 기준) */
-        .slot-head { top: 15px; left: 95px; }
-        .slot-mainWeapon { top: 60px; left: 50px; }
-        .slot-chest { top: 60px; left: 95px; }
-        .slot-subWeapon { top: 60px; left: 140px; }
-        .slot-shoes { top: 105px; left: 95px; }
+        /* 150px 넓이에 맞춰 중앙(75px) 기준으로 십자가 좌표 재설계 */
+        .slot-head { top: 15px; left: 58px; }
+        .slot-mainWeapon { top: 53px; left: 20px; }
+        .slot-chest { top: 53px; left: 58px; }
+        .slot-subWeapon { top: 53px; left: 96px; }
+        .slot-shoes { top: 91px; left: 58px; }
         
-        .slot-throwable { top: 105px; left: 185px; width: 34px; height: 34px; }
-        .slot-throwable::after { content: "투척"; position: absolute; bottom: -18px; font-size: 10px; color: #888; }
+        .slot-throwable { top: 94px; left: 99px; width: 28px; height: 28px; }
+        .slot-throwable::after { content: "투척"; position: absolute; bottom: -16px; font-size: 9px; color: #888; }
 
-        #artifactSection { display: flex; gap: 6px; justify-content: center; align-items: flex-end; height: 65px; padding-bottom: 10px; background: #222; border-bottom: 2px solid #333; position: relative; box-sizing: border-box; }
-        .artifact-label { position: absolute; top: 5px; left: 50%; transform: translateX(-50%); font-size: 11px; color: #888; font-weight: bold; }
-        .artifact-slot { width: 34px; height: 34px; background-color: #2a2a2a; border: 2px solid #555; border-radius: 4px; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: 0.2s; box-sizing: border-box; }
+        /* 아티팩트 영역 압축 */
+        #artifactSection { display: flex; gap: 3px; justify-content: center; align-items: flex-end; height: 55px; padding-bottom: 8px; background: #222; border-bottom: 2px solid #333; position: relative; box-sizing: border-box; }
+        .artifact-label { position: absolute; top: 4px; left: 50%; transform: translateX(-50%); font-size: 10px; color: #888; font-weight: bold; }
+        .artifact-slot { width: 26px; height: 26px; background-color: #2a2a2a; border: 2px solid #555; border-radius: 4px; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: 0.2s; box-sizing: border-box; }
         .artifact-slot:hover { border-color: #00ffcc; }
 
         #statSection { flex: 1; position: relative; display: flex; justify-content: center; align-items: center; background: #1a1a1a; overflow: hidden; }
 
-        .socket-slot {
-            width: 36px; height: 36px; background-color: #222; border: 2px dashed #666;
-            border-radius: 50%; cursor: pointer; transition: 0.2s;
-            display: flex; align-items: center; justify-content: center;
-        }
+        .socket-slot { width: 36px; height: 36px; background-color: #222; border: 2px dashed #666; border-radius: 50%; cursor: pointer; transition: 0.2s; display: flex; align-items: center; justify-content: center; }
         .socket-slot:hover { border-color: gold; background-color: #333; box-shadow: 0 0 8px rgba(255,215,0,0.5); }
         /* [MOD-002-4-END] */
         
@@ -253,12 +250,12 @@
         </div>
         <!-- [MOD-005-END] -->
 
-    <!-- [MOD-006: 통합 UI (ui_1 가방 & ui_2 인챈트/스킬)] -->
+   <!-- [MOD-006: 통합 UI (ui_1 가방 & ui_2 인챈트/스킬)] -->
         <div id="inventoryUI" class="ui-layer">
             <div class="inv-container">
                 <button class="close-btn" style="top: -15px; right: -15px; border-radius: 50%; width: 35px; height: 35px; padding: 0;" onclick="closeUI()">X</button>
                 
-                <!-- 좌측 패널: 장비창 & 능력치 (230px) -->
+                <!-- 좌측 패널: 장비창 & 능력치 (폭 150px로 3:7 비율 달성) -->
                 <div id="leftPanel">
                     <div id="equipSection">
                         <div class="equip-slot slot-head" data-slot="head" onclick="selectEquipSlotForEnchant('머리')"><span class="slot-hint">머리</span></div>
@@ -279,15 +276,15 @@
                     </div>
                     
                     <div id="statSection">
-                        <!-- 캔버스 넓이도 280px -> 230px(해상도 460px)로 축소하여 여백 맞춤 -->
-                        <div style="position: relative; width: 230px; height: 180px;">
-                            <canvas id="infoRadarCanvas" width="460" height="360" style="width: 230px; height: 180px; background: transparent; border: none; cursor: default; display: block;"></canvas>
+                        <!-- 캔버스 넓이를 폭 150px(해상도 300px), 높이 205px(해상도 410px)로 축소 -->
+                        <div style="position: relative; width: 150px; height: 205px;">
+                            <canvas id="infoRadarCanvas" width="300" height="410" style="width: 150px; height: 205px; background: transparent; border: none; cursor: default; display: block;"></canvas>
                             <div id="infoRadarCanvas_labels" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none;"></div>
                         </div>
                     </div>
                 </div>
                 
-                <!-- 우측 패널: 가방(ui_1) OR 인챈트(ui_2) (320px) -->
+                <!-- 우측 패널: 가방(ui_1) OR 인챈트(ui_2) (320px 고정) -->
                 <div id="rightPanel" style="display: flex; position: relative;">
                     <button id="modeSwitchBtn" onclick="toggleRightPanelView()" style="position: absolute; left: -27px; top: 10px; background: #333; color: white; border: 2px solid #555; padding: 15px 5px; cursor: pointer; z-index: 10; border-radius: 4px 0 0 4px;">&raquo;</button>
                     
@@ -536,7 +533,7 @@
         // [MOD-013-END]
 
         // [MOD-014: 캐릭터 생성(스탯 분배 및 직업 선택) 로직]
-     // [MOD-014-1: 육각형 레이더 차트 렌더링 (230px 축소된 폭에 최적화)]
+   // [MOD-014-1: 육각형 레이더 차트 렌더링 (폭 150px 비율 초압축 최적화)]
         function drawRadarChart(canvasId) {
             const rc = document.getElementById(canvasId);
             if (!rc) return;
@@ -555,9 +552,9 @@
             if (labelsContainer) labelsContainer.innerHTML = "";
             
             if (canvasId === "infoRadarCanvas") {
-                // 공간이 230px로 좁아졌으므로 반지름(85)과 기본 텍스트 여백(18) 재조정
-                maxR = 85; 
-                textOffset = 18; 
+                // 폭이 150px로 좁아졌으므로 캔버스를 뚫고 나가지 않도록 반지름(52)과 여백(14)을 세밀하게 조임
+                maxR = 52; 
+                textOffset = 14; 
             } else {
                 maxR = cx - 75;
                 fontSize = 12;
@@ -571,7 +568,6 @@
             rctx.strokeStyle = "#555"; 
             rctx.lineWidth = (canvasId === "infoRadarCanvas" ? 2 : 1); 
             
-            // 1. 거미줄 바탕선
             for(let step = 1; step <= 4; step++) {
                 let r = maxR * (step / 4);
                 rctx.beginPath();
@@ -584,7 +580,6 @@
                 rctx.closePath(); rctx.stroke();
             }
 
-            // 2. 방사형 축선 및 텍스트 렌더링
             for(let i=0; i<6; i++) {
                 let angle = (Math.PI / 3) * i - (Math.PI / 2);
                 let xEnd = Math.round(cx + Math.cos(angle) * maxR);
@@ -596,9 +591,9 @@
                 rctx.stroke();
 
                 let currentOffset = textOffset;
-                // 측면 스탯들(힘, 민첩, 스테미나, 매력)이 좁아진 테두리를 뚫고 나가지 않도록 +12 보정
+                // 측면 스탯들이 150px 경계를 넘어가지 않게 미세하게만 밀어냄
                 if (canvasId === "infoRadarCanvas" && (i === 1 || i === 2 || i === 4 || i === 5)) {
-                    currentOffset += 12; 
+                    currentOffset += 8; 
                 }
 
                 let lx = cx + Math.cos(angle) * (maxR + currentOffset);
@@ -615,7 +610,7 @@
                     div.style.transform = "translate(-50%, -50%)";
                     div.style.pointerEvents = "none"; 
                     div.style.color = "white";
-                    div.style.fontSize = "12px"; 
+                    div.style.fontSize = "10px"; // 좁은 공간을 위한 폰트 축소
                     div.style.fontWeight = "bold";
                     div.style.whiteSpace = "nowrap";
                     
@@ -629,7 +624,6 @@
                 }
             }
 
-            // 3. 다각형 색칠
             rctx.fillStyle = "rgba(255, 215, 0, 0.5)"; 
             rctx.strokeStyle = "gold"; 
             rctx.lineWidth = (canvasId === "infoRadarCanvas" ? 3 : 2);
