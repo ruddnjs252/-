@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>리퀘 (Re-Quest) v0.2.5993</title>
+    <title>리퀘 (Re-Quest) v0.2.5994</title>
     
     <style>
         /* [MOD-001: 기본 화면 및 컨테이너 스타일] */
@@ -423,7 +423,12 @@
         let player = {
             name: "방랑자",
             x: 500, y: 500, width: 30, height: 30, color: "cyan", speed: 5, // 기본 위치 및 렌더링 정보 (width/height는 추후 44로 덮어씌워짐)
-            stats: { hp: 3, str: 3, dex: 3, mana: 3, stamina: 3, charm: 3 }, // 기본 스탯
+            stats: { hp: 3, str: 3, dex: 3, mana: 3, stamina: 3, charm: 3 }, // 현재 스탯
+            baseStats: { 힘: 3, 민첩: 3, 매력: 3, 체력: 3, 스테미나: 3, 마나: 3 }, // 순수 기본 스탯
+            equipment: { // 장착 중인 아이템 데이터
+                head: null, mainWeapon: null, chest: null, subWeapon: null, shoes: null, throwable: null,
+                artifact_0: null, artifact_1: null, artifact_2: null, artifact_3: null, artifact_4: null
+            },
             job: "무소속", 
             acquiredJobs: [], // 습득한 직업 목록
             currentSkillIdx: 0,
@@ -441,29 +446,7 @@
             lockedTarget: null // 좌클릭으로 고정(락온)한 적 객체
         };
 
-        // [MOD-030: 아이템 스펙 및 두루마리 DB 추가]
-        
-        // 1. 기존 '기본 검'에 실질적인 스탯과 3개의 소켓 부여
-        ITEM_DB["sword_basic"] = {
-            name: "기본 검", color: "#8888cc", shape: [[1,1], [1,1], [1,1]],
-            type: "equip", equipSlot: "mainWeapon", 
-            stats: { 힘: 5 }, // 장착 시 힘 +5 상승
-            maxSockets: 3
-        };
-        
-        // 2. 강타 두루마리 아이템 신규 생성
-        ITEM_DB["scroll_smite"] = {
-            name: "강타 두루마리", color: "#ff4444", shape: [[1]],
-            type: "enchant", enchantEffect: { stat: "힘", value: 5, name: "강타(+5)" }
-        };
-
-        // 3. 플레이어 장비 슬롯 객체와 기본 스탯(Base) 분리
-        player.baseStats = { 힘: 3, 민첩: 3, 매력: 3, 체력: 3, 스테미나: 3, 마나: 3 };
-        player.equipment = { 
-            head: null, mainWeapon: null, chest: null, subWeapon: null, shoes: null, throwable: null,
-            artifact_0: null, artifact_1: null, artifact_2: null, artifact_3: null, artifact_4: null
-        };
-        // [MOD-030-END]
+        // (기존에 있던 잘못된 [MOD-030] 부분은 여기서 완전히 삭제되었습니다.)
 
         // [MOD-010-3: 시스템, 퀘스트, 이펙트 등 전역 관리 변수]
         let quest = { active: false, target: 10, current: 0 }; // 퀘스트 진행 상태
@@ -1882,17 +1865,19 @@
         
         // 장비 슬롯 데이터 상태 (착용된 아이템 고유 ID 또는 null)
         let equipmentSlots = {
-            helmet: null,   // 머리
-            armor: "item_2",    // 갑옷 (테스트용으로 철갑옷 장착 상태로 시작)
-            weapon: "item_1",   // 주무기 (테스트용으로 기본 검 장착 상태로 시작)
-            accessory: null // 장신구
+            helmet: null,   
+            armor: "item_2",    
+            weapon: "item_1",   
+            accessory: null 
         };
 
+        // 기존 아이템 정보에 스탯, 인챈트, 소켓 정보를 하나로 통합!
         const ITEM_DB = {
-            "sword_basic": { name: "기본 검", type: "weapon", shape: [[1],[1],[1]], color: "rgba(120, 120, 150, 0.9)" }, 
-            "armor_iron":  { name: "철갑옷", type: "armor", shape: [[1, 1], [1, 1]], color: "rgba(80, 80, 80, 0.9)" },    
-            "potion_hp":   { name: "포션", type: "potion", shape: [[1]], color: "rgba(200, 50, 50, 0.9)" }, 
-            "axe_battle":  { name: "ㄱ자 도끼", type: "weapon", shape: [[1, 1], [1, 0], [1, 0]], color: "rgba(180, 100, 50, 0.9)" } 
+            "sword_basic":  { name: "기본 검", type: "equip", equipSlot: "mainWeapon", shape: [[1],[1],[1]], color: "rgba(120, 120, 150, 0.9)", stats: { 힘: 5 }, maxSockets: 3 }, 
+            "armor_iron":   { name: "철갑옷", type: "armor", shape: [[1, 1], [1, 1]], color: "rgba(80, 80, 80, 0.9)" },    
+            "potion_hp":    { name: "포션", type: "potion", shape: [[1]], color: "rgba(200, 50, 50, 0.9)" }, 
+            "axe_battle":   { name: "ㄱ자 도끼", type: "weapon", shape: [[1, 1], [1, 0], [1, 0]], color: "rgba(180, 100, 50, 0.9)" },
+            "scroll_smite": { name: "강타 두루마리", type: "enchant", shape: [[1]], color: "#ff4444", enchantEffect: { stat: "힘", value: 5, name: "강타(+5)" } }
         };
 
         let myInventoryItems = [
