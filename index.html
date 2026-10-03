@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>리퀘 (Re-Quest) v0.2.5991</title>
+    <title>리퀘 (Re-Quest) v0.2.5992</title>
     
     <style>
         /* [MOD-001: 기본 화면 및 컨테이너 스타일] */
@@ -98,6 +98,17 @@
 
         .socket-slot { width: 36px; height: 36px; background-color: #222; border: 2px dashed #666; border-radius: 50%; cursor: pointer; transition: 0.2s; display: flex; align-items: center; justify-content: center; }
         .socket-slot:hover { border-color: gold; background-color: #333; box-shadow: 0 0 8px rgba(255,215,0,0.5); }
+       
+        /* [MOD-002-4]의 맨 아래에 추가: ui_2 전용 인챈트 타겟 슬롯 */
+        .enchant-target-slot {
+            width: 50px; height: 50px; background-color: #222; border: 2px dashed #666; 
+            border-radius: 4px; display: flex; align-items: center; justify-content: center; 
+            transition: 0.2s; box-sizing: border-box; cursor: pointer;
+            position: relative;
+        }
+        .enchant-target-slot:hover { border-color: gold; box-shadow: 0 0 8px rgba(255, 215, 0, 0.5); }
+        .enchant-target-hint { font-size: 10px; color: #555; text-align: center; pointer-events: none; }
+        
         /* [MOD-002-4-END] */
         
         /* [MOD-003: 버튼 컨트롤 및 모바일 가상 패드(vmin 반응형) 스타일] */
@@ -250,7 +261,7 @@
         </div>
         <!-- [MOD-005-END] -->
 
-   <!-- [MOD-006: 통합 UI (ui_1 가방 & ui_2 인챈트/스킬)] -->
+ <!-- [MOD-006: 통합 UI (ui_1 가방 & ui_2 인챈트/스킬)] -->
         <div id="inventoryUI" class="ui-layer">
             <div class="inv-container">
                 <button class="close-btn" style="top: -15px; right: -15px; border-radius: 50%; width: 35px; height: 35px; padding: 0;" onclick="closeUI()">X</button>
@@ -276,7 +287,6 @@
                     </div>
                     
                     <div id="statSection">
-                        <!-- 캔버스 넓이를 폭 150px(해상도 300px), 높이 205px(해상도 410px)로 축소 -->
                         <div style="position: relative; width: 150px; height: 205px;">
                             <canvas id="infoRadarCanvas" width="300" height="410" style="width: 150px; height: 205px; background: transparent; border: none; cursor: default; display: block;"></canvas>
                             <div id="infoRadarCanvas_labels" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none;"></div>
@@ -295,12 +305,28 @@
 
                     <!-- 뷰 2: 인챈트 및 스킬 -->
                     <div id="viewEnchant" style="padding: 0; display: none; width: 320px; height: 400px; background-color: #1a1a1a; border: 2px solid #555; flex-direction: column; box-sizing: content-box;">
-                        <div style="flex: 1; border-bottom: 2px solid #333; padding: 15px; display: flex; flex-direction: column;">
-                            <h3 style="margin: 0 0 10px 0; color: gold; font-size: 14px; text-align: center;">장비 인챈트</h3>
-                            <div id="enchantContent" style="flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; color: gray; font-size: 12px; text-align: center;">
-                                좌측 장비창에서<br>인챈트할 장비를 선택해주세요.
+                        
+                        <!-- 상단: 인챈트 관리 (좌우 분할 레이아웃) -->
+                        <div style="flex: 1; border-bottom: 2px solid #333; display: flex; flex-direction: row; padding: 15px 0;">
+                            
+                            <!-- 좌측: 타겟 장비 슬롯 (빨간 네모 위치) -->
+                            <div style="width: 80px; display: flex; justify-content: center; align-items: flex-start; border-right: 2px solid #333; padding-top: 5px;">
+                                <div id="enchantTargetSlot" class="enchant-target-slot">
+                                    <span class="enchant-target-hint" id="enchantTargetHint">장비<br>등록</span>
+                                </div>
                             </div>
+                            
+                            <!-- 우측: 인챈트 소켓 정보 -->
+                            <div style="flex: 1; display: flex; flex-direction: column; padding: 0 15px;">
+                                <h3 style="margin: 0 0 10px 0; color: gold; font-size: 14px; text-align: center;">장비 인챈트</h3>
+                                <div id="enchantContent" style="flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; color: gray; font-size: 12px; text-align: center;">
+                                    좌측 장비창에서 장비를<br>클릭하거나 끌어다 놓으세요.
+                                </div>
+                            </div>
+
                         </div>
+                        
+                        <!-- 하단: 스킬 리스트 -->
                         <div style="height: 160px; padding: 15px;">
                             <h3 style="margin: 0 0 10px 0; color: #00ffcc; font-size: 14px; text-align: center;">활성 스킬</h3>
                             <div style="color: #555; text-align: center; margin-top: 30px; font-size: 11px;">(추후 스킬 리스트 구현 예정)</div>
@@ -1184,7 +1210,6 @@
             if(vpad) vpad.style.display = "block"; 
         }
 
-        // [추가됨] ui_1(가방) ↔ ui_2(인챈트) 전환 토글 함수
         function toggleRightPanelView() {
             const btn = document.getElementById("modeSwitchBtn");
             const viewInv = document.getElementById("viewInventory");
@@ -1192,14 +1217,12 @@
             const encContent = document.getElementById("enchantContent");
             
             if (currentRightView === 'inventory') {
-                // ui_2 인챈트 창 열기
                 currentRightView = 'enchant';
                 viewInv.style.display = 'none';
                 viewEnc.style.display = 'flex';
                 btn.innerHTML = '&laquo;'; // 화살표 방향 반전
-                encContent.innerHTML = '좌측 장비창에서<br>인챈트할 장비를 선택해주세요.';
+                encContent.innerHTML = '좌측 장비창에서 장비를<br>클릭하거나 끌어다 놓으세요.';
             } else {
-                // ui_1 가방 창으로 복귀
                 currentRightView = 'inventory';
                 viewInv.style.display = 'block';
                 viewEnc.style.display = 'none';
@@ -1210,15 +1233,21 @@
             }
         }
 
-        // [추가됨] 인챈트 모드에서 좌측 장비 슬롯을 클릭했을 때 호출
         function selectEquipSlotForEnchant(slotName) {
-            if (currentRightView !== 'enchant') return; // 가방 모드일 때는 무시 (기존 D&D 동작)
+            if (currentRightView !== 'enchant') return; // 가방 모드일 때는 무시
             
             const content = document.getElementById("enchantContent");
+            const targetSlotHint = document.getElementById("enchantTargetHint");
+            const targetSlot = document.getElementById("enchantTargetSlot");
             
-            // 임시 소켓 UI 렌더링
+            // 1. 타겟 슬롯(빨간 네모) 시각적 피드백
+            targetSlotHint.innerHTML = `<span style="color: white; font-weight: bold; font-size: 12px;">${slotName}</span>`;
+            targetSlot.style.borderColor = "gold";
+            targetSlot.style.backgroundColor = "#2a2a2a";
+
+            // 2. 우측 인챈트 소켓 렌더링
             content.innerHTML = `
-                <div style="color: white; font-weight: bold; margin-bottom: 20px; font-size: 14px;">[${slotName}] 소켓 정보</div>
+                <div style="color: white; font-weight: bold; margin-bottom: 20px; font-size: 13px;">[${slotName}] 소켓 정보</div>
                 <div style="display: flex; gap: 15px; justify-content: center; margin-bottom: 20px;">
                     <div class="socket-slot" onclick="alert('가방에서 인챈트 북을 필터링하여 띄우는 기능 추가 예정!')"></div>
                     <div class="socket-slot" onclick="alert('가방에서 인챈트 북을 필터링하여 띄우는 기능 추가 예정!')"></div>
