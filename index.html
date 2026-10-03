@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>리퀘 (Re-Quest) v0.2.594</title>
+    <title>리퀘 (Re-Quest) v0.2.595</title>
     
     <style>
         /* [MOD-001: 기본 화면 및 컨테이너 스타일] */
@@ -66,7 +66,7 @@
         .item-label { position: absolute; transform: translate(-50%, -50%); color: white; font-size: 11px; font-weight: bold; pointer-events: none; text-align: center; width: 50px; text-shadow: 1px 1px 2px black; z-index: 4; }
         /* [MOD-002-3-END] */
 
-        /* [MOD-002-4: 장착 장비 및 아티팩트 UI 패널 (ui_1)] */
+       /* [MOD-002-4: 장착 장비 및 아티팩트 UI 패널 (ui_1)] */
         #inventoryUI { display: none; justify-content: center; align-items: center; background: rgba(0,0,0,0.85); }
         .inv-container { background: #111; padding: 15px; border: 3px solid #555; border-radius: 8px; display: flex; gap: 15px; position: relative; transform-origin: center; }
         
@@ -93,27 +93,8 @@
         .artifact-slot { width: 34px; height: 34px; background-color: #2a2a2a; border: 2px solid #555; border-radius: 4px; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: 0.2s; box-sizing: border-box; }
         .artifact-slot:hover { border-color: #00ffcc; }
 
-        /* 스탯 및 포인트 박스 영역 */
+        /* 스탯(레이더 차트) 전용 영역 */
         #statSection { flex: 1; position: relative; display: flex; justify-content: center; align-items: center; background: #1a1a1a; overflow: hidden; }
-        
-        /* [MOD-002-4] 중 포인트 박스 부분 수정 */
-        .point-box {
-            position: absolute; top: 15px; left: 15px; width: 38px; height: 22px; /* 납작한 직사각형으로 변경 */
-            background-color: #2a2a2a; border: 2px solid gold; border-radius: 4px;
-            display: flex; justify-content: center; align-items: center;
-            color: gold; font-weight: bold; font-size: 13px; z-index: 5;
-            box-shadow: 0 0 5px rgba(255, 215, 0, 0.3);
-        }
-        
-        /* 텍스트 일체형 ◀ ▶ 화살표 버튼 디자인 */
-        .stat-arrow-btn {
-            background: transparent; color: #777; border: none; 
-            font-size: 12px; cursor: pointer; padding: 0 3px; 
-            display: flex; align-items: center; justify-content: center;
-            outline: none; transition: 0.1s;
-        }
-        .stat-arrow-btn:hover { color: gold; text-shadow: 0 0 5px rgba(255, 215, 0, 0.8); }
-        .stat-arrow-btn:active { transform: scale(0.8); }
         /* [MOD-002-4-END] */
 
         /* [MOD-003: 버튼 컨트롤 및 모바일 가상 패드(vmin 반응형) 스타일] */
@@ -292,12 +273,10 @@
                     </div>
                     
                     <div id="statSection">
-                        <!-- 잔여 포인트를 표시하는 네모 박스 -->
-                        <div class="point-box" id="statPoints" title="잔여 스탯 포인트">0</div>
-                        
+                        <!-- 버튼 없이 오직 거대한 레이더 차트와 결과 스탯만 보여주는 읽기 전용 영역 -->
                         <div style="position: relative; width: 280px; height: 180px;">
                             <canvas id="infoRadarCanvas" width="560" height="360" style="width: 280px; height: 180px; background: transparent; border: none; cursor: default; display: block;"></canvas>
-                            <!-- 깨짐 방지용 HTML 버튼 & 텍스트 오버레이 영역 -->
+                            <!-- 안티앨리어싱(글씨 깨짐 방지)을 위한 HTML 텍스트 오버레이 -->
                             <div id="infoRadarCanvas_labels" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none;"></div>
                         </div>
                     </div>
@@ -536,7 +515,7 @@
         // [MOD-013-END]
 
         // [MOD-014: 캐릭터 생성(스탯 분배 및 직업 선택) 로직]
-       // [MOD-014-1: 육각형 레이더 차트 렌더링 및 스탯 조작 연동]
+      // [MOD-014-1: 육각형 레이더 차트 렌더링 (결과 출력 읽기 전용 & 떨림 버그 픽스)]
         function drawRadarChart(canvasId) {
             const rc = document.getElementById(canvasId);
             if (!rc) return;
@@ -544,23 +523,25 @@
             
             const w = rc.width;
             const h = rc.height;
-            const cx = w / 2;
-            const cy = h / 2 + 10; 
+            // 좌표 소수점으로 인한 미세 떨림(Sub-pixel Jitter)을 막기 위해 Math.round 처리
+            const cx = Math.round(w / 2);
+            const cy = Math.round(h / 2); // 버튼 공간이 사라졌으므로 다시 정중앙 배치
             
             let maxR = 0;
             let fontSize = 12;
-            let baseTextOffset = 35;
+            let textOffset = 35;
             
             let labelsContainer = document.getElementById(canvasId + "_labels");
             if (labelsContainer) labelsContainer.innerHTML = "";
             
             if (canvasId === "infoRadarCanvas") {
-                maxR = 80; 
-                baseTextOffset = 52; 
+                // 공간 방해물이 모두 사라졌으므로 육각형 반지름(maxR)을 105까지 웅장하게 확대!
+                maxR = 105; 
+                textOffset = 28; // 텍스트 간격 적당히 조절
             } else {
                 maxR = cx - 75;
                 fontSize = 12;
-                baseTextOffset = 35;
+                textOffset = 35;
             }
 
             const maxStat = 25; 
@@ -569,76 +550,51 @@
 
             rctx.strokeStyle = "#555"; 
             rctx.lineWidth = (canvasId === "infoRadarCanvas" ? 2 : 1); 
+            
+            // 1. 거미줄 바탕선
             for(let step = 1; step <= 4; step++) {
                 let r = maxR * (step / 4);
                 rctx.beginPath();
                 for(let i=0; i<6; i++) {
                     let angle = (Math.PI / 3) * i - (Math.PI / 2);
-                    let x = cx + Math.cos(angle) * r, y = cy + Math.sin(angle) * r;
+                    let x = Math.round(cx + Math.cos(angle) * r);
+                    let y = Math.round(cy + Math.sin(angle) * r);
                     if(i===0) rctx.moveTo(x, y); else rctx.lineTo(x, y);
                 }
                 rctx.closePath(); rctx.stroke();
             }
 
+            // 2. 방사형 축선 및 텍스트 렌더링
             for(let i=0; i<6; i++) {
                 let angle = (Math.PI / 3) * i - (Math.PI / 2);
+                let xEnd = Math.round(cx + Math.cos(angle) * maxR);
+                let yEnd = Math.round(cy + Math.sin(angle) * maxR);
+                
                 rctx.beginPath();
                 rctx.moveTo(cx, cy);
-                rctx.lineTo(cx + Math.cos(angle) * maxR, cy + Math.sin(angle) * maxR);
+                rctx.lineTo(xEnd, yEnd);
                 rctx.stroke();
 
-                let currentOffset = baseTextOffset;
-                
-                // 측면 스탯들(힘:1, 민첩:2, 스테미나:4, 매력:5)은 바깥으로 더 밀어냅니다.
-                if (canvasId === "infoRadarCanvas" && (i === 1 || i === 2 || i === 4 || i === 5)) {
-                    currentOffset = 70; // 52 -> 70으로 대폭 밀어냄
-                }
+                let lx = cx + Math.cos(angle) * (maxR + textOffset);
+                let ly = cy + Math.sin(angle) * (maxR + textOffset);
 
-                let lx = cx + Math.cos(angle) * (maxR + currentOffset);
-                let ly = cy + Math.sin(angle) * (maxR + currentOffset);
-
+                // HTML 오버레이를 이용한 깨짐 없는 텍스트 렌더링
                 if (canvasId === "infoRadarCanvas" && labelsContainer) {
-                    let scaledX = lx / 2; 
-                    let scaledY = ly / 2;
+                    let scaledX = Math.round(lx / 2); 
+                    let scaledY = Math.round(ly / 2);
                     
                     let div = document.createElement("div");
                     div.style.position = "absolute";
                     div.style.left = scaledX + "px";
                     div.style.top = scaledY + "px";
                     div.style.transform = "translate(-50%, -50%)";
-                    div.style.pointerEvents = "auto"; 
+                    div.style.pointerEvents = "none"; 
                     div.style.color = "white";
-                    div.style.fontSize = "10px";
+                    div.style.fontSize = "12px"; // 글자 크기 조금 더 선명하게 회복
                     div.style.fontWeight = "bold";
-                    div.style.display = "flex";
                     div.style.whiteSpace = "nowrap";
                     
-                    // 측면 4개 스탯: 상하 배치(column) 적용
-                    if (i === 1 || i === 2 || i === 4 || i === 5) {
-                        div.style.flexDirection = "column";
-                        div.style.alignItems = "center";
-                        div.style.gap = "2px"; 
-                        
-                        div.innerHTML = `
-                            <span style="text-align: center;">${labels[i]}: ${player.stats[statKeys[i]]}</span>
-                            <div style="display: flex; gap: 15px; margin-top: 1px;">
-                                <button class="stat-arrow-btn" onclick="adjustStatFromUI('${statKeys[i]}', -1)">◀</button>
-                                <button class="stat-arrow-btn" onclick="adjustStatFromUI('${statKeys[i]}', 1)">▶</button>
-                            </div>
-                        `;
-                    } 
-                    // 위아래 2개 스탯(체력, 마나): 기존 좌우 배치(row) 유지
-                    else {
-                        div.style.flexDirection = "row";
-                        div.style.alignItems = "center";
-                        div.style.gap = "0px"; 
-                        
-                        div.innerHTML = `
-                            <button class="stat-arrow-btn" onclick="adjustStatFromUI('${statKeys[i]}', -1)">◀</button>
-                            <span style="min-width: 40px; text-align: center;">${labels[i]}: ${player.stats[statKeys[i]]}</span>
-                            <button class="stat-arrow-btn" onclick="adjustStatFromUI('${statKeys[i]}', 1)">▶</button>
-                        `;
-                    }
+                    div.innerText = `${labels[i]}: ${player.stats[statKeys[i]]}`;
                     labelsContainer.appendChild(div);
                 } else {
                     rctx.fillStyle = "white"; 
@@ -648,6 +604,7 @@
                 }
             }
 
+            // 3. 다각형 색칠
             rctx.fillStyle = "rgba(255, 215, 0, 0.5)"; 
             rctx.strokeStyle = "gold"; 
             rctx.lineWidth = (canvasId === "infoRadarCanvas" ? 3 : 2);
@@ -656,35 +613,11 @@
                 let angle = (Math.PI / 3) * i - (Math.PI / 2);
                 let val = Math.min(player.stats[statKeys[i]], maxStat); 
                 let r = maxR * (val / maxStat);
-                let x = cx + Math.cos(angle) * r, y = cy + Math.sin(angle) * r;
+                let x = Math.round(cx + Math.cos(angle) * r);
+                let y = Math.round(cy + Math.sin(angle) * r);
                 if(i===0) rctx.moveTo(x, y); else rctx.lineTo(x, y);
             }
             rctx.closePath(); rctx.fill(); rctx.stroke();
-        }
-
-        function adjustStatFromUI(stat, amount) {
-            if (typeof player.statPoints === "undefined") player.statPoints = 0;
-            
-            if (amount > 0 && player.statPoints > 0) {
-                player.stats[stat]++;
-                player.statPoints--;
-            } else if (amount < 0 && player.stats[stat] > 3) {
-                player.stats[stat]--;
-                player.statPoints++;
-            } else {
-                return; 
-            }
-            
-            drawRadarChart("infoRadarCanvas");
-            let ptBox = document.getElementById("statPoints");
-            if (ptBox) ptBox.innerText = player.statPoints;
-            
-            player.maxHp = player.stats.hp * 3;
-            player.maxStamina = player.stats.stamina * 3;
-            player.maxMana = player.stats.mana * 3;
-            player.currentHp = Math.min(player.currentHp, player.maxHp);
-            player.currentStamina = Math.min(player.currentStamina, player.maxStamina);
-            player.currentMana = Math.min(player.currentMana, player.maxMana);
         }
         // [MOD-014-1-END]
         
