@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>리퀘 (Re-Quest) v0.2.596</title>
+    <title>리퀘 (Re-Quest) v0.2.597</title>
     
     <style>
         /* [MOD-001: 기본 화면 및 컨테이너 스타일] */
@@ -66,13 +66,12 @@
         .item-label { position: absolute; transform: translate(-50%, -50%); color: white; font-size: 11px; font-weight: bold; pointer-events: none; text-align: center; width: 50px; text-shadow: 1px 1px 2px black; z-index: 4; }
         /* [MOD-002-3-END] */
 
-       /* [MOD-002-4: 장착 장비 및 아티팩트 UI 패널 (ui_1)] */
+      /* [MOD-002-4: 장착 장비 및 아티팩트 UI 패널 (ui_1, ui_2 공통)] */
         #inventoryUI { display: none; justify-content: center; align-items: center; background: rgba(0,0,0,0.85); }
         .inv-container { background: #111; padding: 15px; border: 3px solid #555; border-radius: 8px; display: flex; gap: 15px; position: relative; transform-origin: center; }
         
         #leftPanel { width: 280px; height: 400px; display: flex; flex-direction: column; background: #1a1a1a; border: 2px solid #444; box-sizing: border-box; }
         
-        /* 십자가 장비 영역 */
         #equipSection { position: relative; width: 100%; height: 160px; background: #222; border-bottom: 2px solid #333; }
         .equip-slot { position: absolute; width: 40px; height: 40px; background-color: #2a2a2a; border: 2px solid #555; display: flex; align-items: center; justify-content: center; border-radius: 4px; box-sizing: border-box; transition: 0.2s; cursor: pointer; }
         .equip-slot:hover { border-color: gold; box-shadow: 0 0 8px rgba(255, 215, 0, 0.5); }
@@ -87,16 +86,22 @@
         .slot-throwable { top: 105px; left: 215px; width: 34px; height: 34px; }
         .slot-throwable::after { content: "투척"; position: absolute; bottom: -18px; font-size: 10px; color: #888; }
 
-        /* 아티팩트 영역 */
         #artifactSection { display: flex; gap: 6px; justify-content: center; align-items: flex-end; height: 65px; padding-bottom: 10px; background: #222; border-bottom: 2px solid #333; position: relative; box-sizing: border-box; }
         .artifact-label { position: absolute; top: 5px; left: 50%; transform: translateX(-50%); font-size: 11px; color: #888; font-weight: bold; }
         .artifact-slot { width: 34px; height: 34px; background-color: #2a2a2a; border: 2px solid #555; border-radius: 4px; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: 0.2s; box-sizing: border-box; }
         .artifact-slot:hover { border-color: #00ffcc; }
 
-        /* 스탯(레이더 차트) 전용 영역 */
         #statSection { flex: 1; position: relative; display: flex; justify-content: center; align-items: center; background: #1a1a1a; overflow: hidden; }
-        /* [MOD-002-4-END] */
 
+        /* [추가됨] ui_2 전용 인챈트 소켓 디자인 */
+        .socket-slot {
+            width: 36px; height: 36px; background-color: #222; border: 2px dashed #666;
+            border-radius: 50%; cursor: pointer; transition: 0.2s;
+            display: flex; align-items: center; justify-content: center;
+        }
+        .socket-slot:hover { border-color: gold; background-color: #333; box-shadow: 0 0 8px rgba(255,215,0,0.5); }
+        /* [MOD-002-4-END] */
+        
         /* [MOD-003: 버튼 컨트롤 및 모바일 가상 패드(vmin 반응형) 스타일] */
         /* [MOD-003-1: 일반 버튼 및 텍스트] */
         .close-btn { position: absolute; top: 10px; right: 20px; padding: 5px 15px; background: red; color: white; border: none; cursor: pointer; font-weight: bold; z-index: 20; }
@@ -247,7 +252,7 @@
         </div>
         <!-- [MOD-005-END] -->
 
-     <!-- [MOD-006: 그리드 인벤토리 및 상태창 통합 UI (ui_1)] -->
+     <!-- [MOD-006: 통합 UI (ui_1 가방 & ui_2 인챈트/스킬)] -->
         <div id="inventoryUI" class="ui-layer">
             <div class="inv-container">
                 <button class="close-btn" style="top: -15px; right: -15px; border-radius: 50%; width: 35px; height: 35px; padding: 0;" onclick="closeUI()">X</button>
@@ -255,38 +260,56 @@
                 <!-- 좌측 패널: 장비창 & 능력치 -->
                 <div id="leftPanel">
                     <div id="equipSection">
-                        <div class="equip-slot slot-head" data-slot="head"><span class="slot-hint">머리</span></div>
-                        <div class="equip-slot slot-mainWeapon" data-slot="mainWeapon"><span class="slot-hint">주무기</span></div>
-                        <div class="equip-slot slot-chest" data-slot="chest"><span class="slot-hint">갑옷</span></div>
-                        <div class="equip-slot slot-subWeapon" data-slot="subWeapon"><span class="slot-hint">부무기</span></div>
-                        <div class="equip-slot slot-shoes" data-slot="shoes"><span class="slot-hint">신발</span></div>
-                        <div class="equip-slot slot-throwable" data-slot="throwable"><span class="slot-hint"></span></div>
+                        <div class="equip-slot slot-head" data-slot="head" onclick="selectEquipSlotForEnchant('머리')"><span class="slot-hint">머리</span></div>
+                        <div class="equip-slot slot-mainWeapon" data-slot="mainWeapon" onclick="selectEquipSlotForEnchant('주무기')"><span class="slot-hint">주무기</span></div>
+                        <div class="equip-slot slot-chest" data-slot="chest" onclick="selectEquipSlotForEnchant('갑옷')"><span class="slot-hint">갑옷</span></div>
+                        <div class="equip-slot slot-subWeapon" data-slot="subWeapon" onclick="selectEquipSlotForEnchant('부무기')"><span class="slot-hint">부무기</span></div>
+                        <div class="equip-slot slot-shoes" data-slot="shoes" onclick="selectEquipSlotForEnchant('신발')"><span class="slot-hint">신발</span></div>
+                        <div class="equip-slot slot-throwable" data-slot="throwable" onclick="selectEquipSlotForEnchant('투척')"><span class="slot-hint"></span></div>
                     </div>
                     
                     <div id="artifactSection">
                         <span class="artifact-label">아티팩트</span>
-                        <div class="artifact-slot" data-slot="artifact_0"></div>
-                        <div class="artifact-slot" data-slot="artifact_1"></div>
-                        <div class="artifact-slot" data-slot="artifact_2"></div>
-                        <div class="artifact-slot" data-slot="artifact_3"></div>
-                        <div class="artifact-slot" data-slot="artifact_4"></div>
+                        <div class="artifact-slot" data-slot="artifact_0" onclick="selectEquipSlotForEnchant('아티팩트1')"></div>
+                        <div class="artifact-slot" data-slot="artifact_1" onclick="selectEquipSlotForEnchant('아티팩트2')"></div>
+                        <div class="artifact-slot" data-slot="artifact_2" onclick="selectEquipSlotForEnchant('아티팩트3')"></div>
+                        <div class="artifact-slot" data-slot="artifact_3" onclick="selectEquipSlotForEnchant('아티팩트4')"></div>
+                        <div class="artifact-slot" data-slot="artifact_4" onclick="selectEquipSlotForEnchant('아티팩트5')"></div>
                     </div>
                     
                     <div id="statSection">
-                        <!-- 버튼 없이 오직 거대한 레이더 차트와 결과 스탯만 보여주는 읽기 전용 영역 -->
                         <div style="position: relative; width: 280px; height: 180px;">
                             <canvas id="infoRadarCanvas" width="560" height="360" style="width: 280px; height: 180px; background: transparent; border: none; cursor: default; display: block;"></canvas>
-                            <!-- 안티앨리어싱(글씨 깨짐 방지)을 위한 HTML 텍스트 오버레이 -->
                             <div id="infoRadarCanvas_labels" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none;"></div>
                         </div>
                     </div>
                 </div>
                 
-                <!-- 우측 패널: 가방 -->
+                <!-- 우측 패널: 가방(ui_1) OR 인챈트(ui_2) -->
                 <div id="rightPanel" style="display: flex; position: relative;">
-                    <button id="modeSwitchBtn" style="position: absolute; left: -27px; top: 10px; background: #333; color: white; border: 2px solid #555; padding: 15px 5px; cursor: pointer; z-index: 10; border-radius: 4px 0 0 4px;">&raquo;</button>
-                    <div class="panel" style="padding: 0;">
+                    <!-- ui 전환 토글 버튼 -->
+                    <button id="modeSwitchBtn" onclick="toggleRightPanelView()" style="position: absolute; left: -27px; top: 10px; background: #333; color: white; border: 2px solid #555; padding: 15px 5px; cursor: pointer; z-index: 10; border-radius: 4px 0 0 4px;">&raquo;</button>
+                    
+                    <!-- 뷰 1: 가방 (기본 화면) -->
+                    <div id="viewInventory" class="panel" style="padding: 0; display: block;">
                         <div id="inventoryBoard" class="inventory-board"></div>
+                    </div>
+
+                    <!-- 뷰 2: 인챈트 및 스킬 (초기 숨김) -->
+                    <div id="viewEnchant" class="panel" style="padding: 0; display: none; width: 320px; height: 400px; background-color: #1a1a1a; border: 2px solid #555; flex-direction: column;">
+                        <!-- 상단: 인챈트 관리 -->
+                        <div style="flex: 1; border-bottom: 2px solid #333; padding: 15px; display: flex; flex-direction: column;">
+                            <h3 style="margin: 0 0 10px 0; color: gold; font-size: 14px; text-align: center;">장비 인챈트</h3>
+                            <div id="enchantContent" style="flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; color: gray; font-size: 12px; text-align: center;">
+                                좌측 장비창에서<br>인챈트할 장비를 선택해주세요.
+                            </div>
+                        </div>
+                        
+                        <!-- 하단: 스킬 리스트 (일단 빈 칸으로 유지) -->
+                        <div style="height: 160px; padding: 15px;">
+                            <h3 style="margin: 0 0 10px 0; color: #00ffcc; font-size: 14px; text-align: center;">활성 스킬</h3>
+                            <div style="color: #555; text-align: center; margin-top: 30px; font-size: 11px;">(추후 스킬 리스트 구현 예정)</div>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -1136,54 +1159,84 @@
         // [MOD-016-3-END]
 
         // [MOD-017: UI 제어 및 충돌(Collision) 유틸리티]
-       // [MOD-017: UI 제어 및 충돌(Collision) 유틸리티]
-       // [MOD-017: UI 제어 및 충돌(Collision) 유틸리티]
-        // [MOD-017-1: 인벤토리 통합 UI 열기/닫기 및 자동 스케일링]
         
+      // [MOD-017-1: 인벤토리 통합 UI 열기/닫기 및 뷰 전환(Toggle)]
+        let currentRightView = 'inventory'; // 현재 우측 패널 상태 추적
+
         function autoScaleInventory() {
             const container = document.querySelector('.inv-container');
             if (!container) return;
-            
-            // 인벤토리 UI의 대략적인 원본 총 해상도 (가로 약 650px, 세로 약 450px)
-            const baseW = 650;
-            const baseH = 450;
-            
-            // 현재 화면의 85%를 덮도록 배율 계산
+            const baseW = 650, baseH = 450;
             const scaleX = (window.innerWidth * 0.85) / baseW;
             const scaleY = (window.innerHeight * 0.85) / baseH;
-            
-            // 가로와 세로 중 더 타이트한 쪽에 맞춰서 비율 유지 (찌그러짐 방지)
             let scale = Math.min(scaleX, scaleY);
-            
-            // 너무 작아지거나 너무 커지지 않도록 한계선 설정 (최소 0.5배 ~ 최대 2.5배)
             scale = Math.max(0.5, Math.min(scale, 2.5));
-            
             container.style.transform = `scale(${scale})`;
         }
-        
-        // 브라우저 창 크기가 변할 때 실시간 대응
         window.addEventListener('resize', autoScaleInventory);
 
         function switchTab(tabId) {
             if (typeof renderGridInventory === "function") renderGridInventory();
             if (typeof drawRadarChart === "function") drawRadarChart("infoRadarCanvas");
-            
-            const ptEl = document.getElementById("statPoints");
-            if(ptEl) ptEl.innerText = "0"; 
-            
-            // 가방을 열 때 자동으로 스케일링 함수 실행
             autoScaleInventory();
         }
 
         function closeUI() {
             gameState = "playing";
             document.getElementById("inventoryUI").style.display = "none";
-            document.getElementById("storageUI").style.display = "none";
             
+            // 닫을 때 항상 기본 가방(ui_1) 모드로 리셋
+            if (currentRightView === 'enchant') toggleRightPanelView(); 
+
             const vpad = document.getElementById("vpad-container");
             if(vpad) vpad.style.display = "block"; 
         }
+
+        // [추가됨] ui_1(가방) ↔ ui_2(인챈트) 전환 토글 함수
+        function toggleRightPanelView() {
+            const btn = document.getElementById("modeSwitchBtn");
+            const viewInv = document.getElementById("viewInventory");
+            const viewEnc = document.getElementById("viewEnchant");
+            const encContent = document.getElementById("enchantContent");
+            
+            if (currentRightView === 'inventory') {
+                // ui_2 인챈트 창 열기
+                currentRightView = 'enchant';
+                viewInv.style.display = 'none';
+                viewEnc.style.display = 'flex';
+                btn.innerHTML = '&laquo;'; // 화살표 방향 반전
+                encContent.innerHTML = '좌측 장비창에서<br>인챈트할 장비를 선택해주세요.';
+            } else {
+                // ui_1 가방 창으로 복귀
+                currentRightView = 'inventory';
+                viewInv.style.display = 'block';
+                viewEnc.style.display = 'none';
+                btn.innerHTML = '&raquo;';
+                
+                // 가방 화면이 깨지지 않게 그리드 다시 렌더링
+                if (typeof renderGridInventory === "function") renderGridInventory();
+            }
+        }
+
+        // [추가됨] 인챈트 모드에서 좌측 장비 슬롯을 클릭했을 때 호출
+        function selectEquipSlotForEnchant(slotName) {
+            if (currentRightView !== 'enchant') return; // 가방 모드일 때는 무시 (기존 D&D 동작)
+            
+            const content = document.getElementById("enchantContent");
+            
+            // 임시 소켓 UI 렌더링
+            content.innerHTML = `
+                <div style="color: white; font-weight: bold; margin-bottom: 20px; font-size: 14px;">[${slotName}] 소켓 정보</div>
+                <div style="display: flex; gap: 15px; justify-content: center; margin-bottom: 20px;">
+                    <div class="socket-slot" onclick="alert('가방에서 인챈트 북을 필터링하여 띄우는 기능 추가 예정!')"></div>
+                    <div class="socket-slot" onclick="alert('가방에서 인챈트 북을 필터링하여 띄우는 기능 추가 예정!')"></div>
+                    <div class="socket-slot" onclick="alert('가방에서 인챈트 북을 필터링하여 띄우는 기능 추가 예정!')"></div>
+                </div>
+                <div style="font-size: 11px; color: #888;">빈 소켓을 클릭하면<br>인챈트 북 목록이 표시됩니다.</div>
+            `;
+        }
         // [MOD-017-1-END]
+        
         // [MOD-017-2: AABB 2D 사각형 충돌 계산 유틸리티]
         function checkRectCollision(x1, y1, w1, h1, x2, y2, w2, h2) {
             return x1 < x2 + w2 && x1 + w1 > x2 && y1 < y2 + h2 && y1 + h1 > y2;
