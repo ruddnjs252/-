@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>리퀘 (Re-Quest) v0.2.5997</title>
+    <title>리퀘 (Re-Quest) v0.2.5998</title>
     
     <style>
         /* [MOD-001: 기본 화면 및 컨테이너 스타일] */
@@ -2024,7 +2024,7 @@
         }
         // [MOD-020-6-END]
 
-        // [MOD-020-7: 드래그 앤 드롭 함수 (스케일링 및 장비 장착 대응)]
+        // [MOD-020-7: 드래그 앤 드롭 (면적 충돌 및 장비창 반짝임 피드백 적용)]
         function startDrag(e, itemObj, htmlEl) {
             if (e.type === "mousedown" && e.button !== 0) return; 
 
@@ -2032,13 +2032,13 @@
             dragItemState.itemRef = itemObj;
             dragItemState.origX = itemObj.gridX;
             dragItemState.origY = itemObj.gridY;
+            dragItemState.hoveredEquipSlot = null; // 현재 닿아있는 장비 슬롯 추적
 
             let clientX = e.type.includes("touch") ? e.touches[0].clientX : e.clientX;
             let clientY = e.type.includes("touch") ? e.touches[0].clientY : e.clientY;
 
             const boardRect = document.getElementById("inventoryBoard").getBoundingClientRect();
             const elRect = htmlEl.getBoundingClientRect();
-            
             const currentScale = boardRect.width / (INV_COLS * GRID_CELL_SIZE);
 
             dragItemState.offsetX = (clientX - elRect.left) / currentScale;
@@ -2049,6 +2049,8 @@
             const baseItem = ITEM_DB[itemObj.baseId];
             const shape = getRotatedShape(baseItem.shape, itemObj.rot);
             const h = shape.length, w = shape[0].length;
+            
+            // 기존 맵에서 해당 아이템 삭제
             for(let r = 0; r < h; r++) {
                 for(let c = 0; c < w; c++) {
                     if(shape[r][c] === 1) {
@@ -2092,7 +2094,6 @@
             const board = document.getElementById("inventoryBoard");
             if(!board || !dragItemState.ghostEl) return;
             const boardRect = board.getBoundingClientRect();
-            
             const currentScale = boardRect.width / (INV_COLS * GRID_CELL_SIZE);
 
             let localX = (dragItemState.lastClientX - boardRect.left) / currentScale - dragItemState.offsetX;
@@ -2109,28 +2110,62 @@
             dragItemState.currentGridY = rawGridY;
             dragItemState.isValid = true;
             
+            let isInsideBoard = true;
+
             for(let r = 0; r < h; r++) {
                 for(let c = 0; c < w; c++) {
                     if(shape[r][c] === 1) {
                         let gy = rawGridY + r, gx = rawGridX + c;
-                        if (gy < 0 || gy >= INV_ROWS || gx < 0 || gx >= INV_COLS) { dragItemState.isValid = false; break; }
-                        if (gridMap[gy][gx] !== null) { dragItemState.isValid = false; break; }
+                        // 가방 밖으로 나갔는지 판별
+                        if (gy < 0 || gy >= INV_ROWS || gx < 0 || gx >= INV_COLS) { 
+                            dragItemState.isValid = false; 
+                            isInsideBoard = false;
+                        } else if (gridMap[gy][gx] !== null) { 
+                            dragItemState.isValid = false; 
+                        }
                     }
                 }
-                if(!dragItemState.isValid) break;
             }
 
-            dragItemState.ghostEl.style.left = (rawGridX * GRID_CELL_SIZE) + "px";
-            dragItemState.ghostEl.style.top = (rawGridY * GRID_CELL_SIZE) + "px";
+            // [핵심 1] 가방 내부면 칸에 딱 맞게(스냅), 밖이면 마우스를 부드럽게 따라다님
+            if (isInsideBoard) {
+                dragItemState.ghostEl.style.left = (rawGridX * GRID_CELL_SIZE) + "px";
+                dragItemState.ghostEl.style.top = (rawGridY * GRID_CELL_SIZE) + "px";
+            } else {
+                dragItemState.ghostEl.style.left = localX + "px";
+                dragItemState.ghostEl.style.top = localY + "px";
+            }
             
             let blocks = dragItemState.ghostEl.querySelectorAll('.grid-item-block');
             blocks.forEach(b => {
-                if (dragItemState.isValid) {
-                    b.style.backgroundColor = "rgba(0, 255, 0, 0.5)"; 
-                    b.style.border = "2px solid #0f0";
+                b.style.backgroundColor = dragItemState.isValid ? "rgba(0, 255, 0, 0.5)" : "rgba(255, 0, 0, 0.5)";
+                b.style.border = dragItemState.isValid ? "2px solid #0f0" : "2px solid #f00";
+            });
+
+            // [핵심 2] 장비 슬롯 면적 충돌(AABB) 판정 및 반짝임 효과
+            dragItemState.hoveredEquipSlot = null; 
+            const ghostRect = dragItemState.ghostEl.getBoundingClientRect(); // 이동 중인 아이템의 화면 내 진짜 위치 박스
+            
+            document.querySelectorAll('.equip-slot').forEach(slot => {
+                const slotRect = slot.getBoundingClientRect();
+                
+                // 마우스 포인트가 아니라, 두 박스(면적)가 1픽셀이라도 겹치는지 검사
+                const isOverlapping = !(ghostRect.right < slotRect.left || 
+                                        ghostRect.left > slotRect.right || 
+                                        ghostRect.bottom < slotRect.top || 
+                                        ghostRect.top > slotRect.bottom);
+                
+                if (isOverlapping && baseItem.type === "equip" && baseItem.equipSlot === slot.getAttribute('data-slot')) {
+                    // 올바른 장비라면 슬롯을 황금색으로 빛나게 만듦
+                    slot.style.boxShadow = "0 0 15px gold";
+                    slot.style.borderColor = "gold";
+                    slot.style.transform = "scale(1.1)"; // 살짝 커지는 애니메이션
+                    dragItemState.hoveredEquipSlot = slot; 
                 } else {
-                    b.style.backgroundColor = "rgba(255, 0, 0, 0.5)"; 
-                    b.style.border = "2px solid #f00";
+                    // 떨어지면 원래대로
+                    slot.style.boxShadow = ""; 
+                    slot.style.borderColor = "";
+                    slot.style.transform = "scale(1.0)";
                 }
             });
         }
@@ -2142,46 +2177,43 @@
             document.removeEventListener("touchmove", onDragMove);
             document.removeEventListener("touchend", onDragEnd);
 
-            // [핵심] 장비창 드롭 감지 로직
-            // 현재 마우스를 놓은 위치 아래에 십자가 슬롯(.equip-slot)이 있는지 검사합니다.
-            let dropTarget = document.elementFromPoint(dragItemState.lastClientX, dragItemState.lastClientY);
-            let equipSlotEl = dropTarget ? dropTarget.closest('.equip-slot') : null;
             let isEquipped = false;
 
-            if (equipSlotEl) {
-                let targetSlotName = equipSlotEl.getAttribute('data-slot');
+            // [핵심 3] 놓았을 때 닿아있는 슬롯이 있다면 바로 장착!
+            if (dragItemState.hoveredEquipSlot) {
+                let targetSlotName = dragItemState.hoveredEquipSlot.getAttribute('data-slot');
                 let baseItem = ITEM_DB[dragItemState.itemRef.baseId];
                 
-                // 해당 아이템이 장비이고, 드롭한 슬롯의 종류가 일치하는지 확인
-                if (baseItem.type === "equip" && baseItem.equipSlot === targetSlotName) {
-                    if (player.equipment[targetSlotName]) {
-                        alert("이미 해당 부위에 장비가 있습니다!");
-                    } else {
-                        isEquipped = true;
-                        
-                        // 인벤토리 배열에서 아이템 완전 제거
-                        let idx = myInventoryItems.findIndex(i => (i.id || i.uid) === (dragItemState.itemRef.id || dragItemState.itemRef.uid));
-                        if(idx > -1) myInventoryItems.splice(idx, 1);
-                        
-                        if(!dragItemState.itemRef.sockets) dragItemState.itemRef.sockets = Array(baseItem.maxSockets).fill(null);
-                        
-                        // 캐릭터 장비 데이터에 장착
-                        player.equipment[targetSlotName] = dragItemState.itemRef;
-                        
-                        if (typeof updatePlayerTotalStats === "function") updatePlayerTotalStats();
-                        if (typeof renderEquipSlotsUI === "function") renderEquipSlotsUI();
-                    }
+                if (player.equipment[targetSlotName]) {
+                    alert("이미 해당 부위에 장비가 있습니다!");
                 } else {
-                    alert("이 장비를 착용할 수 없는 부위입니다.");
+                    isEquipped = true;
+                    
+                    let idx = myInventoryItems.findIndex(i => (i.id || i.uid) === (dragItemState.itemRef.id || dragItemState.itemRef.uid));
+                    if(idx > -1) myInventoryItems.splice(idx, 1);
+                    
+                    if(!dragItemState.itemRef.sockets) dragItemState.itemRef.sockets = Array(baseItem.maxSockets).fill(null);
+                    
+                    player.equipment[targetSlotName] = dragItemState.itemRef;
+                    
+                    if (typeof updatePlayerTotalStats === "function") updatePlayerTotalStats();
+                    if (typeof renderEquipSlotsUI === "function") renderEquipSlotsUI();
                 }
             }
 
-            // 장착에 실패했거나, 그냥 가방 내에서 이동한 경우 기존 로직 수행
+            // 남아있는 하이라이트 효과 싹 지우기
+            document.querySelectorAll('.equip-slot').forEach(s => {
+                s.style.boxShadow = "";
+                s.style.borderColor = "";
+                s.style.transform = "scale(1.0)";
+            });
+
             if (!isEquipped) {
                 if (dragItemState.isValid) {
                     dragItemState.itemRef.gridX = dragItemState.currentGridX;
                     dragItemState.itemRef.gridY = dragItemState.currentGridY;
                 } else {
+                    // 허공이나 장착 불가 구역에 떨어지면 무조건 원래 가방 자리로 복구
                     dragItemState.itemRef.gridX = dragItemState.origX;
                     dragItemState.itemRef.gridY = dragItemState.origY;
                 }
