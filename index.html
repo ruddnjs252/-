@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>리퀘 (Re-Quest) v0.2.5996</title>
+    <title>리퀘 (Re-Quest) v0.2.5997</title>
     
     <style>
         /* [MOD-001: 기본 화면 및 컨테이너 스타일] */
@@ -1206,42 +1206,11 @@
 
         // [MOD-017: UI 제어 및 충돌(Collision) 유틸리티]
         
-     // [MOD-017-1: 더블클릭 장착 시스템 및 인챈트 로직 통합]
+     // [MOD-017-1: 장비창 UI 업데이트 및 인챈트 로직 통합 (더블클릭 삭제됨)]
         let currentRightView = 'inventory'; 
         let currentEnchantTargetSlot = null; 
 
-        document.getElementById("inventoryBoard").addEventListener("dblclick", function(e) {
-            let wrapper = e.target.closest(".grid-item-wrapper");
-            if(!wrapper) return;
-            
-            // 데이터 배열에서 클릭한 아이템을 정확하게 찾기 위해 호환성 검사
-            let item = myInventoryItems.find(i => (i.id || i.uid) === wrapper.id);
-            
-            if(item && ITEM_DB[item.baseId].type === "equip") {
-                equipItem(item);
-            }
-        });
-
-        function equipItem(itemObj) {
-            const baseItem = ITEM_DB[itemObj.baseId];
-            const slot = baseItem.equipSlot;
-            
-            if(player.equipment[slot]) {
-                alert("이미 해당 부위에 장비가 있습니다!");
-                return;
-            }
-
-            let idx = myInventoryItems.findIndex(i => (i.id || i.uid) === (itemObj.id || itemObj.uid));
-            if(idx > -1) myInventoryItems.splice(idx, 1);
-            
-            if(!itemObj.sockets) itemObj.sockets = Array(baseItem.maxSockets).fill(null);
-            
-            player.equipment[slot] = itemObj;
-            
-            updatePlayerTotalStats();
-            renderGridInventory();
-            renderEquipSlotsUI();
-        }
+        // 드래그 앤 드롭으로 대체되었으므로 더블클릭 이벤트(dblclick)와 equipItem 함수는 삭제되었습니다.
 
         function renderEquipSlotsUI() {
             for(let slot in player.equipment) {
@@ -1846,7 +1815,7 @@
 
 // [MOD-020: 그리드 인벤토리 및 장비창 시스템 통합 관리]
         
-       // [MOD-020-1: 그리드 환경 변수 및 장비 슬롯 정의]
+      // [MOD-020-1: 그리드 환경 변수 및 장비 슬롯 정의]
         const GRID_CELL_SIZE = 40; 
         const INV_COLS = 8;        
         const INV_ROWS = 10;       
@@ -1860,15 +1829,15 @@
             accessory: null 
         };
 
+        // 스탯 인식 오류를 고치기 위해 '힘'을 시스템 언어인 'str'로 통일했습니다.
         const ITEM_DB = {
-            "sword_basic":  { name: "기본 검", type: "equip", equipSlot: "mainWeapon", shape: [[1],[1],[1]], color: "rgba(120, 120, 150, 0.9)", stats: { 힘: 5 }, maxSockets: 3 }, 
+            "sword_basic":  { name: "기본 검", type: "equip", equipSlot: "mainWeapon", shape: [[1],[1],[1]], color: "rgba(120, 120, 150, 0.9)", stats: { str: 5 }, maxSockets: 3 }, 
             "armor_iron":   { name: "철갑옷", type: "armor", shape: [[1, 1], [1, 1]], color: "rgba(80, 80, 80, 0.9)" },    
             "potion_hp":    { name: "포션", type: "potion", shape: [[1]], color: "rgba(200, 50, 50, 0.9)" }, 
-            "axe_battle":   { name: "ㄱ자 도끼", type: "weapon", shape: [[1, 1], [1, 0], [1, 0]], color: "rgba(180, 100, 50, 0.9)" },
-            "scroll_smite": { name: "강타 두루마리", type: "enchant", shape: [[1]], color: "#ff4444", enchantEffect: { stat: "힘", value: 5, name: "강타(+5)" } }
+            "axe_battle":   { name: "ㄱ자 도끼", type: "equip", equipSlot: "mainWeapon", shape: [[1, 1], [1, 0], [1, 0]], color: "rgba(180, 100, 50, 0.9)" },
+            "scroll_smite": { name: "강타 두루마리", type: "enchant", shape: [[1]], color: "#ff4444", enchantEffect: { stat: "str", value: 5, name: "강타(+5)" } }
         };
 
-        // 기존에 uid로 되어있던 것을 모두 id로 변경
         let myInventoryItems = [
             { id: "item_1", baseId: "sword_basic", gridX: 0, gridY: 0, rot: 0 },
             { id: "item_2", baseId: "armor_iron",  gridX: 2, gridY: 0, rot: 0 },
@@ -2055,7 +2024,7 @@
         }
         // [MOD-020-6-END]
 
-        // [MOD-020-7: 드래그 앤 드롭 함수 (스케일링 대응 완벽 패치)]
+        // [MOD-020-7: 드래그 앤 드롭 함수 (스케일링 및 장비 장착 대응)]
         function startDrag(e, itemObj, htmlEl) {
             if (e.type === "mousedown" && e.button !== 0) return; 
 
@@ -2070,7 +2039,6 @@
             const boardRect = document.getElementById("inventoryBoard").getBoundingClientRect();
             const elRect = htmlEl.getBoundingClientRect();
             
-            // [스케일 보정] 화면이 확대/축소된 배율(scale)을 역산하여 원본 픽셀 기준 오프셋을 구합니다.
             const currentScale = boardRect.width / (INV_COLS * GRID_CELL_SIZE);
 
             dragItemState.offsetX = (clientX - elRect.left) / currentScale;
@@ -2125,10 +2093,8 @@
             if(!board || !dragItemState.ghostEl) return;
             const boardRect = board.getBoundingClientRect();
             
-            // [스케일 보정] 
             const currentScale = boardRect.width / (INV_COLS * GRID_CELL_SIZE);
 
-            // 마우스 좌표를 배율로 나누어 실제 보드 내부의 40px 단위 쌩픽셀 좌표계로 변환합니다.
             let localX = (dragItemState.lastClientX - boardRect.left) / currentScale - dragItemState.offsetX;
             let localY = (dragItemState.lastClientY - boardRect.top) / currentScale - dragItemState.offsetY;
 
@@ -2170,19 +2136,55 @@
         }
 
         function onDragEnd(e) {
-            // (onDragEnd 함수는 기존 내용과 완전히 동일하게 유지하시면 됩니다. 생략 없이 기존 코드 그대로 두거나 덮어씌워주세요.)
             if (!dragItemState.active) return;
             document.removeEventListener("mousemove", onDragMove);
             document.removeEventListener("mouseup", onDragEnd);
             document.removeEventListener("touchmove", onDragMove);
             document.removeEventListener("touchend", onDragEnd);
 
-            if (dragItemState.isValid) {
-                dragItemState.itemRef.gridX = dragItemState.currentGridX;
-                dragItemState.itemRef.gridY = dragItemState.currentGridY;
-            } else {
-                dragItemState.itemRef.gridX = dragItemState.origX;
-                dragItemState.itemRef.gridY = dragItemState.origY;
+            // [핵심] 장비창 드롭 감지 로직
+            // 현재 마우스를 놓은 위치 아래에 십자가 슬롯(.equip-slot)이 있는지 검사합니다.
+            let dropTarget = document.elementFromPoint(dragItemState.lastClientX, dragItemState.lastClientY);
+            let equipSlotEl = dropTarget ? dropTarget.closest('.equip-slot') : null;
+            let isEquipped = false;
+
+            if (equipSlotEl) {
+                let targetSlotName = equipSlotEl.getAttribute('data-slot');
+                let baseItem = ITEM_DB[dragItemState.itemRef.baseId];
+                
+                // 해당 아이템이 장비이고, 드롭한 슬롯의 종류가 일치하는지 확인
+                if (baseItem.type === "equip" && baseItem.equipSlot === targetSlotName) {
+                    if (player.equipment[targetSlotName]) {
+                        alert("이미 해당 부위에 장비가 있습니다!");
+                    } else {
+                        isEquipped = true;
+                        
+                        // 인벤토리 배열에서 아이템 완전 제거
+                        let idx = myInventoryItems.findIndex(i => (i.id || i.uid) === (dragItemState.itemRef.id || dragItemState.itemRef.uid));
+                        if(idx > -1) myInventoryItems.splice(idx, 1);
+                        
+                        if(!dragItemState.itemRef.sockets) dragItemState.itemRef.sockets = Array(baseItem.maxSockets).fill(null);
+                        
+                        // 캐릭터 장비 데이터에 장착
+                        player.equipment[targetSlotName] = dragItemState.itemRef;
+                        
+                        if (typeof updatePlayerTotalStats === "function") updatePlayerTotalStats();
+                        if (typeof renderEquipSlotsUI === "function") renderEquipSlotsUI();
+                    }
+                } else {
+                    alert("이 장비를 착용할 수 없는 부위입니다.");
+                }
+            }
+
+            // 장착에 실패했거나, 그냥 가방 내에서 이동한 경우 기존 로직 수행
+            if (!isEquipped) {
+                if (dragItemState.isValid) {
+                    dragItemState.itemRef.gridX = dragItemState.currentGridX;
+                    dragItemState.itemRef.gridY = dragItemState.currentGridY;
+                } else {
+                    dragItemState.itemRef.gridX = dragItemState.origX;
+                    dragItemState.itemRef.gridY = dragItemState.origY;
+                }
             }
 
             dragItemState.active = false;
