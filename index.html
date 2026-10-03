@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>리퀘 (Re-Quest) v0.2.5994</title>
+    <title>리퀘 (Re-Quest) v0.2.5995</title>
     
     <style>
         /* [MOD-001: 기본 화면 및 컨테이너 스타일] */
@@ -1215,10 +1215,8 @@
             let wrapper = e.target.closest(".grid-item-wrapper");
             if(!wrapper) return;
             
-            // 클릭한 블록의 좌표를 역산하여 아이템 객체를 찾음
-            let gx = Math.round(parseInt(wrapper.style.left) / 40);
-            let gy = Math.round(parseInt(wrapper.style.top) / 40);
-            let item = myInventoryItems.find(i => i.gridX === gx && i.gridY === gy);
+            // id 대신 uid를 사용하여 정확한 아이템 객체를 찾습니다.
+            let item = myInventoryItems.find(i => i.uid === wrapper.id);
             
             if(item && ITEM_DB[item.baseId].type === "equip") {
                 equipItem(item);
@@ -1234,8 +1232,8 @@
                 return;
             }
 
-            // 가방에서 아이템 제거 후 장비창으로 이동
-            let idx = myInventoryItems.findIndex(i => i.id === itemObj.id);
+            // uid로 가방에서 아이템 제거 후 장비창으로 이동
+            let idx = myInventoryItems.findIndex(i => i.uid === itemObj.uid);
             if(idx > -1) myInventoryItems.splice(idx, 1);
             
             if(!itemObj.sockets) itemObj.sockets = Array(baseItem.maxSockets).fill(null);
@@ -1301,9 +1299,9 @@
                 viewInv.style.display = 'none'; viewEnc.style.display = 'flex';
                 btn.innerHTML = '&laquo;'; 
                 
-                // [테스트용 편의기능] 인챈트 창 열 때 가방에 강타 두루마리가 없으면 1개 자동 지급
+                // uid를 올바르게 적용하여 테스트용 두루마리 생성
                 if(!myInventoryItems.some(i => i.baseId === "scroll_smite")) {
-                    myInventoryItems.push({ id: "scroll_" + Date.now(), baseId: "scroll_smite", rot: 0, gridX: 0, gridY: 0 });
+                    myInventoryItems.push({ uid: "scroll_" + Date.now(), baseId: "scroll_smite", rot: 0, gridX: 0, gridY: 0 });
                 }
             } else {
                 currentRightView = 'inventory';
@@ -1335,7 +1333,6 @@
             targetSlotHint.innerHTML = `<span style="color: white; font-weight: bold; font-size: 11px;">${baseItem.name}</span>`;
             targetSlot.style.borderColor = "gold"; targetSlot.style.backgroundColor = baseItem.color;
 
-            // [핵심] 스스륵 나타나는 소켓 애니메이션 렌더링
             let socketsHtml = '';
             for(let i = 0; i < baseItem.maxSockets; i++) {
                 let scrollId = item.sockets[i];
@@ -1366,9 +1363,10 @@
                 popup.innerHTML = `<div style="color:gray; font-size:11px; text-align:center;">가방에 인챈트 두루마리가<br>없습니다.</div>
                 <button onclick="document.getElementById('enchantPopupUI').style.display='none'" style="margin-top:10px; background:#444; color:#fff; border:none; padding:5px; border-radius:4px;">닫기</button>`;
             } else {
+                // scroll.id 속성 대신 scroll.uid를 사용하도록 수정
                 let listHtml = scrolls.map(scroll => {
                     let base = ITEM_DB[scroll.baseId];
-                    return `<div class="enchant-scroll-item" onclick="applyEnchant('${slotKey}', ${socketIndex}, '${scroll.id}')">
+                    return `<div class="enchant-scroll-item" onclick="applyEnchant('${slotKey}', ${socketIndex}, '${scroll.uid}')">
                         ${base.name} <span style="color:gold; font-size:10px;">${base.enchantEffect.name}</span>
                     </div>`;
                 }).join('');
@@ -1380,12 +1378,12 @@
             popup.style.display = 'flex';
         }
 
-        function applyEnchant(slotKey, socketIndex, scrollId) {
+        function applyEnchant(slotKey, socketIndex, scrollUid) {
             let item = player.equipment[slotKey];
-            let scrollIdx = myInventoryItems.findIndex(i => i.id === scrollId);
+            // uid를 사용하여 정확한 두루마리를 찾습니다.
+            let scrollIdx = myInventoryItems.findIndex(i => i.uid === scrollUid);
             let scroll = myInventoryItems[scrollIdx];
             
-            // 인벤에서 두루마리 삭제 후 소켓에 기록
             myInventoryItems.splice(scrollIdx, 1);
             item.sockets[socketIndex] = scroll.baseId;
             
@@ -1393,7 +1391,6 @@
             
             updatePlayerTotalStats();
             
-            // 화면 갱신을 위해 현재 선택된 슬롯 다시 클릭
             let slotNameKOR = document.querySelector(`[data-slot="${slotKey}"]`).innerText;
             selectEquipSlotForEnchant(slotNameKOR, slotKey);
         }
@@ -1419,9 +1416,9 @@
         window.addEventListener('resize', autoScaleInventory);
 
         function switchTab(tabId) {
-            renderEquipSlotsUI(); // 탭 열 때 장착슬롯 시각화 업데이트
+            renderEquipSlotsUI(); 
             if (typeof renderGridInventory === "function") renderGridInventory();
-            updatePlayerTotalStats(); // 열 때마다 육각형 스탯 갱신
+            updatePlayerTotalStats(); 
             autoScaleInventory();
         }
         // [MOD-017-1-END]
