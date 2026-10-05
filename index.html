@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>리퀘 (Re-Quest) v0.2.59992</title>
+    <title>리퀘 (Re-Quest) v0.2.59993</title>
     
     <style>
         /* [MOD-001: 기본 화면 및 컨테이너 스타일] */
@@ -1220,16 +1220,35 @@
 
         // [MOD-017: UI 제어 및 충돌(Collision) 유틸리티]
         
-    // [MOD-017-1: 장비창 UI 업데이트, 인챈트 로직 및 스마트 알림 뱃지]
+    // [MOD-017-1: 장비창 UI 업데이트, 인챈트 로직 및 스마트 알림 뱃지 (창고 연동)]
         let currentRightView = 'inventory'; 
         let currentEnchantTargetSlot = null; 
 
         function updateNotiBadges() {
-            // [핵심 버그 수정] 소켓에 달린 뱃지까지 모조리 지우지 않도록 선택자 범위를 축소
-            document.querySelectorAll('#modeSwitchBtn > .noti-badge, #equipSection .noti-badge').forEach(e => e.remove());
+            // 소켓 내부에 텍스트로 들어간 뱃지는 제외하고 기존 뱃지 싹 지우기
+            document.querySelectorAll('.noti-badge:not(.socket-badge)').forEach(e => e.remove());
 
-            let hasScroll = myInventoryItems.some(i => ITEM_DB[i.baseId] && ITEM_DB[i.baseId].type === "enchant");
+            // 1. 가방 배열 복사 후, 창고가 열려있다면 창고 배열까지 병합하여 스캔
+            let allScrolls = [...myInventoryItems];
+            if (gameState === "storage") {
+                allScrolls = allScrolls.concat(personalStorage);
+            }
+
+            let hasScroll = allScrolls.some(i => ITEM_DB[i.baseId] && ITEM_DB[i.baseId].type === "enchant");
             if (!hasScroll) return;
+
+            // [추가] 인벤토리와 창고 그리드 위에 있는 인챈트 두루마리 아이템 자체에 ! 달기
+            allScrolls.forEach(item => {
+                if (ITEM_DB[item.baseId] && ITEM_DB[item.baseId].type === "enchant") {
+                    let itemEl = document.getElementById(item.id || item.uid);
+                    if (itemEl) {
+                        let badge = document.createElement("div");
+                        badge.className = "noti-badge";
+                        badge.innerText = "!";
+                        itemEl.appendChild(badge);
+                    }
+                }
+            });
 
             let enchantableSlots = [];
             for(let slotKey in player.equipment) {
@@ -1315,7 +1334,6 @@
                 currentRightView = 'enchant';
                 viewInv.style.display = 'none'; viewEnc.style.display = 'flex';
                 btn.innerHTML = '&laquo;'; 
-                // 강타 두루마리 강제 지급 로직 삭제 완료
             } else {
                 currentRightView = 'inventory';
                 viewInv.style.display = 'block'; viewEnc.style.display = 'none';
@@ -1348,7 +1366,13 @@
             targetSlotHint.innerHTML = `<span style="color: white; font-weight: bold; font-size: 11px;">${baseItem.name}</span>`;
             targetSlot.style.borderColor = "gold"; targetSlot.style.backgroundColor = baseItem.color;
 
-            let hasScroll = myInventoryItems.some(i => ITEM_DB[i.baseId] && ITEM_DB[i.baseId].type === "enchant");
+            // 창고가 열려있다면 가방+창고 데이터 병합하여 판단
+            let allScrolls = [...myInventoryItems];
+            if (gameState === "storage") {
+                allScrolls = allScrolls.concat(personalStorage);
+            }
+            let hasScroll = allScrolls.some(i => ITEM_DB[i.baseId] && ITEM_DB[i.baseId].type === "enchant");
+            
             let foundFirstEmpty = false;
             let socketsHtml = '';
             
@@ -1362,7 +1386,7 @@
                 } else {
                     let badgeHtml = "";
                     if (!foundFirstEmpty && hasScroll) {
-                        badgeHtml = `<div class="noti-badge">!</div>`;
+                        badgeHtml = `<div class="noti-badge socket-badge">!</div>`;
                         foundFirstEmpty = true; 
                     }
                     socketsHtml += `<div class="socket-slot socket-animated" style="position:relative;" onclick="openEnchantPopup('${slotKey}', ${i})">${badgeHtml}</div>`;
@@ -1381,17 +1405,24 @@
         }
 
         function openEnchantPopup(slotKey, socketIndex) {
-            let scrolls = myInventoryItems.filter(i => ITEM_DB[i.baseId] && ITEM_DB[i.baseId].type === "enchant");
+            let allScrolls = [...myInventoryItems];
+            if (gameState === "storage") {
+                allScrolls = allScrolls.concat(personalStorage);
+            }
+
+            let scrolls = allScrolls.filter(i => ITEM_DB[i.baseId] && ITEM_DB[i.baseId].type === "enchant");
             let popup = document.getElementById("enchantPopupUI");
             
             if(scrolls.length === 0) {
-                popup.innerHTML = `<div style="color:gray; font-size:11px; text-align:center;">가방에 인챈트 두루마리가<br>없습니다.</div>
+                popup.innerHTML = `<div style="color:gray; font-size:11px; text-align:center;">사용 가능한<br>인챈트 두루마리가 없습니다.</div>
                 <button onclick="document.getElementById('enchantPopupUI').style.display='none'" style="margin-top:10px; background:#444; color:#fff; border:none; padding:5px; border-radius:4px;">닫기</button>`;
             } else {
                 let listHtml = scrolls.map(scroll => {
                     let base = ITEM_DB[scroll.baseId];
+                    // 가방에서 왔는지 창고에서 왔는지 구분 표시
+                    let sourceText = myInventoryItems.some(i => (i.id || i.uid) === (scroll.id || scroll.uid)) ? "가방" : "창고";
                     return `<div class="enchant-scroll-item" onclick="applyEnchant('${slotKey}', ${socketIndex}, '${scroll.id || scroll.uid}')">
-                        ${base.name} <span style="color:gold; font-size:10px;">${base.enchantEffect.name}</span>
+                        <span style="color:#aaa; font-size:9px;">[${sourceText}]</span> ${base.name} <span style="color:gold; font-size:10px;">${base.enchantEffect.name}</span>
                     </div>`;
                 }).join('');
                 
@@ -1404,11 +1435,25 @@
 
         function applyEnchant(slotKey, socketIndex, scrollId) {
             let item = player.equipment[slotKey];
-            let scrollIdx = myInventoryItems.findIndex(i => (i.id || i.uid) === scrollId);
-            let scroll = myInventoryItems[scrollIdx];
+            let scroll = null;
             
-            myInventoryItems.splice(scrollIdx, 1);
-            item.sockets[socketIndex] = scroll.baseId;
+            // 1순위: 인벤토리에서 찾기
+            let invIdx = myInventoryItems.findIndex(i => (i.id || i.uid) === scrollId);
+            if (invIdx > -1) {
+                scroll = myInventoryItems.splice(invIdx, 1)[0];
+            } 
+            // 2순위: 인벤토리에 없고 창고가 열려있다면 창고에서 찾기
+            else if (gameState === "storage") {
+                let stoIdx = personalStorage.findIndex(i => (i.id || i.uid) === scrollId);
+                if (stoIdx > -1) {
+                    scroll = personalStorage.splice(stoIdx, 1)[0];
+                    if (typeof renderGridInventory === "function") renderGridInventory();
+                }
+            }
+            
+            if (scroll) {
+                item.sockets[socketIndex] = scroll.baseId;
+            }
             
             document.getElementById('enchantPopupUI').style.display = 'none';
             
@@ -1422,7 +1467,6 @@
             gameState = "playing";
             document.getElementById("inventoryUI").style.display = "none";
             
-            // 창고 패널 초기화 (다시 열 때까지 숨김)
             let sp = document.getElementById("storagePanel");
             if(sp) sp.style.display = "none";
             
