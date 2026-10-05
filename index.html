@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>리퀘 (Re-Quest) v0.2.59998</title>
+    <title>리퀘 (Re-Quest) v0.2.59999</title>
     
     <style>
         /* [MOD-001: 기본 화면 및 컨테이너 스타일] */
@@ -451,35 +451,34 @@
         resizeCanvas();
 
         // [MOD-010-2: 게임 상태 및 플레이어 데이터 객체]
-        let gameState = "playing"; // 현재 게임 상태 (playing, inventory, charCreation, npcMenu, dead 등)
-        let currentMap = "guild";  // 현재 위치한 맵 이름
+        let gameState = "playing"; 
+        let currentMap = "guild";  
 
         let player = {
             name: "방랑자",
-            x: 500, y: 500, width: 30, height: 30, color: "cyan", speed: 5, // 기본 위치 및 렌더링 정보 (width/height는 추후 44로 덮어씌워짐)
-            stats: { hp: 3, str: 3, dex: 3, mana: 3, stamina: 3, charm: 3 }, // 현재 스탯
-            baseStats: { 힘: 3, 민첩: 3, 매력: 3, 체력: 3, 스테미나: 3, 마나: 3 }, // 순수 기본 스탯
-            equipment: { // 장착 중인 아이템 데이터
+            x: 500, y: 500, width: 30, height: 30, color: "cyan", speed: 5, 
+            stats: { hp: 3, str: 3, dex: 3, mana: 3, stamina: 3, charm: 3 }, 
+            baseStats: { hp: 3, str: 3, dex: 3, mana: 3, stamina: 3, charm: 3 }, // <-- [핵심 수정] 한글 스탯명을 모두 영어로 통일!
+            equipment: { 
                 head: null, mainWeapon: null, chest: null, subWeapon: null, shoes: null, throwable: null,
                 artifact_0: null, artifact_1: null, artifact_2: null, artifact_3: null, artifact_4: null
             },
             job: "무소속", 
-            acquiredJobs: [], // 습득한 직업 목록
+            acquiredJobs: [], 
             currentSkillIdx: 0,
-            skillCooldowns: {}, // 스킬별 쿨타임 관리 객체
-            level: 1, exp: 0, maxExp: 100, // 레벨업 관련 경험치
-            maxHp: 9, currentHp: 9, // 체력
-            maxStamina: 9, currentStamina: 9, staminaRegenTimer: 0, // 달리기 및 스킬에 소모되는 스태미나
-            maxMana: 9, currentMana: 9, // 마나
-            knockbackDirX: 0, knockbackDirY: 0, // 피격 시 넉백 방향
-            dashSpeed: 0, dashDirX: 0, dashDirY: 0, dashTimer: 0, // 돌진(Charge) 등 이동기 상태
-            targetX: 0, targetY: 0, // 이동기 목표 좌표
-            activeSkillType: null, // 현재 발동 중인 스킬 종류
-            aimingSkill: null, // 마우스 우클릭으로 조준 중인 스킬
-            currentQuickSlotIdx: 0, // 8칸 퀵슬롯 중 현재 활성화된 인덱스
-            lockedTarget: null // 좌클릭으로 고정(락온)한 적 객체
+            skillCooldowns: {}, 
+            level: 1, exp: 0, maxExp: 100, 
+            maxHp: 9, currentHp: 9, 
+            maxStamina: 9, currentStamina: 9, staminaRegenTimer: 0, 
+            maxMana: 9, currentMana: 9, 
+            knockbackDirX: 0, knockbackDirY: 0, 
+            dashSpeed: 0, dashDirX: 0, dashDirY: 0, dashTimer: 0, 
+            targetX: 0, targetY: 0, 
+            activeSkillType: null, 
+            aimingSkill: null, 
+            currentQuickSlotIdx: 0, 
+            lockedTarget: null 
         };
-
         // (기존에 있던 잘못된 [MOD-030] 부분은 여기서 완전히 삭제되었습니다.)
 
         // [MOD-010-3: 시스템, 퀘스트, 이펙트 등 전역 관리 변수]
