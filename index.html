@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>리퀘 (Re-Quest) v0.2.59994</title>
+    <title>리퀘 (Re-Quest) v0.2.59995</title>
     
     <style>
         /* [MOD-001: 기본 화면 및 컨테이너 스타일] */
@@ -575,7 +575,7 @@
         }
         // [MOD-012-END]
 
-       // [MOD-013: 개인 창고 시스템 (그리드 연동 개편)]
+       // [MOD-013: 개인 창고 시스템 (그리드 연동 개편 및 초기 스케일링 버그 수정)]
         let storageMap = Array.from({ length: 10 }, () => Array(8).fill(null));
 
         function openStorage() {
@@ -591,10 +591,11 @@
             document.getElementById("modeSwitchBtn").innerHTML = '&raquo;';
             document.getElementById('enchantPopupUI').style.display = 'none';
 
-            if (typeof renderGridInventory === "function") renderGridInventory();
+            // [핵심 수정] 그리드만 렌더링하는 대신, 장비창 갱신 + 해상도 스케일링이 모두 포함된 통합 함수 호출
+            if (typeof switchTab === "function") switchTab('inv');
         }
         // [MOD-013-END]
-
+        
         // [MOD-014: 캐릭터 생성(스탯 분배 및 직업 선택) 로직]
    // [MOD-014-1: 육각형 레이더 차트 렌더링 (폭 150px 비율 초압축 최적화)]
         function drawRadarChart(canvasId) {
