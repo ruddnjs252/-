@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>리퀘 (Re-Quest) v0.2.59997</title>
+    <title>리퀘 (Re-Quest) v0.2.59998</title>
     
     <style>
         /* [MOD-001: 기본 화면 및 컨테이너 스타일] */
@@ -155,6 +155,21 @@
             100% { transform: scale(0.9); opacity: 1; }
         }
         /* [MOD-002-7-END] */
+
+        /* [MOD-002-8: 아이템 정보 툴팁 창] */
+        .item-tooltip {
+            position: fixed; display: none; background: rgba(10, 10, 15, 0.95);
+            border: 2px solid #555; padding: 12px; border-radius: 6px;
+            color: white; font-size: 12px; z-index: 10000; pointer-events: none;
+            box-shadow: 0 5px 20px rgba(0,0,0,0.8); width: 160px;
+        }
+        .item-tooltip-title { font-weight: bold; font-size: 14px; margin-bottom: 3px; color: gold; }
+        .item-tooltip-type { color: #888; margin-bottom: 8px; font-size: 11px; }
+        .item-tooltip-stat { color: #00ffcc; font-weight: bold; margin-bottom: 4px; }
+        .item-tooltip-enchant-title { color: #ff8800; font-weight: bold; margin-top: 8px; border-top: 1px dashed #555; padding-top: 6px; font-size: 11px; }
+        .item-tooltip-enchant-item { color: #ff4444; font-size: 11px; padding-left: 5px; }
+        .item-tooltip-desc { color: #ccc; margin-top: 8px; border-top: 1px solid #444; padding-top: 6px; font-size: 11px; line-height: 1.4; }
+        /* [MOD-002-8-END] */
         
         
         /* [MOD-003: 버튼 컨트롤 및 모바일 가상 패드(vmin 반응형) 스타일] */
@@ -1304,10 +1319,22 @@
                 if(!el) continue;
                 
                 let item = player.equipment[slot];
+                
+                // 이벤트 중복 등록 방지를 위한 초기화
+                el.onmouseenter = null; el.onmouseleave = null; el.onmousemove = null;
+                el.onmousedown = null; el.ontouchstart = null;
+
                 if(item) {
                     let baseItem = ITEM_DB[item.baseId];
                     el.style.backgroundColor = baseItem.color;
                     el.innerHTML = `<span style="color:white; font-size:9px; font-weight:bold; pointer-events:none; text-align:center;">${baseItem.name}</span>`;
+                    
+                    // 툴팁 및 장비 탈착(드래그) 이벤트 연결
+                    el.onmouseenter = (e) => handleItemMouseEnter(e, item);
+                    el.onmouseleave = handleItemMouseLeave;
+                    el.onmousemove = handleItemMouseMove;
+                    el.onmousedown = (e) => startDragFromEquip(e, slot, item);
+                    el.ontouchstart = (e) => { e.preventDefault(); startDragFromEquip(e, slot, item); };
                 } else {
                     el.style.backgroundColor = "#2a2a2a";
                     let hintText = document.querySelector(`.slot-${slot} .slot-hint`)?.innerText || "";
@@ -2116,9 +2143,15 @@
                 rotateHandle.addEventListener("touchstart", triggerRotate, { passive: false });
                 wrapper.appendChild(rotateHandle);
 
-                // 출처(sourceName)를 명시하여 드래그 시작
+               // (기존 코드) 출처(sourceName)를 명시하여 드래그 시작
                 wrapper.addEventListener("mousedown", (e) => startDrag(e, item, wrapper, sourceName));
                 wrapper.addEventListener("touchstart", (e) => startDrag(e, item, wrapper, sourceName), { passive: false });
+                
+                // [추가] 툴팁 이벤트 리스너 등록
+                wrapper.addEventListener("mouseenter", (e) => handleItemMouseEnter(e, item));
+                wrapper.addEventListener("mouseleave", handleItemMouseLeave);
+                wrapper.addEventListener("mousemove", handleItemMouseMove);
+                
                 board.appendChild(wrapper);
             });
         }
@@ -2170,9 +2203,10 @@
         }
         // [MOD-020-6-END]
 
-        // [MOD-020-7: 드래그 앤 드롭 (크로스 보드 호환 및 장비 장착 지원, 뷰 전환 버그 수정)]
+        // [MOD-020-7: 드래그 앤 드롭 (크로스 보드 호환, 장비 탈착 및 오토 스왑 지원)]
         function startDrag(e, itemObj, htmlEl, sourceName) {
             if (e.type === "mousedown" && e.button !== 0) return; 
+            handleItemMouseLeave(); // 드래그 시작 시 툴팁 숨김
 
             dragItemState.active = true;
             dragItemState.itemRef = itemObj;
@@ -2227,6 +2261,90 @@
             updateDragGhost(); 
         }
 
+        // 장비창에서 장비를 직접 마우스로 뽑아낼 때 호출되는 전용 함수
+        function startDragFromEquip(e, slotName, itemObj) {
+            if (e.type === "mousedown" && e.button !== 0) return; 
+            handleItemMouseLeave();
+
+            dragItemState.active = true;
+            dragItemState.itemRef = itemObj;
+            dragItemState.origX = -1;
+            dragItemState.origY = -1;
+            dragItemState.source = "equipment"; 
+            dragItemState.sourceSlot = slotName;
+            dragItemState.hoveredEquipSlot = null; 
+
+            let clientX = e.type.includes("touch") ? e.touches[0].clientX : e.clientX;
+            let clientY = e.type.includes("touch") ? e.touches[0].clientY : e.clientY;
+
+            // 임시로 장비를 해제하고 즉시 스탯 및 UI 업데이트
+            player.equipment[slotName] = null;
+            if (currentEnchantTargetSlot === slotName) clearEnchantRegistration();
+            updatePlayerTotalStats();
+            renderEquipSlotsUI();
+
+            const board = document.getElementById("inventoryBoard");
+            const boardRect = board.getBoundingClientRect();
+            const currentScale = boardRect.width > 0 ? boardRect.width / (INV_COLS * GRID_CELL_SIZE) : 1;
+
+            dragItemState.offsetX = GRID_CELL_SIZE / 2; 
+            dragItemState.offsetY = GRID_CELL_SIZE / 2;
+            dragItemState.lastClientX = clientX;
+            dragItemState.lastClientY = clientY;
+
+            let ghost = createGhostDOMForItem(itemObj);
+            ghost.className = "grid-item-wrapper dragging"; 
+            
+            board.appendChild(ghost);
+            dragItemState.ghostEl = ghost;
+
+            document.addEventListener("mousemove", onDragMove);
+            document.addEventListener("mouseup", onDragEnd);
+            document.addEventListener("touchmove", onDragMove, { passive: false });
+            document.addEventListener("touchend", onDragEnd);
+            
+            updateDragGhost(); 
+        }
+
+        // 아이템 객체의 형태(Shape)를 읽어와 허공에 띄울 유령 DOM을 직접 조립하는 헬퍼 함수
+        function createGhostDOMForItem(itemObj) {
+            const baseItem = ITEM_DB[itemObj.baseId];
+            const shape = getRotatedShape(baseItem.shape, itemObj.rot);
+            const h = shape.length, w = shape[0].length;
+            
+            let ghost = document.createElement("div");
+            ghost.style.width = (w * GRID_CELL_SIZE) + "px";
+            ghost.style.height = (h * GRID_CELL_SIZE) + "px";
+            ghost.style.position = "absolute";
+            
+            let labelPlaced = false;
+            for(let r = 0; r < h; r++) {
+                for(let c = 0; c < w; c++) {
+                    if(shape[r][c] === 1) {
+                        let block = document.createElement("div");
+                        block.className = "grid-item-block";
+                        block.style.width = GRID_CELL_SIZE + "px";
+                        block.style.height = GRID_CELL_SIZE + "px";
+                        block.style.left = (c * GRID_CELL_SIZE) + "px";
+                        block.style.top = (r * GRID_CELL_SIZE) + "px";
+                        block.style.backgroundColor = baseItem.color;
+                        ghost.appendChild(block);
+
+                        if(!labelPlaced) {
+                            let title = document.createElement("div");
+                            title.className = "item-label";
+                            title.innerText = baseItem.name;
+                            title.style.left = (c * GRID_CELL_SIZE + GRID_CELL_SIZE/2) + "px";
+                            title.style.top = (r * GRID_CELL_SIZE + GRID_CELL_SIZE/2) + "px";
+                            ghost.appendChild(title);
+                            labelPlaced = true;
+                        }
+                    }
+                }
+            }
+            return ghost;
+        }
+
         function onDragMove(e) {
             if (!dragItemState.active) return;
             if(e.type === "touchmove" && e.touches.length > 0) {
@@ -2247,7 +2365,6 @@
             const invRect = invBoard.getBoundingClientRect();
             const stoRect = stoBoard && gameState === "storage" ? stoBoard.getBoundingClientRect() : {left:-999, right:-999, top:-999, bottom:-999, width:0};
             
-            // [버그 수정 1] 화면이 인챈트 창일 때 invBoard가 display:none이 되어 width가 0이 되는 문제 해결
             let referenceWidth = invRect.width > 0 ? invRect.width : (stoRect.width > 0 ? stoRect.width : 320);
             const currentScale = referenceWidth / (INV_COLS * GRID_CELL_SIZE); 
 
@@ -2255,7 +2372,6 @@
             let targetRect = null;
             let targetMap = null;
 
-            // 판별 시 invRect.width가 0보다 클 때만 가방 영역으로 판정 (숨겨져 있으면 불가)
             if (gameState === "storage" && dragItemState.lastClientX >= stoRect.left && dragItemState.lastClientX <= stoRect.right && dragItemState.lastClientY >= stoRect.top && dragItemState.lastClientY <= stoRect.bottom) {
                 targetBoardName = "storage"; targetRect = stoRect; targetMap = storageMap;
             } else if (invRect.width > 0 && dragItemState.lastClientX >= invRect.left && dragItemState.lastClientX <= invRect.right && dragItemState.lastClientY >= invRect.top && dragItemState.lastClientY <= invRect.bottom) {
@@ -2350,19 +2466,49 @@
                 let targetSlotName = dragItemState.hoveredEquipSlot.getAttribute('data-slot');
                 let baseItem = ITEM_DB[dragItemState.itemRef.baseId];
                 
-                if (player.equipment[targetSlotName]) {
-                    alert("이미 해당 부위에 장비가 있습니다!");
-                } else {
-                    isEquipped = true;
-                    
-                    let idx = sourceArray.findIndex(i => (i.id || i.uid) === (dragItemState.itemRef.id || dragItemState.itemRef.uid));
-                    if(idx > -1) sourceArray.splice(idx, 1);
-                    if(!dragItemState.itemRef.sockets) dragItemState.itemRef.sockets = Array(baseItem.maxSockets).fill(null);
-                    
-                    player.equipment[targetSlotName] = dragItemState.itemRef;
-                    
-                    if (typeof updatePlayerTotalStats === "function") updatePlayerTotalStats();
-                    if (typeof renderEquipSlotsUI === "function") renderEquipSlotsUI();
+                if (baseItem.type === "equip" && baseItem.equipSlot === targetSlotName) {
+                    let oldItem = player.equipment[targetSlotName];
+                    let canSwap = true;
+
+                    // [오토 스왑 로직] 이미 장비가 있다면 빈 공간을 찾아 가방으로 밀어넣기 시도
+                    if (oldItem) {
+                        let targetMap = dragItemState.source === "storage" ? storageMap : gridMap;
+                        let targetArr = dragItemState.source === "storage" ? personalStorage : myInventoryItems;
+                        
+                        if (dragItemState.source === "equipment") {
+                            canSwap = false; // 장비칸 끼리의 자리바꾸기는 지원하지 않음
+                        } else if (canPlaceItem(oldItem, dragItemState.origX, dragItemState.origY, targetMap)) {
+                            // 방금 드래그해 온 새 아이템의 원래 빈자리에 기존 템이 딱 맞게 들어가면 쏙 넣음
+                            oldItem.gridX = dragItemState.origX;
+                            oldItem.gridY = dragItemState.origY;
+                            targetArr.push(oldItem);
+                        } else {
+                            // 크기가 달라서 안 맞으면 가방을 풀 스캔해서 남는 빈 공간을 찾음
+                            let freePos = findFreeSpace(oldItem, targetMap);
+                            if (freePos) {
+                                oldItem.gridX = freePos.x;
+                                oldItem.gridY = freePos.y;
+                                targetArr.push(oldItem);
+                            } else {
+                                alert("인벤토리에 기존 장비를 해제할 빈 공간이 부족하여 교체할 수 없습니다!");
+                                canSwap = false;
+                            }
+                        }
+                    }
+
+                    if (canSwap) {
+                        isEquipped = true;
+                        if (dragItemState.source !== "equipment") {
+                            let idx = sourceArray.findIndex(i => (i.id || i.uid) === (dragItemState.itemRef.id || dragItemState.itemRef.uid));
+                            if(idx > -1) sourceArray.splice(idx, 1);
+                        }
+                        if(!dragItemState.itemRef.sockets) dragItemState.itemRef.sockets = Array(baseItem.maxSockets).fill(null);
+                        
+                        player.equipment[targetSlotName] = dragItemState.itemRef;
+                        
+                        if (typeof updatePlayerTotalStats === "function") updatePlayerTotalStats();
+                        if (typeof renderEquipSlotsUI === "function") renderEquipSlotsUI();
+                    }
                 }
             }
 
@@ -2370,11 +2516,15 @@
                 s.style.boxShadow = ""; s.style.borderColor = ""; s.style.transform = "scale(1.0)";
             });
 
+            // 장착에 실패했거나 가방/창고로 이동시킬 때의 로직
             if (!isEquipped) {
                 if (dragItemState.isValid && dragItemState.targetBoard) {
                     let targetArray = dragItemState.targetBoard === "storage" ? personalStorage : myInventoryItems;
                     
-                    if (dragItemState.source !== dragItemState.targetBoard) {
+                    if (dragItemState.source === "equipment") {
+                        // [장비 탈착] 장비칸에서 뽑아낸 아이템을 무사히 빈 공간에 내려놓음
+                        targetArray.push(dragItemState.itemRef);
+                    } else if (dragItemState.source !== dragItemState.targetBoard) {
                         let idx = sourceArray.findIndex(i => (i.id || i.uid) === (dragItemState.itemRef.id || dragItemState.itemRef.uid));
                         if(idx > -1) sourceArray.splice(idx, 1);
                         targetArray.push(dragItemState.itemRef);
@@ -2382,8 +2532,15 @@
                     dragItemState.itemRef.gridX = dragItemState.currentGridX;
                     dragItemState.itemRef.gridY = dragItemState.currentGridY;
                 } else {
-                    dragItemState.itemRef.gridX = dragItemState.origX;
-                    dragItemState.itemRef.gridY = dragItemState.origY;
+                    // 엄한 곳에 떨어뜨렸을 경우 원래 위치로 롤백
+                    if (dragItemState.source === "equipment") {
+                        player.equipment[dragItemState.sourceSlot] = dragItemState.itemRef;
+                        updatePlayerTotalStats();
+                        renderEquipSlotsUI();
+                    } else {
+                        dragItemState.itemRef.gridX = dragItemState.origX;
+                        dragItemState.itemRef.gridY = dragItemState.origY;
+                    }
                 }
             }
 
@@ -2399,6 +2556,98 @@
         // 엔진 및 초기 변수 선언이 끝난 후 게임 루프를 킥오프(Kickoff) 합니다.
         gameLoop();
         // [MOD-019-END]
+        
+        // [MOD-021: 유틸리티 및 툴팁 시스템]
+        let tooltipTimer = null;
+        let tooltipVisible = false;
+        const tooltipEl = document.createElement("div");
+        tooltipEl.className = "item-tooltip";
+        document.body.appendChild(tooltipEl);
+
+        function handleItemMouseEnter(e, itemObj) {
+            if (dragItemState.active) return;
+            clearTimeout(tooltipTimer);
+            tooltipTimer = setTimeout(() => showTooltip(e, itemObj), 1000); // 1초 대기 후 툴팁 표시
+        }
+        function handleItemMouseLeave() {
+            clearTimeout(tooltipTimer);
+            tooltipEl.style.display = "none";
+            tooltipVisible = false;
+        }
+        function handleItemMouseMove(e) {
+            if (!tooltipVisible) return;
+            let x = e.type.includes("touch") ? e.touches[0].clientX : e.clientX;
+            let y = e.type.includes("touch") ? e.touches[0].clientY : e.clientY;
+            if (y + 150 > window.innerHeight) y -= 150; // 화면 우측 밖으로 나가지 않도록 조정
+            tooltipEl.style.left = (x + 15) + "px";
+            tooltipEl.style.top = (y + 15) + "px";
+        }
+        function showTooltip(e, itemObj) {
+            if (dragItemState.active) return;
+            const baseItem = ITEM_DB[itemObj.baseId];
+            if (!baseItem) return;
+
+            let titleHtml = baseItem.name;
+            let typeKor = baseItem.type === "equip" ? `[장비 - ${baseItem.equipSlot}]` : (baseItem.type === "enchant" ? "[인챈트 두루마리]" : `[${baseItem.type}]`);
+            
+            let statHtml = "";
+            if(baseItem.stats) {
+                for(let k in baseItem.stats) statHtml += `<div>${k}: +${baseItem.stats[k]}</div>`;
+            }
+
+            let enchantHtml = "";
+            if (itemObj.sockets) {
+                let enchants = itemObj.sockets.filter(s => s !== null);
+                if (enchants.length > 0) {
+                    enchantHtml = "<div class='item-tooltip-enchant-title'>[인챈트 목록]</div>";
+                    enchants.forEach(sId => {
+                        enchantHtml += `<div class='item-tooltip-enchant-item'>- ${ITEM_DB[sId].enchantEffect.name}</div>`;
+                    });
+                }
+            }
+
+            let descHtml = baseItem.desc || "테스트용 아이템이다.";
+
+            tooltipEl.innerHTML = `
+                <div class="item-tooltip-title">${titleHtml}</div>
+                <div class="item-tooltip-type">${typeKor}</div>
+                <div class="item-tooltip-stat">${statHtml}</div>
+                ${enchantHtml}
+                <div class="item-tooltip-desc">${descHtml}</div>
+            `;
+
+            tooltipEl.style.display = "block";
+            tooltipVisible = true;
+            handleItemMouseMove(e);
+        }
+
+        // --- 오토 스왑을 위한 빈 공간 탐색 헬퍼 함수 ---
+        function canPlaceItem(itemObj, gridX, gridY, map) {
+            const baseItem = ITEM_DB[itemObj.baseId];
+            const shape = getRotatedShape(baseItem.shape, itemObj.rot);
+            const h = shape.length, w = shape[0].length;
+            for(let r=0; r<h; r++){
+                for(let c=0; c<w; c++){
+                    if(shape[r][c] === 1){
+                        let gy = gridY + r, gx = gridX + c;
+                        if(gy < 0 || gy >= INV_ROWS || gx < 0 || gx >= INV_COLS) return false;
+                        if(map[gy][gx] !== null) return false;
+                    }
+                }
+            }
+            return true;
+        }
+
+        function findFreeSpace(itemObj, map) {
+            for(let y=0; y<INV_ROWS; y++){
+                for(let x=0; x<INV_COLS; x++){
+                    if(canPlaceItem(itemObj, x, y, map)) return {x, y};
+                }
+            }
+            return null;
+        }
+        // [MOD-021-END]
+        
     </script>
 </body>
 </html>
