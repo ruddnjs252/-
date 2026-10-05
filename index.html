@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>리퀘 (Re-Quest) v0.2.5999</title>
+    <title>리퀘 (Re-Quest) v0.2.59991</title>
     
     <style>
         /* [MOD-001: 기본 화면 및 컨테이너 스타일] */
@@ -576,30 +576,42 @@
         // [MOD-012-END]
 
         // [MOD-013: 개인 창고 보관/꺼내기 로직]
-        // [MOD-013-1: 텍스트 기반 창고 UI 렌더링 (그리드화 전단계)]
+        // [MOD-013-1: 텍스트 기반 창고 UI 렌더링 (그리드 호환 업데이트)]
         function openStorage() {
             gameState = "storage";
             document.getElementById("storageUI").style.display = "flex";
             renderStorageUI();
         }
 
-        // 인벤토리 배열과 창고 배열 사이의 데이터를 클릭 시 스왑(Push & Splice)하여 이동시킵니다.
+        // 인벤토리 배열과 창고 배열 사이의 데이터를 클릭 시 스왑하여 이동시킵니다.
         function renderStorageUI() {
             const invDiv = document.getElementById("storageInvList");
             const boxDiv = document.getElementById("storageBoxList");
             invDiv.innerHTML = ""; boxDiv.innerHTML = "";
 
-            inventory.forEach((item, index) => {
-                let div = document.createElement("div"); div.className = "item"; div.style.borderLeft = `5px solid ${item.color}`;
-                div.innerHTML = `[${item.type}] ${item.name}`;
-                div.onclick = () => { personalStorage.push(item); inventory.splice(index, 1); renderStorageUI(); };
+            // 내 가방 -> 창고로 넣기
+            myInventoryItems.forEach((item, index) => {
+                let base = ITEM_DB[item.baseId];
+                if(!base) return;
+                let div = document.createElement("div"); div.className = "item"; div.style.borderLeft = `5px solid ${base.color}`;
+                div.innerHTML = `[${base.name}] 창고로 보관`;
+                div.onclick = () => { personalStorage.push(item); myInventoryItems.splice(index, 1); renderStorageUI(); };
                 invDiv.appendChild(div);
             });
 
+            // 창고 -> 내 가방으로 꺼내기
             personalStorage.forEach((item, index) => {
-                let div = document.createElement("div"); div.className = "item"; div.style.borderLeft = `5px solid ${item.color}`;
-                div.innerHTML = `[${item.type}] ${item.name}`;
-                div.onclick = () => { inventory.push(item); personalStorage.splice(index, 1); renderStorageUI(); };
+                let base = ITEM_DB[item.baseId];
+                if(!base) return;
+                let div = document.createElement("div"); div.className = "item"; div.style.borderLeft = `5px solid ${base.color}`;
+                div.innerHTML = `[${base.name}] 가방으로 꺼내기`;
+                div.onclick = () => { 
+                    // 꺼낼 때 가방의 우측 하단 빈공간(6, 8) 좌표로 꺼냄
+                    item.gridX = 6; item.gridY = 8;
+                    myInventoryItems.push(item); 
+                    personalStorage.splice(index, 1); 
+                    renderStorageUI(); 
+                };
                 boxDiv.appendChild(div);
             });
         }
@@ -1225,19 +1237,17 @@
 
         // [MOD-017: UI 제어 및 충돌(Collision) 유틸리티]
         
-     // [MOD-017-1: 장비창 UI 업데이트, 인챈트 로직 및 스마트 알림 뱃지]
+    // [MOD-017-1: 장비창 UI 업데이트, 인챈트 로직 및 스마트 알림 뱃지]
         let currentRightView = 'inventory'; 
         let currentEnchantTargetSlot = null; 
 
-        // [핵심 로직] 조건(인챈트 북 보유 + 빈 소켓 보유)에 따라 느낌표(!) 렌더링
         function updateNotiBadges() {
-            document.querySelectorAll('.noti-badge').forEach(e => e.remove()); // 기존 뱃지 싹 지우기
+            // [핵심 버그 수정] 소켓에 달린 뱃지까지 모조리 지우지 않도록 선택자 범위를 축소
+            document.querySelectorAll('#modeSwitchBtn > .noti-badge, #equipSection .noti-badge').forEach(e => e.remove());
 
-            // 1. 가방에 인챈트 두루마리가 하나라도 있는지 확인
             let hasScroll = myInventoryItems.some(i => ITEM_DB[i.baseId] && ITEM_DB[i.baseId].type === "enchant");
             if (!hasScroll) return;
 
-            // 2. 장착 중인 장비 중에 빈 소켓(null)이 하나라도 뚫려있는 장비 찾기
             let enchantableSlots = [];
             for(let slotKey in player.equipment) {
                 let item = player.equipment[slotKey];
@@ -1247,9 +1257,7 @@
             }
             if (enchantableSlots.length === 0) return;
 
-            // 3. 상황(View)에 따른 점등 유도
             if (currentRightView === 'inventory') {
-                // STEP 1: 가방을 보고 있다면 [>>] 버튼에 느낌표
                 let btn = document.getElementById("modeSwitchBtn");
                 if (btn) {
                     let badge = document.createElement("div");
@@ -1258,9 +1266,7 @@
                     btn.appendChild(badge);
                 }
             } else if (currentRightView === 'enchant') {
-                // STEP 2: 인챈트 창을 열었으면, 인챈트 가능한 장비 슬롯(좌측)들에 느낌표
                 enchantableSlots.forEach(slotKey => {
-                    // 단, 현재 유저가 클릭해서 우측에 띄워둔 장비라면 느낌표를 지움(소켓으로 넘어갔으므로)
                     if (currentEnchantTargetSlot !== slotKey) {
                         let slotEl = document.querySelector(`.slot-${slotKey}, [data-slot="${slotKey}"]`);
                         if(slotEl) {
@@ -1290,7 +1296,6 @@
                     el.innerHTML = `<span class="slot-hint">${hintText}</span>`;
                 }
             }
-            // 장비창 렌더링이 끝나면 느낌표 조건 재검사
             setTimeout(updateNotiBadges, 10);
         }
 
@@ -1327,11 +1332,7 @@
                 currentRightView = 'enchant';
                 viewInv.style.display = 'none'; viewEnc.style.display = 'flex';
                 btn.innerHTML = '&laquo;'; 
-                
-                // [테스트용 자동 지급] 인챈트 창 열 때 가방에 강타 두루마리가 없으면 지급
-                if(!myInventoryItems.some(i => i.baseId === "scroll_smite")) {
-                    myInventoryItems.push({ id: "scroll_" + Date.now(), baseId: "scroll_smite", rot: 0, gridX: 0, gridY: 0 });
-                }
+                // 강타 두루마리 강제 지급 로직 삭제 완료
             } else {
                 currentRightView = 'inventory';
                 viewInv.style.display = 'block'; viewEnc.style.display = 'none';
@@ -1339,7 +1340,7 @@
                 document.getElementById('enchantPopupUI').style.display = 'none';
                 if (typeof renderGridInventory === "function") renderGridInventory();
             }
-            updateNotiBadges(); // 화면 전환 시 느낌표 이동
+            updateNotiBadges();
         }
 
         function selectEquipSlotForEnchant(slotNameKOR, slotKey) {
@@ -1364,7 +1365,6 @@
             targetSlotHint.innerHTML = `<span style="color: white; font-weight: bold; font-size: 11px;">${baseItem.name}</span>`;
             targetSlot.style.borderColor = "gold"; targetSlot.style.backgroundColor = baseItem.color;
 
-            // STEP 3: 소켓 렌더링 중 '첫 번째' 빈 소켓에만 느낌표 달기
             let hasScroll = myInventoryItems.some(i => ITEM_DB[i.baseId] && ITEM_DB[i.baseId].type === "enchant");
             let foundFirstEmpty = false;
             let socketsHtml = '';
@@ -1380,7 +1380,7 @@
                     let badgeHtml = "";
                     if (!foundFirstEmpty && hasScroll) {
                         badgeHtml = `<div class="noti-badge">!</div>`;
-                        foundFirstEmpty = true; // 첫 번째에 달았으므로 이후 소켓은 패스
+                        foundFirstEmpty = true; 
                     }
                     socketsHtml += `<div class="socket-slot socket-animated" style="position:relative;" onclick="openEnchantPopup('${slotKey}', ${i})">${badgeHtml}</div>`;
                 }
@@ -1394,7 +1394,6 @@
                 <div style="font-size: 11px; color: #888;">빈 소켓을 클릭하면<br>인챈트 북 목록이 표시됩니다.</div>
             `;
             
-            // 우측 소켓에 느낌표가 떴으니 좌측 장비창의 느낌표는 지우기 위함
             setTimeout(updateNotiBadges, 10); 
         }
 
@@ -1433,7 +1432,7 @@
             updatePlayerTotalStats();
             
             let slotNameKOR = document.querySelector(`[data-slot="${slotKey}"]`).innerText;
-            selectEquipSlotForEnchant(slotNameKOR, slotKey); // 소켓 다시 그리기
+            selectEquipSlotForEnchant(slotNameKOR, slotKey); 
         }
 
         function closeUI() {
@@ -1894,7 +1893,7 @@
 
 // [MOD-020: 그리드 인벤토리 및 장비창 시스템 통합 관리]
         
-      // [MOD-020-1: 그리드 환경 변수 및 장비 슬롯 정의]
+     // [MOD-020-1: 그리드 환경 변수 및 장비 슬롯 정의]
         const GRID_CELL_SIZE = 40; 
         const INV_COLS = 8;        
         const INV_ROWS = 10;       
@@ -1908,7 +1907,6 @@
             accessory: null 
         };
 
-        // 스탯 인식 오류를 고치기 위해 '힘'을 시스템 언어인 'str'로 통일했습니다.
         const ITEM_DB = {
             "sword_basic":  { name: "기본 검", type: "equip", equipSlot: "mainWeapon", shape: [[1],[1],[1]], color: "rgba(120, 120, 150, 0.9)", stats: { str: 5 }, maxSockets: 3 }, 
             "armor_iron":   { name: "철갑옷", type: "armor", shape: [[1, 1], [1, 1]], color: "rgba(80, 80, 80, 0.9)" },    
@@ -1924,6 +1922,11 @@
             { id: "item_4", baseId: "sword_basic", gridX: 0, gridY: 4, rot: 1 }, 
             { id: "item_5", baseId: "axe_battle",  gridX: 5, gridY: 5, rot: 0 }  
         ];
+
+        // 창고에 기본적으로 두루마리 하나 지급
+        if (typeof personalStorage !== "undefined" && personalStorage.length === 0) {
+            personalStorage.push({ id: "scroll_1", baseId: "scroll_smite", gridX: 6, gridY: 8, rot: 0 });
+        }
         // [MOD-020-1-END]
         
         // [MOD-020-3: 배열 회전 유틸리티 함수]
