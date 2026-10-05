@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>리퀘 (Re-Quest) v0.2.59995</title>
+    <title>리퀘 (Re-Quest) v0.2.59996</title>
     
     <style>
         /* [MOD-001: 기본 화면 및 컨테이너 스타일] */
@@ -582,7 +582,7 @@
             gameState = "storage";
             document.getElementById("inventoryUI").style.display = "flex";
             document.getElementById("vpad-container").style.display = "none";
-            document.getElementById("storagePanel").style.display = "flex"; // 가방 옆에 창고 등장!
+            document.getElementById("storagePanel").style.display = "flex"; 
             
             // 창고를 열 때는 인챈트 창이 아닌 가방 뷰로 강제 고정
             currentRightView = 'inventory';
@@ -591,7 +591,9 @@
             document.getElementById("modeSwitchBtn").innerHTML = '&raquo;';
             document.getElementById('enchantPopupUI').style.display = 'none';
 
-            // [핵심 수정] 그리드만 렌더링하는 대신, 장비창 갱신 + 해상도 스케일링이 모두 포함된 통합 함수 호출
+            // [추가] 상자를 열면 화면이 가방으로 넘어가므로 기존 인챈트 등록을 해제함
+            if (typeof clearEnchantRegistration === "function") clearEnchantRegistration();
+
             if (typeof switchTab === "function") switchTab('inv');
         }
         // [MOD-013-END]
@@ -1221,15 +1223,41 @@
 
         // [MOD-017: UI 제어 및 충돌(Collision) 유틸리티]
         
-   // [MOD-017-1: 장비창 UI 업데이트, 인챈트 로직 및 스마트 알림 뱃지 (창고 연동)]
+  // [MOD-017-1: 장비창 UI 업데이트, 인챈트 로직 및 스마트 알림 뱃지 (등록 해제 기능 포함)]
         let currentRightView = 'inventory'; 
         let currentEnchantTargetSlot = null; 
 
+        // [핵심 추가] 우측에 등록된 장비를 취소하고 초기화하는 함수
+        function clearEnchantRegistration() {
+            if (!currentEnchantTargetSlot) return; // 등록된 장비가 없으면 무시
+            currentEnchantTargetSlot = null;
+            
+            const content = document.getElementById("enchantContent");
+            const targetSlotHint = document.getElementById("enchantTargetHint");
+            const targetSlot = document.getElementById("enchantTargetSlot");
+            
+            if (targetSlotHint) targetSlotHint.innerHTML = `장비<br>등록`;
+            if (targetSlot) {
+                targetSlot.style.borderColor = "#666"; 
+                targetSlot.style.backgroundColor = "#222";
+            }
+            if (content) content.innerHTML = `좌측 장비창에서 장비를<br>클릭하여 올려주세요.`;
+            
+            updateNotiBadges(); // 해제 후 느낌표(!) 위치 재계산
+        }
+
+        // 스크립트가 실행될 때 우측 장비 등록칸에 클릭 이벤트 달아주기
+        setTimeout(() => {
+            const targetSlot = document.getElementById("enchantTargetSlot");
+            if (targetSlot) {
+                targetSlot.addEventListener("click", clearEnchantRegistration);
+                targetSlot.style.cursor = "pointer"; // 클릭 가능하다는 시각적 표시
+            }
+        }, 500);
+
         function updateNotiBadges() {
-            // 소켓 내부에 텍스트로 들어간 뱃지는 제외하고 기존 뱃지 싹 지우기
             document.querySelectorAll('.noti-badge:not(.socket-badge)').forEach(e => e.remove());
 
-            // 1. 가방 배열 복사 후, 창고가 열려있다면 창고 배열까지 병합하여 스캔
             let allScrolls = [...myInventoryItems];
             if (gameState === "storage") {
                 allScrolls = allScrolls.concat(personalStorage);
@@ -1237,8 +1265,6 @@
 
             let hasScroll = allScrolls.some(i => ITEM_DB[i.baseId] && ITEM_DB[i.baseId].type === "enchant");
             if (!hasScroll) return;
-
-            // (두루마리 자체에 !를 띄우던 오버 스크립트 삭제 완료)
 
             let enchantableSlots = [];
             for(let slotKey in player.equipment) {
@@ -1259,6 +1285,7 @@
                 }
             } else if (currentRightView === 'enchant') {
                 enchantableSlots.forEach(slotKey => {
+                    // 현재 우측에 등록된 장비가 아니라면 좌측 십자가 슬롯에 느낌표 표시
                     if (currentEnchantTargetSlot !== slotKey) {
                         let slotEl = document.querySelector(`.slot-${slotKey}, [data-slot="${slotKey}"]`);
                         if(slotEl) {
@@ -1329,6 +1356,10 @@
                 viewInv.style.display = 'block'; viewEnc.style.display = 'none';
                 btn.innerHTML = '&raquo;';
                 document.getElementById('enchantPopupUI').style.display = 'none';
+                
+                // [추가] 인벤토리 뷰로 화면을 넘길 때 장비 등록 해제
+                clearEnchantRegistration();
+
                 if (typeof renderGridInventory === "function") renderGridInventory();
             }
             updateNotiBadges();
@@ -1356,7 +1387,6 @@
             targetSlotHint.innerHTML = `<span style="color: white; font-weight: bold; font-size: 11px;">${baseItem.name}</span>`;
             targetSlot.style.borderColor = "gold"; targetSlot.style.backgroundColor = baseItem.color;
 
-            // 창고가 열려있다면 가방+창고 데이터 병합하여 판단
             let allScrolls = [...myInventoryItems];
             if (gameState === "storage") {
                 allScrolls = allScrolls.concat(personalStorage);
@@ -1409,7 +1439,6 @@
             } else {
                 let listHtml = scrolls.map(scroll => {
                     let base = ITEM_DB[scroll.baseId];
-                    // 가방에서 왔는지 창고에서 왔는지 구분 표시
                     let sourceText = myInventoryItems.some(i => (i.id || i.uid) === (scroll.id || scroll.uid)) ? "가방" : "창고";
                     return `<div class="enchant-scroll-item" onclick="applyEnchant('${slotKey}', ${socketIndex}, '${scroll.id || scroll.uid}')">
                         <span style="color:#aaa; font-size:9px;">[${sourceText}]</span> ${base.name} <span style="color:gold; font-size:10px;">${base.enchantEffect.name}</span>
@@ -1427,13 +1456,10 @@
             let item = player.equipment[slotKey];
             let scroll = null;
             
-            // 1순위: 인벤토리에서 찾기
             let invIdx = myInventoryItems.findIndex(i => (i.id || i.uid) === scrollId);
             if (invIdx > -1) {
                 scroll = myInventoryItems.splice(invIdx, 1)[0];
-            } 
-            // 2순위: 인벤토리에 없고 창고가 열려있다면 창고에서 찾기
-            else if (gameState === "storage") {
+            } else if (gameState === "storage") {
                 let stoIdx = personalStorage.findIndex(i => (i.id || i.uid) === scrollId);
                 if (stoIdx > -1) {
                     scroll = personalStorage.splice(stoIdx, 1)[0];
@@ -1460,6 +1486,9 @@
             let sp = document.getElementById("storagePanel");
             if(sp) sp.style.display = "none";
             
+            // [추가] 가방 전체를 완전히 닫을 때도 장비 등록을 무조건 해제
+            clearEnchantRegistration();
+
             if (currentRightView === 'enchant') toggleRightPanelView(); 
             const vpad = document.getElementById("vpad-container");
             if(vpad) vpad.style.display = "block"; 
