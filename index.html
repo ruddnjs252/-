@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>리퀘 (Re-Quest) v0.2.59993</title>
+    <title>리퀘 (Re-Quest) v0.2.59994</title>
     
     <style>
         /* [MOD-001: 기본 화면 및 컨테이너 스타일] */
@@ -1220,7 +1220,7 @@
 
         // [MOD-017: UI 제어 및 충돌(Collision) 유틸리티]
         
-    // [MOD-017-1: 장비창 UI 업데이트, 인챈트 로직 및 스마트 알림 뱃지 (창고 연동)]
+   // [MOD-017-1: 장비창 UI 업데이트, 인챈트 로직 및 스마트 알림 뱃지 (창고 연동)]
         let currentRightView = 'inventory'; 
         let currentEnchantTargetSlot = null; 
 
@@ -1237,18 +1237,7 @@
             let hasScroll = allScrolls.some(i => ITEM_DB[i.baseId] && ITEM_DB[i.baseId].type === "enchant");
             if (!hasScroll) return;
 
-            // [추가] 인벤토리와 창고 그리드 위에 있는 인챈트 두루마리 아이템 자체에 ! 달기
-            allScrolls.forEach(item => {
-                if (ITEM_DB[item.baseId] && ITEM_DB[item.baseId].type === "enchant") {
-                    let itemEl = document.getElementById(item.id || item.uid);
-                    if (itemEl) {
-                        let badge = document.createElement("div");
-                        badge.className = "noti-badge";
-                        badge.innerText = "!";
-                        itemEl.appendChild(badge);
-                    }
-                }
-            });
+            // (두루마리 자체에 !를 띄우던 오버 스크립트 삭제 완료)
 
             let enchantableSlots = [];
             for(let slotKey in player.equipment) {
