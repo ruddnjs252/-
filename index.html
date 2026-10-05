@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>리퀘 (Re-Quest) v0.2.59996</title>
+    <title>리퀘 (Re-Quest) v0.2.59997</title>
     
     <style>
         /* [MOD-001: 기본 화면 및 컨테이너 스타일] */
@@ -1223,14 +1223,15 @@
 
         // [MOD-017: UI 제어 및 충돌(Collision) 유틸리티]
         
-  // [MOD-017-1: 장비창 UI 업데이트, 인챈트 로직 및 스마트 알림 뱃지 (등록 해제 기능 포함)]
+  // [MOD-017-1: 장비창 UI 업데이트, 인챈트 로직 및 스마트 알림 뱃지 (등록 해제 및 확정 기능 포함)]
         let currentRightView = 'inventory'; 
         let currentEnchantTargetSlot = null; 
+        let pendingEnchant = null; // [신규] 확정 대기 중인 인챈트 정보 보관
 
-        // [핵심 추가] 우측에 등록된 장비를 취소하고 초기화하는 함수
         function clearEnchantRegistration() {
-            if (!currentEnchantTargetSlot) return; // 등록된 장비가 없으면 무시
+            if (!currentEnchantTargetSlot) return; 
             currentEnchantTargetSlot = null;
+            pendingEnchant = null; // 장비를 해제하면 대기 중이던 인챈트도 초기화
             
             const content = document.getElementById("enchantContent");
             const targetSlotHint = document.getElementById("enchantTargetHint");
@@ -1243,15 +1244,14 @@
             }
             if (content) content.innerHTML = `좌측 장비창에서 장비를<br>클릭하여 올려주세요.`;
             
-            updateNotiBadges(); // 해제 후 느낌표(!) 위치 재계산
+            updateNotiBadges(); 
         }
 
-        // 스크립트가 실행될 때 우측 장비 등록칸에 클릭 이벤트 달아주기
         setTimeout(() => {
             const targetSlot = document.getElementById("enchantTargetSlot");
             if (targetSlot) {
                 targetSlot.addEventListener("click", clearEnchantRegistration);
-                targetSlot.style.cursor = "pointer"; // 클릭 가능하다는 시각적 표시
+                targetSlot.style.cursor = "pointer"; 
             }
         }, 500);
 
@@ -1285,7 +1285,6 @@
                 }
             } else if (currentRightView === 'enchant') {
                 enchantableSlots.forEach(slotKey => {
-                    // 현재 우측에 등록된 장비가 아니라면 좌측 십자가 슬롯에 느낌표 표시
                     if (currentEnchantTargetSlot !== slotKey) {
                         let slotEl = document.querySelector(`.slot-${slotKey}, [data-slot="${slotKey}"]`);
                         if(slotEl) {
@@ -1357,9 +1356,7 @@
                 btn.innerHTML = '&raquo;';
                 document.getElementById('enchantPopupUI').style.display = 'none';
                 
-                // [추가] 인벤토리 뷰로 화면을 넘길 때 장비 등록 해제
                 clearEnchantRegistration();
-
                 if (typeof renderGridInventory === "function") renderGridInventory();
             }
             updateNotiBadges();
@@ -1399,13 +1396,24 @@
             for(let i = 0; i < baseItem.maxSockets; i++) {
                 let scrollId = item.sockets[i];
                 if(scrollId) {
+                    // 이미 확정되어 박힌 인챈트
                     let effect = ITEM_DB[scrollId].enchantEffect;
                     socketsHtml += `<div class="socket-slot socket-animated" style="background:#ff4444; border-color:white; position:relative;">
                         <span style="font-size:9px; color:#fff; font-weight:bold;">${effect.stat}+${effect.value}</span>
                     </div>`;
+                } else if (pendingEnchant && pendingEnchant.slotKey === slotKey && pendingEnchant.socketIndex === i) {
+                    // [기능 추가] 대기 중인 인챈트의 블링블링한 시각 효과
+                    let pScroll = myInventoryItems.find(x => (x.id||x.uid) === pendingEnchant.scrollId) || personalStorage.find(x => (x.id||x.uid) === pendingEnchant.scrollId);
+                    if (pScroll) {
+                        let effect = ITEM_DB[pScroll.baseId].enchantEffect;
+                        socketsHtml += `<div class="socket-slot socket-animated" style="background:#ff8800; border:2px dashed gold; animation: pulse-noti 1.2s infinite; position:relative;">
+                            <span style="font-size:9px; color:#fff; font-weight:bold;">${effect.stat}+${effect.value}</span>
+                        </div>`;
+                    }
                 } else {
+                    // 빈 소켓
                     let badgeHtml = "";
-                    if (!foundFirstEmpty && hasScroll) {
+                    if (!foundFirstEmpty && hasScroll && !pendingEnchant) {
                         badgeHtml = `<div class="noti-badge socket-badge">!</div>`;
                         foundFirstEmpty = true; 
                     }
@@ -1413,12 +1421,25 @@
                 }
             }
 
+            // 하단 조작 버튼 렌더링
+            let confirmUI = '';
+            if (pendingEnchant && pendingEnchant.slotKey === slotKey) {
+                confirmUI = `
+                    <div style="display:flex; gap:10px; justify-content:center; margin-top: 10px;">
+                        <button style="padding:8px 20px; background:limegreen; border:2px solid white; color:white; font-weight:bold; border-radius:4px; cursor:pointer;" onclick="confirmPendingEnchant()">확정</button>
+                        <button style="padding:8px 20px; background:gray; border:2px solid white; color:white; font-weight:bold; border-radius:4px; cursor:pointer;" onclick="cancelPendingEnchant('${slotNameKOR}', '${slotKey}')">취소</button>
+                    </div>
+                `;
+            } else {
+                confirmUI = `<div style="font-size: 11px; color: #888;">빈 소켓을 클릭하면<br>인챈트 북 목록이 표시됩니다.</div>`;
+            }
+
             content.innerHTML = `
                 <div style="color: white; font-weight: bold; margin-bottom: 20px; font-size: 13px;">[${slotNameKOR}] 소켓 정보</div>
                 <div style="display: flex; gap: 15px; justify-content: center; margin-bottom: 20px;">
                     ${socketsHtml}
                 </div>
-                <div style="font-size: 11px; color: #888;">빈 소켓을 클릭하면<br>인챈트 북 목록이 표시됩니다.</div>
+                ${confirmUI}
             `;
             
             setTimeout(updateNotiBadges, 10); 
@@ -1440,7 +1461,8 @@
                 let listHtml = scrolls.map(scroll => {
                     let base = ITEM_DB[scroll.baseId];
                     let sourceText = myInventoryItems.some(i => (i.id || i.uid) === (scroll.id || scroll.uid)) ? "가방" : "창고";
-                    return `<div class="enchant-scroll-item" onclick="applyEnchant('${slotKey}', ${socketIndex}, '${scroll.id || scroll.uid}')">
+                    // 팝업 선택 시 곧바로 적용(apply)이 아니라 대기 상태(stage)로 넘김
+                    return `<div class="enchant-scroll-item" onclick="stageEnchant('${slotKey}', ${socketIndex}, '${scroll.id || scroll.uid}')">
                         <span style="color:#aaa; font-size:9px;">[${sourceText}]</span> ${base.name} <span style="color:gold; font-size:10px;">${base.enchantEffect.name}</span>
                     </div>`;
                 }).join('');
@@ -1452,7 +1474,21 @@
             popup.style.display = 'flex';
         }
 
-        function applyEnchant(slotKey, socketIndex, scrollId) {
+        // [신규] 인챈트 선택 시 곧바로 박히지 않고 대기(Pending) 상태로 설정
+        function stageEnchant(slotKey, socketIndex, scrollId) {
+            pendingEnchant = { slotKey, socketIndex, scrollId };
+            document.getElementById('enchantPopupUI').style.display = 'none';
+            let slotNameKOR = document.querySelector(`[data-slot="${slotKey}"]`).innerText;
+            selectEquipSlotForEnchant(slotNameKOR, slotKey); 
+        }
+
+        // [신규] 하단의 [확정] 버튼 클릭 시 실제로 박히고 데이터 삭제
+        function confirmPendingEnchant() {
+            if(!pendingEnchant) return;
+            let slotKey = pendingEnchant.slotKey;
+            let socketIndex = pendingEnchant.socketIndex;
+            let scrollId = pendingEnchant.scrollId;
+            
             let item = player.equipment[slotKey];
             let scroll = null;
             
@@ -1471,12 +1507,17 @@
                 item.sockets[socketIndex] = scroll.baseId;
             }
             
-            document.getElementById('enchantPopupUI').style.display = 'none';
-            
+            pendingEnchant = null;
             updatePlayerTotalStats();
             
             let slotNameKOR = document.querySelector(`[data-slot="${slotKey}"]`).innerText;
             selectEquipSlotForEnchant(slotNameKOR, slotKey); 
+        }
+
+        // [신규] 하단의 [취소] 버튼 클릭 시
+        function cancelPendingEnchant(slotNameKOR, slotKey) {
+            pendingEnchant = null;
+            selectEquipSlotForEnchant(slotNameKOR, slotKey);
         }
 
         function closeUI() {
@@ -1486,7 +1527,6 @@
             let sp = document.getElementById("storagePanel");
             if(sp) sp.style.display = "none";
             
-            // [추가] 가방 전체를 완전히 닫을 때도 장비 등록을 무조건 해제
             clearEnchantRegistration();
 
             if (currentRightView === 'enchant') toggleRightPanelView(); 
@@ -2130,7 +2170,7 @@
         }
         // [MOD-020-6-END]
 
-        // [MOD-020-7: 드래그 앤 드롭 (크로스 보드 호환 및 장비 장착 지원)]
+        // [MOD-020-7: 드래그 앤 드롭 (크로스 보드 호환 및 장비 장착 지원, 뷰 전환 버그 수정)]
         function startDrag(e, itemObj, htmlEl, sourceName) {
             if (e.type === "mousedown" && e.button !== 0) return; 
 
@@ -2138,7 +2178,7 @@
             dragItemState.itemRef = itemObj;
             dragItemState.origX = itemObj.gridX;
             dragItemState.origY = itemObj.gridY;
-            dragItemState.source = sourceName; // 현재 드래그하는 녀석이 가방 소속인지 창고 소속인지 추적
+            dragItemState.source = sourceName; 
             dragItemState.hoveredEquipSlot = null; 
 
             let clientX = e.type.includes("touch") ? e.touches[0].clientX : e.clientX;
@@ -2147,9 +2187,9 @@
             const boardId = sourceName === "storage" ? "storageBoard" : "inventoryBoard";
             const board = document.getElementById(boardId);
             const boardRect = board.getBoundingClientRect();
-            const elRect = htmlEl.getBoundingClientRect();
             const currentScale = boardRect.width / (INV_COLS * GRID_CELL_SIZE);
 
+            const elRect = htmlEl.getBoundingClientRect();
             dragItemState.offsetX = (clientX - elRect.left) / currentScale;
             dragItemState.offsetY = (clientY - elRect.top) / currentScale;
             dragItemState.lastClientX = clientX;
@@ -2205,18 +2245,20 @@
             const stoBoard = document.getElementById("storageBoard");
             
             const invRect = invBoard.getBoundingClientRect();
-            // 창고가 안 열려있으면 안전하게 위치값 무효화
-            const stoRect = stoBoard && gameState === "storage" ? stoBoard.getBoundingClientRect() : {left:-999, right:-999, top:-999, bottom:-999};
-            const currentScale = invRect.width / (INV_COLS * GRID_CELL_SIZE); 
+            const stoRect = stoBoard && gameState === "storage" ? stoBoard.getBoundingClientRect() : {left:-999, right:-999, top:-999, bottom:-999, width:0};
+            
+            // [버그 수정 1] 화면이 인챈트 창일 때 invBoard가 display:none이 되어 width가 0이 되는 문제 해결
+            let referenceWidth = invRect.width > 0 ? invRect.width : (stoRect.width > 0 ? stoRect.width : 320);
+            const currentScale = referenceWidth / (INV_COLS * GRID_CELL_SIZE); 
 
             let targetBoardName = null;
             let targetRect = null;
             let targetMap = null;
 
-            // 판정 1: 마우스가 창고 영역에 있는가? 가방 영역에 있는가?
+            // 판별 시 invRect.width가 0보다 클 때만 가방 영역으로 판정 (숨겨져 있으면 불가)
             if (gameState === "storage" && dragItemState.lastClientX >= stoRect.left && dragItemState.lastClientX <= stoRect.right && dragItemState.lastClientY >= stoRect.top && dragItemState.lastClientY <= stoRect.bottom) {
                 targetBoardName = "storage"; targetRect = stoRect; targetMap = storageMap;
-            } else if (dragItemState.lastClientX >= invRect.left && dragItemState.lastClientX <= invRect.right && dragItemState.lastClientY >= invRect.top && dragItemState.lastClientY <= invRect.bottom) {
+            } else if (invRect.width > 0 && dragItemState.lastClientX >= invRect.left && dragItemState.lastClientX <= invRect.right && dragItemState.lastClientY >= invRect.top && dragItemState.lastClientY <= invRect.bottom) {
                 targetBoardName = "inventory"; targetRect = invRect; targetMap = gridMap;
             }
 
@@ -2250,7 +2292,6 @@
                     }
                 }
 
-                // 드래그 중인 껍데기(Ghost)를 실제 마우스가 있는 보드 쪽으로 부드럽게 이관
                 let activeBoardDOM = targetBoardName === "storage" ? stoBoard : invBoard;
                 if (dragItemState.ghostEl.parentElement !== activeBoardDOM) {
                     activeBoardDOM.appendChild(dragItemState.ghostEl);
@@ -2279,7 +2320,6 @@
                 b.style.border = dragItemState.isValid ? "2px solid #0f0" : "2px solid #f00";
             });
 
-            // 장비 슬롯 면적 충돌 판정 (창고에서 꺼내서 바로 장착하는 것도 지원!)
             dragItemState.hoveredEquipSlot = null; 
             const ghostRect = dragItemState.ghostEl.getBoundingClientRect();
             const baseItem = ITEM_DB[dragItemState.itemRef.baseId];
@@ -2304,7 +2344,6 @@
             document.removeEventListener("touchend", onDragEnd);
 
             let isEquipped = false;
-            // 드래그를 시작했던 원본 배열
             let sourceArray = dragItemState.source === "storage" ? personalStorage : myInventoryItems;
 
             if (dragItemState.hoveredEquipSlot) {
@@ -2335,7 +2374,6 @@
                 if (dragItemState.isValid && dragItemState.targetBoard) {
                     let targetArray = dragItemState.targetBoard === "storage" ? personalStorage : myInventoryItems;
                     
-                    // 판정 2: 가방 <-> 창고 간에 위치가 바뀌었다면 배열 데이터를 스와핑 처리
                     if (dragItemState.source !== dragItemState.targetBoard) {
                         let idx = sourceArray.findIndex(i => (i.id || i.uid) === (dragItemState.itemRef.id || dragItemState.itemRef.uid));
                         if(idx > -1) sourceArray.splice(idx, 1);
