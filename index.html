@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>리퀘 (Re-Quest) v0.2.5.1008.20</title>
+    <title>리퀘 (Re-Quest) v0.2.5.1008.21</title>
     
     <style>
         /* [MOD-001: 기본 화면 및 컨테이너 스타일] */
@@ -425,9 +425,11 @@
     </div>
 
     <!-- [MOD-009: 외부 데이터 스크립트 파일 연결] -->
-    <!-- 맵 좌표 데이터 및 직업 스탯 데이터 (현재 HTML 환경 내엔 생략됨) -->
     <script src="data/maps.js"></script>
     <script src="data/jobs.js"></script>
+    
+    <!-- ★ [추가] 서버와 실시간 통신을 위한 Socket.io 라이브러리 -->
+    <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
     <!-- [MOD-009-END] -->
 
     <script>
@@ -593,16 +595,17 @@
         }
         // [MOD-012-END]
 
-      // [MOD-013: 인트로, 로그인 및 임시 로비 파이프라인 (기존 캐릭터 생성 완벽 대체)]
+      // [MOD-013: 서버 연동 로그인 및 로비 파이프라인]
         
-        // 1. 기존의 쓸모없어진 캐릭터 생성 UI는 DOM에서 영구 삭제합니다 (HTML 건드릴 필요 없음)
+        // ★ 내 컴퓨터에 켜둔 백엔드 서버(3000번 포트)로 무전기 연결
+        // (나중에 친구들과 할 때는 이 주소를 Ngrok 주소 등으로 바꾸면 됩니다)
+        const socket = io("http://localhost:3000");
+
         const oldCharUI = document.getElementById("charCreationUI");
         if(oldCharUI) oldCharUI.remove();
 
-        // 2. 파이프라인 첫 단계 상태 설정
         gameState = "title"; 
         
-        // 3. 폰트 및 공통 스타일 주입
         const introStyle = document.createElement("style");
         introStyle.innerHTML = `
             .intro-screen { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: black; color: white; display: flex; flex-direction: column; justify-content: center; align-items: center; z-index: 5000; transition: opacity 0.5s ease; user-select: none; }
@@ -611,7 +614,7 @@
             .lobby-btn:hover { background: #555; border-color: gold; }
             .lobby-btn.selected { background: #555; border-color: gold; color: gold; box-shadow: 0 0 10px rgba(255, 215, 0, 0.5); }
             .lobby-btn:disabled { opacity: 0.5; cursor: not-allowed; }
-            .login-input { padding: 12px; font-size: 16px; border-radius: 6px; border: 2px solid #555; background: #222; color: white; outline: none; text-align: center; font-weight: bold; transition: 0.3s; }
+            .login-input { padding: 12px; font-size: 16px; border-radius: 6px; border: 2px solid #555; background: #222; color: white; outline: none; text-align: center; font-weight: bold; transition: 0.3s; margin-bottom: 10px; width: 220px; box-sizing: border-box; }
             .login-input:focus { border-color: gold; }
         `;
         document.head.appendChild(introStyle);
@@ -625,14 +628,15 @@
         `;
         document.body.appendChild(titleScreen);
 
-        // [2단계: 로그인 및 닉네임 화면]
+        // [2단계: 서버 연동 로그인 화면]
         const loginScreen = document.createElement("div");
         loginScreen.className = "intro-screen hidden-screen";
         loginScreen.innerHTML = `
-            <div style="font-size: 24px; font-weight: bold; margin-bottom: 20px; color: gold;">접속자 정보 설정</div>
-            <input type="text" id="loginNameInput" class="login-input" placeholder="사용할 닉네임 입력" maxlength="10">
-            <button class="lobby-btn" style="margin-top: 20px; font-size: 16px;" onclick="submitLogin()">접속하기</button>
-            <div id="loginErrorMsg" style="color: #ff4444; font-size: 12px; margin-top: 10px; opacity: 0; transition: 0.3s;">이름을 입력해주세요.</div>
+            <div style="font-size: 24px; font-weight: bold; margin-bottom: 20px; color: gold;">서버 접속</div>
+            <input type="text" id="loginIdInput" class="login-input" placeholder="아이디" maxlength="12">
+            <input type="password" id="loginPwInput" class="login-input" placeholder="비밀번호" maxlength="16">
+            <button id="loginBtn" class="lobby-btn" style="margin-top: 10px; font-size: 16px; width: 220px;" onclick="submitLogin()">접속 / 신규가입</button>
+            <div id="loginErrorMsg" style="color: #ff4444; font-size: 12px; margin-top: 10px; opacity: 0; transition: 0.3s;">아이디와 비밀번호를 입력해주세요.</div>
         `;
         document.body.appendChild(loginScreen);
 
@@ -648,7 +652,7 @@
         // [4단계: 임시 로비 화면]
         const lobbyScreen = document.createElement("div");
         lobbyScreen.className = "intro-screen hidden-screen";
-        lobbyScreen.style.backgroundColor = "#111"; // 추후 배경 이미지 삽입 가능
+        lobbyScreen.style.backgroundColor = "#111";
         lobbyScreen.innerHTML = `
             <div style="background: rgba(20,20,25,0.95); border: 2px solid #444; border-radius: 10px; padding: 30px; width: 420px; box-shadow: 0 10px 40px rgba(0,0,0,0.8); display: flex; flex-direction: column; gap: 20px; text-align: center;">
                 <div id="lobbyWelcomeMsg" style="color: white; font-size: 18px; font-weight: bold; border-bottom: 1px solid #333; padding-bottom: 15px;">환영합니다, 플레이어님</div>
@@ -680,52 +684,76 @@
         let introAnimTimer = null;
         let canSkipIntro = false;
 
-        // [로직 1] 타이틀 -> 로그인
         titleScreen.addEventListener("click", () => {
             if(gameState !== "title") return;
             gameState = "login";
             titleScreen.classList.add("hidden-screen");
             loginScreen.classList.remove("hidden-screen");
-            setTimeout(() => { document.getElementById("loginNameInput").focus(); }, 100);
+            setTimeout(() => { document.getElementById("loginIdInput").focus(); }, 100);
         });
 
-        // [로직 2] 로그인 -> 인트로
+        // ★ [핵심] 로그인 버튼 클릭 시 서버로 정보 전송
         window.submitLogin = function() {
-            const nameInput = document.getElementById("loginNameInput").value.trim();
-            if(!nameInput) {
-                document.getElementById("loginErrorMsg").style.opacity = "1";
+            const idInput = document.getElementById("loginIdInput").value.trim();
+            const pwInput = document.getElementById("loginPwInput").value.trim();
+            const errorMsg = document.getElementById("loginErrorMsg");
+
+            if(!idInput || !pwInput) {
+                errorMsg.innerText = "아이디와 비밀번호를 모두 입력해주세요.";
+                errorMsg.style.opacity = "1";
                 return;
             }
-            player.name = nameInput; 
-            document.getElementById("lobbyWelcomeMsg").innerHTML = `환영합니다, <span style="color:gold;">${player.name}</span> 님`;
-            
-            gameState = "intro";
-            loginScreen.classList.add("hidden-screen");
-            animScreen.classList.remove("hidden-screen");
 
-            // 방문 기록(쿠키/스토리지) 확인
-            const hasVisited = localStorage.getItem("utu_visited");
-            const skipMsg = document.getElementById("animSkipMsg");
+            // 버튼 비활성화 (중복 클릭 방지)
+            const btn = document.getElementById("loginBtn");
+            btn.innerText = "서버 확인 중...";
+            btn.disabled = true;
 
-            if (hasVisited) {
-                // 재방문: 터치 즉시 스킵 가능
-                canSkipIntro = true;
-                skipMsg.innerText = "(화면을 터치하여 즉시 스킵)";
-            } else {
-                // 첫 방문: 3초간 강제 대기
-                canSkipIntro = false;
-                skipMsg.innerText = "(첫 접속 - 애니메이션 재생 중...)";
-                localStorage.setItem("utu_visited", "true"); // 방문 도장 쾅!
-                
-                setTimeout(() => {
-                    canSkipIntro = true;
-                    skipMsg.innerText = "(아무 곳이나 터치하여 스킵)";
-                    introAnimTimer = setTimeout(skipIntroToLobby, 3000); // 안 누르면 3초 뒤 자동 진행
-                }, 3000);
-            }
+            // 서버로 로그인/가입 요청 발사!
+            socket.emit("login_attempt", { id: idInput, pw: pwInput });
         };
 
-        // [로직 3] 인트로 -> 로비 진입
+        // ★ 서버의 응답을 기다렸다가 처리
+        socket.on('login_result', (response) => {
+            const errorMsg = document.getElementById("loginErrorMsg");
+            const btn = document.getElementById("loginBtn");
+            btn.innerText = "접속 / 신규가입";
+            btn.disabled = false;
+
+            if (response.success) {
+                // 로그인 성공! (player.name에 접속한 아이디를 씌웁니다)
+                const idInput = document.getElementById("loginIdInput").value.trim();
+                player.name = idInput; 
+                document.getElementById("lobbyWelcomeMsg").innerHTML = `환영합니다, <span style="color:gold;">${player.name}</span> 님`;
+                
+                gameState = "intro";
+                loginScreen.classList.add("hidden-screen");
+                animScreen.classList.remove("hidden-screen");
+
+                const hasVisited = localStorage.getItem("utu_visited");
+                const skipMsg = document.getElementById("animSkipMsg");
+
+                if (hasVisited) {
+                    canSkipIntro = true;
+                    skipMsg.innerText = "(화면을 터치하여 즉시 스킵)";
+                } else {
+                    canSkipIntro = false;
+                    skipMsg.innerText = "(첫 접속 - 애니메이션 재생 중...)";
+                    localStorage.setItem("utu_visited", "true"); 
+                    
+                    setTimeout(() => {
+                        canSkipIntro = true;
+                        skipMsg.innerText = "(아무 곳이나 터치하여 스킵)";
+                        introAnimTimer = setTimeout(skipIntroToLobby, 3000); 
+                    }, 3000);
+                }
+            } else {
+                // 비밀번호 틀림 등 실패 처리
+                errorMsg.innerText = response.message;
+                errorMsg.style.opacity = "1";
+            }
+        });
+
         animScreen.addEventListener("click", () => {
             if (gameState === "intro" && canSkipIntro) skipIntroToLobby();
         });
@@ -737,7 +765,6 @@
             lobbyScreen.classList.remove("hidden-screen");
         }
 
-        // [로직 4] 무기 선택(직업) 라디오 버튼 스위칭
         window.selectLobbyWeapon = function(type) {
             selectedLobbyWeapon = type;
             document.getElementById("wpn_sword").classList.remove("selected");
@@ -746,9 +773,7 @@
             document.getElementById("wpn_" + type).classList.add("selected");
         };
 
-        // [로직 5] 로비 -> 게임 월드 진짜 입장!
         window.enterWorld = function() {
-            // [버그 수정 1] 오류를 뿜던 지팡이 주입 로직을 DB가 만들어진 이후인 이곳으로 이동시켰습니다!
             if (!ITEM_DB["wand_basic"]) {
                 ITEM_DB["wand_basic"] = {
                     name: "초보자 지팡이", type: "equip", equipSlot: "mainWeapon", color: "#8B4513", 
@@ -760,18 +785,15 @@
             gameState = "playing";
             lobbyScreen.classList.add("hidden-screen");
             
-            // 화면 완전 삭제 (가려진 UI 메모리 해제)
             setTimeout(() => {
                 titleScreen.remove(); loginScreen.remove(); animScreen.remove(); lobbyScreen.remove();
             }, 500);
 
-            // 초기 장비 셋업 (가방을 거치지 않고 내 손에 즉시 장착)
             player.equipment.mainWeapon = null;
             
-            // [버그 수정 2] 최신 ITEM_DB의 영문 ID 규격으로 올바르게 매칭
-            let startWeaponId = "sword_basic"; // 기본 검
-            if(selectedLobbyWeapon === "axe") startWeaponId = "axe_battle"; // ㄱ자 도끼
-            if(selectedLobbyWeapon === "wand") startWeaponId = "wand_basic"; // 지팡이
+            let startWeaponId = "sword_basic"; 
+            if(selectedLobbyWeapon === "axe") startWeaponId = "axe_battle"; 
+            if(selectedLobbyWeapon === "wand") startWeaponId = "wand_basic"; 
             
             let startWpn = {
                 id: "start_wpn_1",
@@ -780,27 +802,22 @@
                 sockets: Array(ITEM_DB[startWeaponId].maxSockets || 0).fill(null)
             };
 
-            // 무기 쥐어주기 (이것이 곧 스탯이자 직업!)
             player.equipment.mainWeapon = startWpn;
             
-            // [버그 수정 3] 포션 ID도 최신 규격(potion_hp)으로 수정
             let freePos1 = findFreeSpace({baseId: "potion_hp", rot:0}, gridMap);
             if(freePos1) myInventoryItems.push({ id: "start_pot_1", baseId: "potion_hp", gridX: freePos1.x, gridY: freePos1.y, rot: 0, sockets: null });
             
             let freePos2 = findFreeSpace({baseId: "potion_hp", rot:0}, gridMap);
             if(freePos2) myInventoryItems.push({ id: "start_pot_2", baseId: "potion_hp", gridX: freePos2.x, gridY: freePos2.y, rot: 0, sockets: null });
 
-            // UI 및 스탯 최종 갱신
             updatePlayerTotalStats();
             
-            // 장비가 올려준 스탯(최대 체력/마나 등)에 맞게 현재 풀피로 꽉 채워줌
             player.currentHp = player.maxHp;
             player.currentMana = player.maxMana;
             player.currentStamina = player.maxStamina;
             
             renderEquipSlotsUI();
             
-            // 모바일일 경우 가상 패드 컨트롤러 노출
             const vpad = document.getElementById("vpad-container");
             if (vpad) vpad.style.display = "block";
         };
