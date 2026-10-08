@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>리퀘 (Re-Quest) v0.2.5.1008.9</title>
+    <title>리퀘 (Re-Quest) v0.2.5.1008.10</title>
     
     <style>
         /* [MOD-001: 기본 화면 및 컨테이너 스타일] */
@@ -1284,7 +1284,7 @@
         
         // [MOD-017: UI 제어 및 충돌(Collision) 유틸리티]
         
- // [MOD-017-1: 장비창 UI 업데이트, 인챈트 로직 및 스마트 알림 뱃지 (동적 스케일링 최대치 해제)]
+ // [MOD-017-1: 장비창 UI 업데이트, 인챈트 로직 및 스마트 알림 뱃지 (동적 스케일링 최대치 해제 및 터치 충돌 방지)]
         let currentRightView = 'inventory'; 
         let currentEnchantTargetSlot = null; 
         let pendingEnchant = null; // 확정 대기 중인 인챈트 정보 보관
@@ -1391,8 +1391,17 @@
                     el.onmouseenter = (e) => handleItemMouseEnter(e, item);
                     el.onmouseleave = handleItemMouseLeave;
                     el.onmousemove = handleItemMouseMove;
-                    el.onmousedown = (e) => startDragFromEquip(e, slot, item);
-                    el.ontouchstart = (e) => { e.preventDefault(); startDragFromEquip(e, slot, item); };
+                    
+                    // ★ [핵심 수정] 인챈트 창이 켜져있을 땐 드래그 로직을 완전히 무시하도록 조건문 추가!
+                    el.onmousedown = (e) => { 
+                        if (currentRightView !== 'enchant') startDragFromEquip(e, slot, item); 
+                    };
+                    el.ontouchstart = (e) => { 
+                        if (currentRightView !== 'enchant') {
+                            e.preventDefault(); 
+                            startDragFromEquip(e, slot, item); 
+                        }
+                    };
                 } else {
                     el.style.backgroundColor = "#2a2a2a";
                     let hintText = SLOT_HINTS[slot] || "";
@@ -1639,7 +1648,7 @@
             // 3. 더 작은 비율 채택
             let scale = Math.min(scaleX, scaleY);
             
-            // 4. [수정] PC 전체화면을 위해 스케일링 상한선을 1.1에서 1.8배로 대폭 상향!
+            // 4. PC 전체화면을 위해 스케일링 상한선을 1.1에서 1.8배로 대폭 상향
             scale = Math.max(0.5, Math.min(scale, 1.8));
             
             container.style.transform = `scale(${scale})`;
