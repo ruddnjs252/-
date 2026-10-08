@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>리퀘 (Re-Quest) v0.2.5.1008.16</title>
+    <title>리퀘 (Re-Quest) v0.2.5.1008.17</title>
     
     <style>
         /* [MOD-001: 기본 화면 및 컨테이너 스타일] */
@@ -599,15 +599,6 @@
         const oldCharUI = document.getElementById("charCreationUI");
         if(oldCharUI) oldCharUI.remove();
 
-        // [신규 무기 추가] 마법사용 지팡이가 DB에 없다면 임시로 추가해 줍니다.
-        if (typeof ITEM_DB !== 'undefined' && !ITEM_DB["w_003"]) {
-            ITEM_DB["w_003"] = {
-                name: "초보자 지팡이", type: "equip", equipSlot: "mainWeapon", color: "#8B4513", 
-                shape: [[1],[1],[1]], stats: { str: 0, mana: 8 }, maxSockets: 2, 
-                desc: "마력을 집중하기 좋은 튼튼한 나무 지팡이."
-            };
-        }
-
         // 2. 파이프라인 첫 단계 상태 설정
         gameState = "title"; 
         
@@ -757,6 +748,15 @@
 
         // [로직 5] 로비 -> 게임 월드 진짜 입장!
         window.enterWorld = function() {
+            // [버그 수정 1] 오류를 뿜던 지팡이 주입 로직을 DB가 만들어진 이후인 이곳으로 이동시켰습니다!
+            if (!ITEM_DB["wand_basic"]) {
+                ITEM_DB["wand_basic"] = {
+                    name: "초보자 지팡이", type: "equip", equipSlot: "mainWeapon", color: "#8B4513", 
+                    shape: [[1],[1],[1]], stats: { str: 0, mana: 8 }, maxSockets: 2, 
+                    desc: "마력을 집중하기 좋은 튼튼한 나무 지팡이."
+                };
+            }
+
             gameState = "playing";
             lobbyScreen.classList.add("hidden-screen");
             
@@ -768,26 +768,27 @@
             // 초기 장비 셋업 (가방을 거치지 않고 내 손에 즉시 장착)
             player.equipment.mainWeapon = null;
             
-            let startWeaponId = "w_001"; // 기본 검
-            if(selectedLobbyWeapon === "axe") startWeaponId = "w_002"; // ㄱ자 도끼
-            if(selectedLobbyWeapon === "wand") startWeaponId = "w_003"; // 지팡이
+            // [버그 수정 2] 최신 ITEM_DB의 영문 ID 규격으로 올바르게 매칭
+            let startWeaponId = "sword_basic"; // 기본 검
+            if(selectedLobbyWeapon === "axe") startWeaponId = "axe_battle"; // ㄱ자 도끼
+            if(selectedLobbyWeapon === "wand") startWeaponId = "wand_basic"; // 지팡이
             
             let startWpn = {
                 id: "start_wpn_1",
                 baseId: startWeaponId,
                 gridX: -1, gridY: -1, rot: 0,
-                sockets: Array(ITEM_DB[startWeaponId].maxSockets).fill(null)
+                sockets: Array(ITEM_DB[startWeaponId].maxSockets || 0).fill(null)
             };
 
             // 무기 쥐어주기 (이것이 곧 스탯이자 직업!)
             player.equipment.mainWeapon = startWpn;
             
-            // 기본 포션 2개 가방에 공짜로 지급
-            let freePos1 = findFreeSpace({baseId: "c_001", rot:0}, gridMap);
-            if(freePos1) myInventoryItems.push({ id: "start_pot_1", baseId: "c_001", gridX: freePos1.x, gridY: freePos1.y, rot: 0, sockets: null });
+            // [버그 수정 3] 포션 ID도 최신 규격(potion_hp)으로 수정
+            let freePos1 = findFreeSpace({baseId: "potion_hp", rot:0}, gridMap);
+            if(freePos1) myInventoryItems.push({ id: "start_pot_1", baseId: "potion_hp", gridX: freePos1.x, gridY: freePos1.y, rot: 0, sockets: null });
             
-            let freePos2 = findFreeSpace({baseId: "c_001", rot:0}, gridMap);
-            if(freePos2) myInventoryItems.push({ id: "start_pot_2", baseId: "c_001", gridX: freePos2.x, gridY: freePos2.y, rot: 0, sockets: null });
+            let freePos2 = findFreeSpace({baseId: "potion_hp", rot:0}, gridMap);
+            if(freePos2) myInventoryItems.push({ id: "start_pot_2", baseId: "potion_hp", gridX: freePos2.x, gridY: freePos2.y, rot: 0, sockets: null });
 
             // UI 및 스탯 최종 갱신
             updatePlayerTotalStats();
