@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>리퀘 (Re-Quest) v0.2.5.261008.2</title>
+    <title>리퀘 (Re-Quest) v0.2.5.1008.3</title>
     
     <style>
         /* [MOD-001: 기본 화면 및 컨테이너 스타일] */
@@ -1237,11 +1237,22 @@
 
         // [MOD-017: UI 제어 및 충돌(Collision) 유틸리티]
         
-  // [MOD-017-1: 장비창 UI 업데이트, 인챈트 로직 및 스마트 알림 뱃지 (등록 해제 및 확정 기능 포함)]
+ // [MOD-017-1: 장비창 UI 업데이트, 인챈트 로직 및 스마트 알림 뱃지 (등록 해제 및 확정 기능 포함)]
         let currentRightView = 'inventory'; 
         let currentEnchantTargetSlot = null; 
-        let pendingEnchant = null; // [신규] 확정 대기 중인 인챈트 정보 보관
+        let pendingEnchant = null; // 확정 대기 중인 인챈트 정보 보관
 
+        // 각 장비 슬롯별 고유 기본 안내 텍스트 기준표 (장비 해제 시 복구용)
+        const SLOT_HINTS = {
+            head: "머리",
+            mainWeapon: "주무기",
+            chest: "갑옷",
+            subWeapon: "부무기",
+            shoes: "신발",
+            throwable: "" // 투척칸은 CSS로 표시되므로 비워둠
+        };
+
+        // 인챈트 등록 상태를 초기화하는 함수
         function clearEnchantRegistration() {
             if (!currentEnchantTargetSlot) return; 
             currentEnchantTargetSlot = null;
@@ -1261,6 +1272,7 @@
             updateNotiBadges(); 
         }
 
+        // 인챈트 등록 슬롯 클릭 이벤트 연결
         setTimeout(() => {
             const targetSlot = document.getElementById("enchantTargetSlot");
             if (targetSlot) {
@@ -1269,6 +1281,7 @@
             }
         }, 500);
 
+        // 느낌표 알림 뱃지 갱신 함수
         function updateNotiBadges() {
             document.querySelectorAll('.noti-badge:not(.socket-badge)').forEach(e => e.remove());
 
@@ -1312,6 +1325,7 @@
             }
         }
 
+        // [버그 수정 완료] 장비 슬롯 렌더링 함수
         function renderEquipSlotsUI() {
             for(let slot in player.equipment) {
                 let el = document.querySelector(`.slot-${slot}, [data-slot="${slot}"]`);
@@ -1324,25 +1338,27 @@
                 el.onmousedown = null; el.ontouchstart = null;
 
                 if(item) {
+                    // 1) 아이템이 장착된 경우: 아이템 이름 표시 및 드래그/툴팁 이벤트 부여
                     let baseItem = ITEM_DB[item.baseId];
                     el.style.backgroundColor = baseItem.color;
                     el.innerHTML = `<span style="color:white; font-size:9px; font-weight:bold; pointer-events:none; text-align:center;">${baseItem.name}</span>`;
                     
-                    // 툴팁 및 장비 탈착(드래그) 이벤트 연결
                     el.onmouseenter = (e) => handleItemMouseEnter(e, item);
                     el.onmouseleave = handleItemMouseLeave;
                     el.onmousemove = handleItemMouseMove;
                     el.onmousedown = (e) => startDragFromEquip(e, slot, item);
                     el.ontouchstart = (e) => { e.preventDefault(); startDragFromEquip(e, slot, item); };
                 } else {
+                    // 2) 아이템이 빈 경우: 고정 기준표(SLOT_HINTS)에서 원래 텍스트를 완벽 복구
                     el.style.backgroundColor = "#2a2a2a";
-                    let hintText = document.querySelector(`.slot-${slot} .slot-hint`)?.innerText || "";
-                    el.innerHTML = `<span class="slot-hint">${hintText}</span>`;
+                    let hintText = SLOT_HINTS[slot] || "";
+                    el.innerHTML = hintText ? `<span class="slot-hint">${hintText}</span>` : "";
                 }
             }
             setTimeout(updateNotiBadges, 10);
         }
 
+        // 착용 장비 및 인챈트 수치를 합산하여 스탯 갱신
         function updatePlayerTotalStats() {
             for(let key in player.baseStats) player.stats[key] = player.baseStats[key];
 
@@ -1367,6 +1383,7 @@
             if (typeof drawRadarChart === "function") drawRadarChart("infoRadarCanvas");
         }
 
+        // 우측 패널(인벤토리 <-> 인챈트) 전환 함수
         function toggleRightPanelView() {
             const btn = document.getElementById("modeSwitchBtn");
             const viewInv = document.getElementById("viewInventory");
@@ -1388,6 +1405,7 @@
             updateNotiBadges();
         }
 
+        // 인챈트를 위해 장비 슬롯을 선택했을 때 실행되는 함수
         function selectEquipSlotForEnchant(slotNameKOR, slotKey) {
             if (currentRightView !== 'enchant') return;
             
@@ -1422,13 +1440,11 @@
             for(let i = 0; i < baseItem.maxSockets; i++) {
                 let scrollId = item.sockets[i];
                 if(scrollId) {
-                    // 이미 확정되어 박힌 인챈트
                     let effect = ITEM_DB[scrollId].enchantEffect;
                     socketsHtml += `<div class="socket-slot socket-animated" style="background:#ff4444; border-color:white; position:relative;">
                         <span style="font-size:9px; color:#fff; font-weight:bold;">${effect.stat}+${effect.value}</span>
                     </div>`;
                 } else if (pendingEnchant && pendingEnchant.slotKey === slotKey && pendingEnchant.socketIndex === i) {
-                    // [기능 추가] 대기 중인 인챈트의 블링블링한 시각 효과
                     let pScroll = myInventoryItems.find(x => (x.id||x.uid) === pendingEnchant.scrollId) || personalStorage.find(x => (x.id||x.uid) === pendingEnchant.scrollId);
                     if (pScroll) {
                         let effect = ITEM_DB[pScroll.baseId].enchantEffect;
@@ -1437,7 +1453,6 @@
                         </div>`;
                     }
                 } else {
-                    // 빈 소켓
                     let badgeHtml = "";
                     if (!foundFirstEmpty && hasScroll && !pendingEnchant) {
                         badgeHtml = `<div class="noti-badge socket-badge">!</div>`;
@@ -1447,7 +1462,6 @@
                 }
             }
 
-            // 하단 조작 버튼 렌더링
             let confirmUI = '';
             if (pendingEnchant && pendingEnchant.slotKey === slotKey) {
                 confirmUI = `
@@ -1471,6 +1485,7 @@
             setTimeout(updateNotiBadges, 10); 
         }
 
+        // 인챈트 선택 팝업창 열기
         function openEnchantPopup(slotKey, socketIndex) {
             let allScrolls = [...myInventoryItems];
             if (gameState === "storage") {
@@ -1487,7 +1502,6 @@
                 let listHtml = scrolls.map(scroll => {
                     let base = ITEM_DB[scroll.baseId];
                     let sourceText = myInventoryItems.some(i => (i.id || i.uid) === (scroll.id || scroll.uid)) ? "가방" : "창고";
-                    // 팝업 선택 시 곧바로 적용(apply)이 아니라 대기 상태(stage)로 넘김
                     return `<div class="enchant-scroll-item" onclick="stageEnchant('${slotKey}', ${socketIndex}, '${scroll.id || scroll.uid}')">
                         <span style="color:#aaa; font-size:9px;">[${sourceText}]</span> ${base.name} <span style="color:gold; font-size:10px;">${base.enchantEffect.name}</span>
                     </div>`;
@@ -1500,7 +1514,7 @@
             popup.style.display = 'flex';
         }
 
-        // [신규] 인챈트 선택 시 곧바로 박히지 않고 대기(Pending) 상태로 설정
+        // 인챈트 임시 적용(대기) 단계
         function stageEnchant(slotKey, socketIndex, scrollId) {
             pendingEnchant = { slotKey, socketIndex, scrollId };
             document.getElementById('enchantPopupUI').style.display = 'none';
@@ -1508,7 +1522,7 @@
             selectEquipSlotForEnchant(slotNameKOR, slotKey); 
         }
 
-        // [신규] 하단의 [확정] 버튼 클릭 시 실제로 박히고 데이터 삭제
+        // 인챈트 최종 확정 및 스크롤 소모
         function confirmPendingEnchant() {
             if(!pendingEnchant) return;
             let slotKey = pendingEnchant.slotKey;
@@ -1540,12 +1554,13 @@
             selectEquipSlotForEnchant(slotNameKOR, slotKey); 
         }
 
-        // [신규] 하단의 [취소] 버튼 클릭 시
+        // 인챈트 취소
         function cancelPendingEnchant(slotNameKOR, slotKey) {
             pendingEnchant = null;
             selectEquipSlotForEnchant(slotNameKOR, slotKey);
         }
 
+        // 통합 인벤토리 UI 닫기
         function closeUI() {
             gameState = "playing";
             document.getElementById("inventoryUI").style.display = "none";
@@ -1560,6 +1575,7 @@
             if(vpad) vpad.style.display = "block"; 
         }
         
+        // 인벤토리 화면 비율 자동 맞춤
         function autoScaleInventory() {
             const container = document.querySelector('.inv-container');
             if (!container) return;
@@ -1572,6 +1588,7 @@
         }
         window.addEventListener('resize', autoScaleInventory);
 
+        // UI 탭 및 인벤토리 강제 갱신
         function switchTab(tabId) {
             renderEquipSlotsUI(); 
             if (typeof renderGridInventory === "function") renderGridInventory();
