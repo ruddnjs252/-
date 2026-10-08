@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>리퀘 (Re-Quest) v0.2.5.1008.13</title>
+    <title>리퀘 (Re-Quest) v0.2.5.1008.14</title>
     
     <style>
         /* [MOD-001: 기본 화면 및 컨테이너 스타일] */
@@ -1044,47 +1044,30 @@
         
         // [MOD-016: 입력 이벤트 리스너]
         
-        // [신규] 필드 아이템 줍기 공통 함수
         function pickupFieldItem(targetItem) {
-            // 버려진 직후 딜레이(1초)가 남아있다면 줍기 무시
             if (!targetItem || targetItem.pickupDelay > 0) return;
-
-            // 가방에 들어갈 빈 격자 공간(findFreeSpace) 탐색
             let freePos = findFreeSpace(targetItem, gridMap);
-            
             if (!freePos) {
-                // [가방 부족 시]: 텍스트 대신 바닥 아이템 테두리를 빨간색으로 번쩍임(약 0.4초간 25프레임)
                 targetItem.errorFlashTimer = 25;
                 return;
             }
-
-            // [가방 여유 있음]: 가방에 자동 안착
             myInventoryItems.push({
-                id: targetItem.id,
-                baseId: targetItem.baseId,
-                gridX: freePos.x,
-                gridY: freePos.y,
-                rot: targetItem.rot,
-                sockets: targetItem.sockets
+                id: targetItem.id, baseId: targetItem.baseId,
+                gridX: freePos.x, gridY: freePos.y,
+                rot: targetItem.rot, sockets: targetItem.sockets
             });
-
-            // 필드 배열에서 제거
             fieldItems = fieldItems.filter(f => f !== targetItem);
             if (targetedFieldItem === targetItem) targetedFieldItem = null;
-
             if (typeof renderGridInventory === "function") renderGridInventory();
             if (typeof updateNotiBadges === "function") updateNotiBadges();
         }
 
-        // [MOD-016-1: 키보드 단축키 (숫자 슬롯 지정, 인벤토리/R키, F키 줍기)]
         function selectQuickSlot(index) {
             if (gameState !== "playing" || player.dashTimer > 0) return;
-            
             let currentIdx = ((player.rotationCount % 8) + 8) % 8;
             let diff = index - currentIdx;
             if (diff < -4) diff += 8;
             if (diff > 4) diff -= 8;
-            
             player.rotationCount += diff;
             player.currentQuickSlotIdx = index;
             player.aimingSkill = null; 
@@ -1092,12 +1075,25 @@
         }
 
         window.addEventListener("keydown", (e) => {
+            // [신규] ESC 메뉴 호출 및 스마트 닫기 로직
+            if (e.key === "Escape") {
+                if (typeof isMenuOpen !== 'undefined' && isMenuOpen) {
+                    toggleSystemMenu(); // 1. 메뉴가 열려있으면 메뉴 닫기
+                } else if (gameState === "inventory" || gameState === "storage") {
+                    if (typeof closeUI === "function") closeUI(); // 2. 가방/창고가 열려있으면 가방 닫기
+                } else if (gameState === "playing") {
+                    toggleSystemMenu(); // 3. 평상시면 메뉴 열기
+                }
+                return;
+            }
+
+            if (typeof isMenuOpen !== 'undefined' && isMenuOpen) return; // 메뉴 열렸을 때 조작 차단
+
             keys[e.key] = true;
             if (e.key.length === 1) keys[e.key.toLowerCase()] = true;
 
             if (e.key.toLowerCase() === 'r') handleRKey();
             
-            // F키 습득: 게임 플레이 중 노란색 테두리로 타겟팅된 아이템이 있다면 즉시 습득
             if (e.key.toLowerCase() === 'f' && gameState === "playing") {
                 if (targetedFieldItem) pickupFieldItem(targetedFieldItem);
             }
@@ -1128,13 +1124,19 @@
         for (let i = 1; i <= 8; i++) {
             let el = document.getElementById("q-slot-" + i);
             if (el) {
-                el.addEventListener("touchstart", (e) => { e.preventDefault(); selectQuickSlot(i - 1); });
-                el.addEventListener("mousedown", (e) => { e.preventDefault(); selectQuickSlot(i - 1); });
+                el.addEventListener("touchstart", (e) => { 
+                    if (typeof isMenuOpen !== 'undefined' && isMenuOpen) return;
+                    e.preventDefault(); selectQuickSlot(i - 1); 
+                });
+                el.addEventListener("mousedown", (e) => { 
+                    if (typeof isMenuOpen !== 'undefined' && isMenuOpen) return;
+                    e.preventDefault(); selectQuickSlot(i - 1); 
+                });
             }
         }
         // [MOD-016-1-END]
 
-        // [MOD-016-2: 마우스 이동 및 클릭 처리 (조준선 클릭 줍기 포함)]
+        // [MOD-016-2: 마우스 이동 및 클릭 처리]
         canvas.addEventListener("mousemove", (e) => {
             const rect = canvas.getBoundingClientRect();
             mouseX = (e.clientX - rect.left) * (canvas.width / rect.width);
@@ -1146,6 +1148,7 @@
         }
 
         canvas.addEventListener("mousedown", (e) => {
+            if (typeof isMenuOpen !== 'undefined' && isMenuOpen) return; // 메뉴 창 열림 방어막
             if (gameState !== "playing") return;
 
             let wMouseX = mouseX + camera.x;
@@ -1153,21 +1156,19 @@
             const pCenterX = player.x + player.width / 2;
             const pCenterY = player.y + player.height / 2;
 
-            if (e.button === 2) { aimCurrentQuickSlot(); return; } // 우클릭: 조준
+            if (e.button === 2) { aimCurrentQuickSlot(); return; }
 
-            if (e.button === 0) { // 좌클릭: 스킬 발사, 아이템 클릭 줍기, NPC 상호작용
+            if (e.button === 0) { 
                 if (player.aimingSkill) { executeAimingSkill(); return; }
 
-                // [신규] 노란색으로 강조된 바닥 아이템을 직접 조준선으로 클릭했을 때 줍기
                 if (targetedFieldItem) {
                     let distToItem = Math.hypot(wMouseX - targetedFieldItem.x, wMouseY - targetedFieldItem.y);
-                    if (distToItem < 30) {
+                    if (distToItem < 45) { 
                         pickupFieldItem(targetedFieldItem);
                         return;
                     }
                 }
 
-                // 길드 NPC 상호작용
                 if (currentMap === "guild" && typeof MAP_DATA !== "undefined") {
                     const rec = MAP_DATA.guild.receptionist;
                     const por = MAP_DATA.guild.portal;
@@ -1183,7 +1184,6 @@
                     }
                 }
                 
-                // 던전 고블린 타겟 락온
                 if (currentMap === "dungeon" && typeof MAP_DATA !== "undefined" && MAP_DATA.dungeon.goblin.active) {
                     const gob = MAP_DATA.dungeon.goblin;
                     if (Math.hypot(wMouseX - gob.x, wMouseY - gob.y) < gob.size) {
@@ -1209,6 +1209,7 @@
             let startX = 0, startY = 0;
 
             window.addEventListener("touchstart", (e) => {
+                if (typeof isMenuOpen !== 'undefined' && isMenuOpen) return; // 메뉴 열림 방어
                 for (let i = 0; i < e.changedTouches.length; i++) {
                     let t = e.changedTouches[i];
                     if (t.clientX < window.innerWidth / 2 && touchId === null) {
@@ -1227,6 +1228,7 @@
             }, { passive: false });
 
             window.addEventListener("touchmove", (e) => {
+                if (typeof isMenuOpen !== 'undefined' && isMenuOpen) return; // 메뉴 열림 방어
                 for (let i = 0; i < e.changedTouches.length; i++) {
                     let t = e.changedTouches[i];
                     if (t.identifier === touchId) {
@@ -1264,11 +1266,21 @@
             window.addEventListener("touchend", endTouch);
             window.addEventListener("touchcancel", endTouch);
 
-            if(btnAtk) btnAtk.addEventListener("touchstart", (e) => { e.preventDefault(); canvas.dispatchEvent(new MouseEvent("mousedown", { button: 0 })); });
-            if(btnSkill) btnSkill.addEventListener("touchstart", (e) => { e.preventDefault(); canvas.dispatchEvent(new MouseEvent("mousedown", { button: 2 })); });
-            if(btnR) btnR.addEventListener("touchstart", (e) => { e.preventDefault(); handleRKey(); });
+            if(btnAtk) btnAtk.addEventListener("touchstart", (e) => { 
+                if (typeof isMenuOpen !== 'undefined' && isMenuOpen) return;
+                e.preventDefault(); canvas.dispatchEvent(new MouseEvent("mousedown", { button: 0 })); 
+            });
+            if(btnSkill) btnSkill.addEventListener("touchstart", (e) => { 
+                if (typeof isMenuOpen !== 'undefined' && isMenuOpen) return;
+                e.preventDefault(); canvas.dispatchEvent(new MouseEvent("mousedown", { button: 2 })); 
+            });
+            if(btnR) btnR.addEventListener("touchstart", (e) => { 
+                if (typeof isMenuOpen !== 'undefined' && isMenuOpen) return;
+                e.preventDefault(); handleRKey(); 
+            });
             
             if(btnE) btnE.addEventListener("touchstart", (e) => {
+                if (typeof isMenuOpen !== 'undefined' && isMenuOpen) return;
                 e.preventDefault();
                 if (gameState === "playing") {
                     gameState = "inventory";
@@ -2889,6 +2901,98 @@
             return null;
         }
         // [MOD-021-END]
+
+        // [MOD-022: ESC 메뉴 및 시스템 UI (동적 렌더링 방식)]
+        let isMenuOpen = false;
+
+        // 1. 메뉴 UI 동적 생성 및 바디(Body)에 덧씌우기
+        const sysMenuOverlay = document.createElement("div");
+        sysMenuOverlay.id = "sysMenuOverlay";
+        sysMenuOverlay.style.cssText = "position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0, 0, 0, 0.75); z-index: 3000; display: none; justify-content: center; align-items: center; backdrop-filter: blur(2px);";
+        
+        sysMenuOverlay.innerHTML = `
+            <div id="sysMenuMain" style="background: #1a1a1a; border: 2px solid #444; border-radius: 8px; padding: 30px; width: 280px; text-align: center; box-shadow: 0 10px 40px rgba(0,0,0,0.8); display: flex; flex-direction: column; gap: 15px;">
+                <div style="color: #fff; font-weight: bold; font-size: 22px; margin-bottom: 15px; letter-spacing: 2px;">시스템 메뉴</div>
+                <button class="sys-btn" onclick="toggleSystemMenu()">게임으로 돌아가기</button>
+                <button class="sys-btn" onclick="openSysSettings()">설정</button>
+                <button class="sys-btn" id="btnFullscreen" onclick="toggleFullScreen()">전체화면</button>
+                <button class="sys-btn" style="background: #5a2222; border-color: #ff4444; color: #ffaaaa; margin-top: 10px;" onclick="returnToLobby()">로비로 돌아가기</button>
+                <div id="lobbyNoti" style="color: #ff5555; font-size: 11px; height: 12px; margin-top: -5px; opacity: 0; transition: opacity 0.3s;">로비 시스템은 추후 업데이트 예정입니다.</div>
+            </div>
+
+            <div id="sysMenuSettings" style="display: none; background: #1a1a1a; border: 2px solid #444; border-radius: 8px; padding: 30px; width: 280px; text-align: center; box-shadow: 0 10px 40px rgba(0,0,0,0.8); flex-direction: column; gap: 15px;">
+                <div style="color: gold; font-weight: bold; font-size: 20px; margin-bottom: 20px;">설정</div>
+                <div style="color: #888; font-size: 14px; margin-bottom: 30px;">⚙️ 설정 기능 준비 중...</div>
+                <button class="sys-btn" onclick="closeSysSettings()">뒤로 가기</button>
+            </div>
+        `;
+        document.body.appendChild(sysMenuOverlay);
+
+        // CSS 스타일용 주입
+        const sysStyle = document.createElement("style");
+        sysStyle.innerHTML = `
+            .sys-btn {
+                background: #333; color: white; border: 1px solid #666; padding: 14px; border-radius: 6px;
+                font-size: 15px; font-weight: bold; cursor: pointer; transition: all 0.2s;
+            }
+            .sys-btn:hover { background: #555; border-color: white; transform: translateY(-2px); }
+            .sys-btn:active { transform: translateY(0px); }
+        `;
+        document.head.appendChild(sysStyle);
+
+        // 2. 메뉴 팝업 기능 로직
+        function toggleSystemMenu() {
+            isMenuOpen = !isMenuOpen;
+            
+            if (isMenuOpen) {
+                sysMenuOverlay.style.display = "flex";
+                document.getElementById("sysMenuMain").style.display = "flex";
+                document.getElementById("sysMenuSettings").style.display = "none";
+                document.getElementById("lobbyNoti").style.opacity = "0";
+                
+                // 키보드 이동 값 초기화 (달리던 중 ESC 누르면 쭉 미끄러지는 현상 방지)
+                keys = {}; 
+                
+                // 전체화면 상태 텍스트 갱신 (창 모드 <-> 전체화면)
+                const btnFs = document.getElementById("btnFullscreen");
+                btnFs.innerText = document.fullscreenElement ? "창 모드" : "전체화면";
+            } else {
+                sysMenuOverlay.style.display = "none";
+                closeSysSettings();
+            }
+        }
+
+        function openSysSettings() {
+            document.getElementById("sysMenuMain").style.display = "none";
+            document.getElementById("sysMenuSettings").style.display = "flex";
+        }
+
+        function closeSysSettings() {
+            document.getElementById("sysMenuMain").style.display = "flex";
+            document.getElementById("sysMenuSettings").style.display = "none";
+        }
+
+        function toggleFullScreen() {
+            if (!document.fullscreenElement) {
+                document.documentElement.requestFullscreen().catch(err => console.warn(err));
+                document.getElementById("btnFullscreen").innerText = "창 모드";
+            } else {
+                if (document.exitFullscreen) {
+                    document.exitFullscreen();
+                    document.getElementById("btnFullscreen").innerText = "전체화면";
+                }
+            }
+        }
+
+        let notiTimer;
+        function returnToLobby() {
+            const noti = document.getElementById("lobbyNoti");
+            noti.style.opacity = "1";
+            clearTimeout(notiTimer);
+            // 2초 뒤에 메시지가 다시 스르륵 사라짐 (자연스러운 피드백)
+            notiTimer = setTimeout(() => { noti.style.opacity = "0"; }, 2000);
+        }
+        // [MOD-022-END]
         
     </script>
 </body>
