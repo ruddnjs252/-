@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>리퀘 (Re-Quest) v0.2.5.1008.12</title>
+    <title>리퀘 (Re-Quest) v0.2.5.1008.13</title>
     
     <style>
         /* [MOD-001: 기본 화면 및 컨테이너 스타일] */
@@ -2321,7 +2321,7 @@
         }
         // [MOD-020-6-END]
 
-       // [MOD-020-7: 드래그 앤 드롭 및 스마트 스탯 패널(카멜레온 스위칭) 지원]
+       // [MOD-020-7: 드래그 앤 드롭 및 스마트 스탯 패널(좌측 고정) 지원]
 
         // ★ [신규] 드래그 중 표시될 스탯 패널 DOM 요소 생성 및 스타일링
         const dragStatsPanel = document.createElement("div");
@@ -2377,27 +2377,15 @@
                 </div>` : ''}
             `;
 
-            // [핵심] 출처에 따른 가변 위치 적용 (카멜레온 스위칭)
-            if (source === "inventory" || source === "equipment") {
-                const statSection = document.getElementById("statSection");
-                if(statSection) {
-                    dragStatsPanel.style.width = "100%";
-                    dragStatsPanel.style.height = "100%";
-                    dragStatsPanel.style.top = "0";
-                    dragStatsPanel.style.left = "0";
-                    dragStatsPanel.style.transform = "none";
-                    statSection.appendChild(dragStatsPanel);
-                }
-            } else if (source === "storage") {
-                const storagePanel = document.getElementById("storagePanel");
-                if(storagePanel) {
-                    dragStatsPanel.style.width = "150px";
-                    dragStatsPanel.style.height = "205px";
-                    dragStatsPanel.style.top = "50%";
-                    dragStatsPanel.style.left = "50%";
-                    dragStatsPanel.style.transform = "translate(-50%, -50%)"; // 창고 화면 정중앙 덮기
-                    storagePanel.appendChild(dragStatsPanel);
-                }
+            // [핵심 수정] 출처(가방/창고/장비창)에 상관없이 무조건 좌측 하단 스탯 섹션에 고정!
+            const statSection = document.getElementById("statSection");
+            if(statSection) {
+                dragStatsPanel.style.width = "100%";
+                dragStatsPanel.style.height = "100%";
+                dragStatsPanel.style.top = "0";
+                dragStatsPanel.style.left = "0";
+                dragStatsPanel.style.transform = "none";
+                statSection.appendChild(dragStatsPanel);
             }
             dragStatsPanel.style.display = "flex";
         }
