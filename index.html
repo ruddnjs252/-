@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>리퀘 (Re-Quest) v0.2.5.1008.7</title>
+    <title>리퀘 (Re-Quest) v0.2.5.1008.9</title>
     
     <style>
         /* [MOD-001: 기본 화면 및 컨테이너 스타일] */
@@ -1284,7 +1284,7 @@
         
         // [MOD-017: UI 제어 및 충돌(Collision) 유틸리티]
         
- // [MOD-017-1: 장비창 UI 업데이트, 인챈트 로직 및 스마트 알림 뱃지 (동적 스케일링 포함)]
+ // [MOD-017-1: 장비창 UI 업데이트, 인챈트 로직 및 스마트 알림 뱃지 (동적 스케일링 최대치 해제)]
         let currentRightView = 'inventory'; 
         let currentEnchantTargetSlot = null; 
         let pendingEnchant = null; // 확정 대기 중인 인챈트 정보 보관
@@ -1626,9 +1626,9 @@
             if (!container) return;
 
             // 1. 상황별 '진짜 요구 너비(Base Width)' 판단
-            let baseW = 520; // 가방만 열렸을 때 (장비창 150 + 여백 + 가방 320)
+            let baseW = 520; // 가방만 열렸을 때
             if (currentRightView === 'enchant' || gameState === 'storage') {
-                baseW = 860; // 추가 패널이 열려 넓어졌을 때 (+ 320)
+                baseW = 860; // 추가 패널 열렸을 때
             }
             const baseH = 450; // 기본 요구 높이
 
@@ -1636,11 +1636,11 @@
             const scaleX = (window.innerWidth * 0.9) / baseW;
             const scaleY = (window.innerHeight * 0.9) / baseH;
             
-            // 3. 더 작은 비율을 채택하여 화면 밖으로 밀리지 않게 꽉 잡음
+            // 3. 더 작은 비율 채택
             let scale = Math.min(scaleX, scaleY);
             
-            // 4. 안전선 방어 (아무리 작아도 0.5배 유지, 너무 커지면 1.1배에서 컷)
-            scale = Math.max(0.5, Math.min(scale, 1.1));
+            // 4. [수정] PC 전체화면을 위해 스케일링 상한선을 1.1에서 1.8배로 대폭 상향!
+            scale = Math.max(0.5, Math.min(scale, 1.8));
             
             container.style.transform = `scale(${scale})`;
         }
@@ -1651,7 +1651,7 @@
             renderEquipSlotsUI(); 
             if (typeof renderGridInventory === "function") renderGridInventory();
             updatePlayerTotalStats(); 
-            autoScaleInventory(); // [스케일링 연동] 창을 열 때 즉시 화면 핏(Fit) 검사!
+            autoScaleInventory(); // 창을 열 때 즉시 화면 핏(Fit) 검사
         }
         // [MOD-017-1-END]
         
