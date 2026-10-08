@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>리퀘 (Re-Quest) v0.2.5.1008.3</title>
+    <title>리퀘 (Re-Quest) v0.2.5.1008.4</title>
     
     <style>
         /* [MOD-001: 기본 화면 및 컨테이너 스타일] */
@@ -485,10 +485,14 @@
         let quest = { active: false, target: 10, current: 0 }; // 퀘스트 진행 상태
         let floatingTexts = []; // 데미지, 타겟팅 텍스트 등 공중에 뜨는 글자 관리
         let visualEffects = []; // 스킬 타격 이펙트 (원형 파티클 등) 관리
-        let inventory = []; // 플레이어 가방 (추후 그리드 시스템 연동)
+        let inventory = []; // 플레이어 가방 (그리드 연동)
         let equipment = []; // 장착 중인 장비
         let personalStorage = []; // 창고 보관 아이템
         
+        // [신규] 필드 바닥에 떨어진 아이템 및 현재 타겟팅 중인 아이템 보관 변수
+        let fieldItems = []; 
+        let targetedFieldItem = null; 
+
         let totalFreePoints = 30; // 캐릭터 생성 시 주어지는 잔여 스탯 포인트
         let tempSelectedJobs = []; // 캐릭터 생성 시 임시로 선택한 직업 목록
 
@@ -1039,7 +1043,40 @@
         // [MOD-015-END]
         
         // [MOD-016: 입력 이벤트 리스너]
-        // [MOD-016-1: 키보드 단축키 (숫자 슬롯 지정 및 인벤토리/R키)]
+        
+        // [신규] 필드 아이템 줍기 공통 함수
+        function pickupFieldItem(targetItem) {
+            // 버려진 직후 딜레이(1초)가 남아있다면 줍기 무시
+            if (!targetItem || targetItem.pickupDelay > 0) return;
+
+            // 가방에 들어갈 빈 격자 공간(findFreeSpace) 탐색
+            let freePos = findFreeSpace(targetItem, gridMap);
+            
+            if (!freePos) {
+                // [가방 부족 시]: 텍스트 대신 바닥 아이템 테두리를 빨간색으로 번쩍임(약 0.4초간 25프레임)
+                targetItem.errorFlashTimer = 25;
+                return;
+            }
+
+            // [가방 여유 있음]: 가방에 자동 안착
+            myInventoryItems.push({
+                id: targetItem.id,
+                baseId: targetItem.baseId,
+                gridX: freePos.x,
+                gridY: freePos.y,
+                rot: targetItem.rot,
+                sockets: targetItem.sockets
+            });
+
+            // 필드 배열에서 제거
+            fieldItems = fieldItems.filter(f => f !== targetItem);
+            if (targetedFieldItem === targetItem) targetedFieldItem = null;
+
+            if (typeof renderGridInventory === "function") renderGridInventory();
+            if (typeof updateNotiBadges === "function") updateNotiBadges();
+        }
+
+        // [MOD-016-1: 키보드 단축키 (숫자 슬롯 지정, 인벤토리/R키, F키 줍기)]
         function selectQuickSlot(index) {
             if (gameState !== "playing" || player.dashTimer > 0) return;
             
@@ -1059,11 +1096,16 @@
             if (e.key.length === 1) keys[e.key.toLowerCase()] = true;
 
             if (e.key.toLowerCase() === 'r') handleRKey();
+            
+            // F키 습득: 게임 플레이 중 노란색 테두리로 타겟팅된 아이템이 있다면 즉시 습득
+            if (e.key.toLowerCase() === 'f' && gameState === "playing") {
+                if (targetedFieldItem) pickupFieldItem(targetedFieldItem);
+            }
+
             if (e.key.toLowerCase() === 'e' && gameState !== "charCreation" && gameState !== "dead" && gameState !== "knockback") {
                 if (gameState === "playing") {
                     gameState = "inventory";
                     document.getElementById("inventoryUI").style.display = "flex";
-                    // [추가] 인벤토리를 열 때 화면의 퀵슬롯과 버튼 컨테이너를 통째로 숨깁니다.
                     document.getElementById("vpad-container").style.display = "none";
                     if(typeof switchTab === "function") switchTab('inv');
                 } else {
@@ -1092,15 +1134,13 @@
         }
         // [MOD-016-1-END]
 
-        // [MOD-016-2: 마우스 이동 및 클릭 처리]
-        // 캔버스 크기 비율에 맞춰 실제 픽셀 좌표값을 추출합니다.
+        // [MOD-016-2: 마우스 이동 및 클릭 처리 (조준선 클릭 줍기 포함)]
         canvas.addEventListener("mousemove", (e) => {
             const rect = canvas.getBoundingClientRect();
             mouseX = (e.clientX - rect.left) * (canvas.width / rect.width);
             mouseY = (e.clientY - rect.top) * (canvas.height / rect.height);
         });
 
-        // 텍스트를 약간 랜덤한 좌표(흔들림)에 띄우기 위함
         function addFloatingText(x, y, text, color) {
             floatingTexts.push({ x: x + (Math.random() * 20 - 10), y: y - 10, text: text, color: color, alpha: 1.0, timer: 30 });
         }
@@ -1113,42 +1153,50 @@
             const pCenterX = player.x + player.width / 2;
             const pCenterY = player.y + player.height / 2;
 
-            if (e.button === 2) { aimCurrentQuickSlot(); return; } // 우클릭(2) : 조준
+            if (e.button === 2) { aimCurrentQuickSlot(); return; } // 우클릭: 조준
 
-            if (e.button === 0) { // 좌클릭(0) : 발사 및 락온
-                if (player.aimingSkill) { executeAimingSkill(); return; } // 조준 중이면 스킬 발사
+            if (e.button === 0) { // 좌클릭: 스킬 발사, 아이템 클릭 줍기, NPC 상호작용
+                if (player.aimingSkill) { executeAimingSkill(); return; }
 
-              // 길드 로비 NPC(접수원/포탈/상자) 클릭 상호작용
+                // [신규] 노란색으로 강조된 바닥 아이템을 직접 조준선으로 클릭했을 때 줍기
+                if (targetedFieldItem) {
+                    let distToItem = Math.hypot(wMouseX - targetedFieldItem.x, wMouseY - targetedFieldItem.y);
+                    if (distToItem < 30) {
+                        pickupFieldItem(targetedFieldItem);
+                        return;
+                    }
+                }
+
+                // 길드 NPC 상호작용
                 if (currentMap === "guild" && typeof MAP_DATA !== "undefined") {
                     const rec = MAP_DATA.guild.receptionist;
                     const por = MAP_DATA.guild.portal;
-                    const chs = MAP_DATA.guild.personalChest; // 상자 데이터 연결
+                    const chs = MAP_DATA.guild.personalChest;
                     if (wMouseX >= rec.x && wMouseX <= rec.x + rec.size && wMouseY >= rec.y && wMouseY <= rec.y + rec.size) {
                         if (Math.hypot((rec.x+15) - pCenterX, (rec.y+15) - pCenterY) < 100) { openNPCMenu('receptionist'); return; }
                     }
                     if (wMouseX >= por.x && wMouseX <= por.x + por.w && wMouseY >= por.y && wMouseY <= por.y + por.h) {
                         if (Math.hypot((por.x+20) - pCenterX, (por.y+100) - pCenterY) < 100) { openNPCMenu('portal'); return; }
                     }
-                    // [추가] 상자 클릭 시 openStorage() 호출
                     if (wMouseX >= chs.x && wMouseX <= chs.x + chs.w && wMouseY >= chs.y && wMouseY <= chs.y + chs.h) {
                         if (Math.hypot((chs.x+chs.w/2) - pCenterX, (chs.y+chs.h/2) - pCenterY) < 100) { openStorage(); return; }
                     }
                 }
                 
-                // 던전 내 고블린 수동 락온 시스템 (우선 타겟팅)
+                // 던전 고블린 타겟 락온
                 if (currentMap === "dungeon" && typeof MAP_DATA !== "undefined" && MAP_DATA.dungeon.goblin.active) {
                     const gob = MAP_DATA.dungeon.goblin;
                     if (Math.hypot(wMouseX - gob.x, wMouseY - gob.y) < gob.size) {
                         player.lockedTarget = gob;
                         addFloatingText(gob.x, gob.y - 30, "타겟 고정!", "red");
                     } else {
-                        player.lockedTarget = null; // 허공 클릭 시 락온 해제
+                        player.lockedTarget = null;
                     }
                 }
             }
         });
 
-        // [MOD-016-3: 모바일 터치 패드 초기화 및 이벤트 연결]
+        // [MOD-016-3: 모바일 터치 패드 초기화]
         (function initVirtualPad() {
             const stickBase = document.getElementById("vpad-stick-base");
             const stickKnob = document.getElementById("vpad-stick-knob");
@@ -1220,13 +1268,12 @@
             if(btnSkill) btnSkill.addEventListener("touchstart", (e) => { e.preventDefault(); canvas.dispatchEvent(new MouseEvent("mousedown", { button: 2 })); });
             if(btnR) btnR.addEventListener("touchstart", (e) => { e.preventDefault(); handleRKey(); });
             
-            // 가방 버튼(E) 터치 시 그리드 인벤토리 호출 및 HUD 숨김 처리
             if(btnE) btnE.addEventListener("touchstart", (e) => {
                 e.preventDefault();
                 if (gameState === "playing") {
                     gameState = "inventory";
                     document.getElementById("inventoryUI").style.display = "flex";
-                    document.getElementById("vpad-container").style.display = "none"; // HUD 숨김
+                    document.getElementById("vpad-container").style.display = "none";
                     if(typeof switchTab === "function") switchTab('inv');
                 } else {
                     if(typeof closeUI === "function") closeUI();
@@ -1234,7 +1281,7 @@
             });
         })();
         // [MOD-016-3-END]
-
+        
         // [MOD-017: UI 제어 및 충돌(Collision) 유틸리티]
         
  // [MOD-017-1: 장비창 UI 업데이트, 인챈트 로직 및 스마트 알림 뱃지 (등록 해제 및 확정 기능 포함)]
@@ -1618,22 +1665,50 @@
 
         // [MOD-018: 메인 게임 루프 (60프레임 반복 렌더링)]
         function gameLoop() {
-            ctx.clearRect(0, 0, canvas.width, canvas.height); // 프레임 지우기
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-            // UI 조작 중에는 배경 업데이트 및 연산을 멈춥니다.
             if (gameState === "charCreation" || gameState === "npcMenu") { 
                 requestAnimationFrame(gameLoop); return; 
             }
 
             const pCenterX = player.x;
             const pCenterY = player.y;
-            const playerRadius = player.width / 2; // 중심 기준 22px
+            const playerRadius = player.width / 2;
             
             const activeSkill = typeof getActiveQuickSlotSkill === "function" ? getActiveQuickSlotSkill() : null;
 
-            // 스킬 쿨타임 감소 타이머 (-1 프레임씩)
+            // 스킬 쿨타임 감소
             for (let sId in player.skillCooldowns) {
                 if (player.skillCooldowns[sId] > 0) player.skillCooldowns[sId]--;
+            }
+
+            // === [신규: 필드 아이템 타이머 차감 및 스마트 타겟팅 계산] ===
+            if (gameState === "playing") {
+                let wMouseX = mouseX + camera.x;
+                let wMouseY = mouseY + camera.y;
+                let minScore = Infinity;
+                let bestTarget = null;
+                const PICKUP_RADIUS = 95; // 플레이어 중심 습득 유효 사거리
+
+                for (let i = 0; i < fieldItems.length; i++) {
+                    let fItem = fieldItems[i];
+                    if (fItem.pickupDelay > 0) fItem.pickupDelay--;
+                    if (fItem.errorFlashTimer > 0) fItem.errorFlashTimer--;
+
+                    let distToPlayer = Math.hypot(fItem.x - pCenterX, fItem.y - pCenterY);
+                    
+                    // 습득 사거리 안에 들어온 아이템만 검사
+                    if (distToPlayer <= PICKUP_RADIUS) {
+                        let distToMouse = Math.hypot(fItem.x - wMouseX, fItem.y - wMouseY);
+                        // 마우스 커서가 40px 안쪽으로 가까우면 마우스 우선, 아니면 플레이어 최단거리 우선
+                        let score = distToMouse < 40 ? distToMouse : distToPlayer + 100;
+                        if (score < minScore) {
+                            minScore = score;
+                            bestTarget = fItem;
+                        }
+                    }
+                }
+                targetedFieldItem = bestTarget; // 현재 노란색 테두리를 켤 타겟 확정
             }
 
             // === [업데이트 영역] ===
@@ -1641,30 +1716,22 @@
                 let nextX = player.x;
                 let nextY = player.y;
 
-                // [MOD-018-1: 대시(Charge/Leap) 강제 이동 로직]
                 if (player.dashTimer > 0) {
                     player.dashTimer--;
                     nextX += player.dashDirX * player.dashSpeed;
                     nextY += player.dashDirY * player.dashSpeed;
 
-                    // 차지 중 타겟 좌표에 도달하면 즉시 멈춤
                     if (player.activeSkillType === "charge") {
                         const distToTarget = Math.hypot((player.targetX) - nextX, (player.targetY) - nextY);
                         if (distToTarget <= player.dashSpeed) {
-                            nextX = player.targetX;
-                            nextY = player.targetY;
-                            player.dashTimer = 0;
+                            nextX = player.targetX; nextY = player.targetY; player.dashTimer = 0;
                         }
                     }
 
-                    // 벽에 박으면 멈춤 (원형 충돌 경계 계산)
                     if (nextX - playerRadius <= 0 || nextX + playerRadius >= WORLD_WIDTH || nextY - playerRadius <= 0 || nextY + playerRadius >= WORLD_HEIGHT || checkObstacleCollision(nextX - playerRadius, nextY - playerRadius)) {
-                        player.dashTimer = 0;
-                        nextX = player.x; 
-                        nextY = player.y; 
+                        player.dashTimer = 0; nextX = player.x; nextY = player.y; 
                     }
 
-                    // 대시 중 몬스터(고블린)를 스치면 충돌 데미지 입힘
                     if ((player.activeSkillType === "charge" || player.activeSkillType === "leap_attack") && currentMap === "dungeon" && typeof MAP_DATA !== "undefined" && MAP_DATA.dungeon.goblin.active) {
                         let gob = MAP_DATA.dungeon.goblin;
                         if (Math.hypot(nextX - gob.x, nextY - gob.y) < playerRadius + gob.size/2) {
@@ -1672,43 +1739,35 @@
                             applyDamageToGoblin(dmg);
                         }
                     }
-                } 
-                // [MOD-018-2: 키보드 이동 및 Shift 달리기 스태미나 소모]
-                else {
+                } else {
                     let isMoving = keys["ArrowUp"] || keys["w"] || keys["s"] || keys["ArrowDown"] || keys["a"] || keys["ArrowLeft"] || keys["d"] || keys["ArrowRight"];
                     let currentSpeed = player.speed;
                     let isSprinting = false;
 
-                    // 스태미나가 1 이상이고, 이동 중이며, Shift를 눌렀을 때만 발동
                     if (keys["Shift"] && isMoving && player.currentStamina >= 1) {
                         isSprinting = true;
-                        currentSpeed = player.speed * 1.6; // 질주 속도 배율
-                        
+                        currentSpeed = player.speed * 1.6;
                         player.sprintTimer = (player.sprintTimer || 0) + 1;
-                        if (player.sprintTimer >= 60) { // 약 1초당 1 스태미나 소모
+                        if (player.sprintTimer >= 60) {
                             player.currentStamina -= 1;
                             player.sprintTimer = 0;
                         }
                     } else {
-                        player.sprintTimer = 0; // 달리기를 멈추면 소모 타이머 초기화
+                        player.sprintTimer = 0;
                     }
 
-                    // 상하좌우 조작에 따른 next 좌표 적용
                     if (keys["ArrowUp"] || keys["w"]) nextY -= currentSpeed;
                     if (keys["ArrowDown"] || keys["s"]) nextY += currentSpeed;
                     if (keys["ArrowLeft"] || keys["a"]) nextX -= currentSpeed;
                     if (keys["ArrowRight"] || keys["d"]) nextX += currentSpeed;
 
-                    // 맵 경계선 (월드 밖) 이탈 방지
                     nextX = Math.max(playerRadius, Math.min(nextX, WORLD_WIDTH - playerRadius));
                     nextY = Math.max(playerRadius, Math.min(nextY, WORLD_HEIGHT - playerRadius));
 
-                    // 지형 장애물 충돌 검사
                     if (checkObstacleCollision(nextX - playerRadius, nextY - playerRadius)) {
-                        nextX = player.x; nextY = player.y; // 벽에 막히면 이전 좌표로 롤백
+                        nextX = player.x; nextY = player.y;
                     }
 
-                    // 걷는 중이거나 멈춰있을 때 스태미나 자연 회복 (약 1초당 1 회복)
                     if (!isSprinting && player.currentStamina < player.maxStamina) {
                         player.staminaRegenTimer++;
                         if (player.staminaRegenTimer >= 60) {
@@ -1720,43 +1779,34 @@
                     }
                 }
 
-                // 이동 연산이 끝난 최종 좌표를 플레이어에 반영
                 player.x = nextX;
                 player.y = nextY;
 
-                // [MOD-018-3: 사거리 내 몬스터 자동 감지 및 공격(오토 어택)]
                 if (attackTimer > 0) attackTimer--;
 
-                // 공격 대기시간이 끝났을 때만 검사
                 if (attackTimer <= 0) { 
-                    const baseRange = 85; // 무기 스윙 반경(도달거리)
+                    const baseRange = 85;
                     const totalDmg = (player.stats.str * 3) + 5; 
 
                     if (currentMap === "dungeon" && typeof MAP_DATA !== "undefined" && MAP_DATA.dungeon.goblin.active) {
                         const gob = MAP_DATA.dungeon.goblin;
                         let targetToAttack = null;
 
-                        // 1순위: 좌클릭으로 고정(락온)해 둔 몬스터가 사거리 내에 있을 때
                         if (player.lockedTarget && Math.hypot(player.lockedTarget.x - pCenterX, player.lockedTarget.y - pCenterY) <= baseRange + player.lockedTarget.size / 2) {
                             targetToAttack = player.lockedTarget;
-                        } 
-                        // 2순위: 락온이 없거나 락온된 적이 멀어진 경우, 사거리 안의 고블린 찾기
-                        else if (Math.hypot(gob.x - pCenterX, gob.y - pCenterY) <= baseRange + gob.size / 2) {
+                        } else if (Math.hypot(gob.x - pCenterX, gob.y - pCenterY) <= baseRange + gob.size / 2) {
                             targetToAttack = gob;
                         }
 
-                        // 타겟이 범위 내에 존재하면 스태미나 소모 없이 즉시 무기를 스윙하여 데미지 입힘
                         if (targetToAttack) {
-                            attackTimer = 30; // 30프레임 (약 0.5초) 간격으로 타격 및 애니메이션 재생
+                            attackTimer = 30;
                             player.lastAttackAngle = Math.atan2(targetToAttack.y - pCenterY, targetToAttack.x - pCenterX);
                             applyDamageToGoblin(totalDmg);
                         }
                     }
                 }
 
-            } 
-            // 피격 시 잠시 조작을 잃고 밀려나는 넉백 상태
-            else if (gameState === "knockback") {
+            } else if (gameState === "knockback") {
                 player.x += player.knockbackDirX * 25;
                 player.y += player.knockbackDirY * 5;
                 
@@ -1767,18 +1817,16 @@
                 }
             }
 
-            // [MOD-018-4: 카메라 트래킹 및 월드 배경 렌더링]
             camera.x = player.x - canvas.width / 2;
             camera.y = player.y - canvas.height / 2;
-            // 카메라가 맵 경계선 밖으로 나가지 않도록 Clamp(제한)
             camera.x = Math.max(0, Math.min(camera.x, WORLD_WIDTH - canvas.width));
             camera.y = Math.max(0, Math.min(camera.y, WORLD_HEIGHT - canvas.height));
 
             // === [월드 렌더링 시작] ===
             ctx.save();
-            ctx.translate(-camera.x, -camera.y); // 카메라 좌표만큼 전체 캔버스를 오프셋 이동
+            ctx.translate(-camera.x, -camera.y);
 
-            // 100px 간격의 타일 격자(그리드) 라인 그리기
+            // 타일 격자
             ctx.strokeStyle = "#3a3a3a";
             ctx.lineWidth = 1;
             for(let i = 0; i <= WORLD_WIDTH; i += 100) {
@@ -1788,7 +1836,7 @@
                 ctx.beginPath(); ctx.moveTo(0, i); ctx.lineTo(WORLD_WIDTH, i); ctx.stroke();
             }
 
-            // 길드 내부 지형지물 (포탈, 창고) 렌더링
+            // 길드 오브젝트
             if (currentMap === "guild" && typeof MAP_DATA !== "undefined") {
                 const por = MAP_DATA.guild.portal;
                 const chs = MAP_DATA.guild.personalChest;
@@ -1804,18 +1852,16 @@
                 ctx.textAlign = "center"; ctx.textBaseline = "middle";
                 ctx.fillText("개인 창고", chs.x + chs.w/2, chs.y - 10);
             } 
-            // 던전 내부 고블린 로직 및 렌더링
+            // 던전 고블린
             else if (currentMap === "dungeon" && typeof MAP_DATA !== "undefined") {
                 let gob = MAP_DATA.dungeon.goblin;
                 if (gob.active) {
                     const dx = pCenterX - gob.x, dy = pCenterY - gob.y;
                     const dist = Math.hypot(dx, dy);
                     if (gameState === "playing") {
-                        // 플레이어를 향해 서서히 다가오는 단순 어그로 AI
                         if (dist > 20) {
                             gob.x += (dx / dist) * gob.speed; gob.y += (dy / dist) * gob.speed;
                         } else {
-                            // 완전히 붙으면 낮은 확률로 지속 피해 입힘
                             if (Math.random() < 0.05) { 
                                 player.currentHp -= gob.damage;
                                 addFloatingText(pCenterX, player.y - 10, gob.damage, "red");
@@ -1824,7 +1870,6 @@
                         }
                     }
 
-                    // 타겟 락온이 되어있다면 고블린 밑에 붉은색 점선 원형 강조 표시
                     if (player.lockedTarget === gob) {
                         ctx.beginPath();
                         ctx.arc(gob.x, gob.y, gob.size + 10, 0, Math.PI * 2);
@@ -1835,13 +1880,11 @@
                         ctx.setLineDash([]);
                     }
 
-                    // 몬스터 바디 렌더링 (초록색 삼각형)
                     ctx.fillStyle = "limegreen";
                     ctx.beginPath(); ctx.moveTo(gob.x, gob.y - gob.size / 2);
                     ctx.lineTo(gob.x - gob.size / 2, gob.y + gob.size / 2);
                     ctx.lineTo(gob.x + gob.size / 2, gob.y + gob.size / 2); ctx.fill();
 
-                    // 몬스터 머리 위 이름표 및 체력바
                     const tagY = gob.y - gob.size - 25;
                     ctx.fillStyle = "rgba(0, 0, 0, 0.6)"; ctx.fillRect(gob.x - 40, tagY, 80, 16);
                     ctx.fillStyle = "white"; ctx.font = "bold 12px sans-serif"; 
@@ -1851,7 +1894,66 @@
                 }
             }
 
-            // 시각적 파티클/이펙트(원형 파장) 렌더링 후 타이머 차감 및 제거
+            // === [신규: 필드 아이템 렌더링 (미니멀 테트리스 형태 및 스마트 하이라이트)] ===
+            const FIELD_CELL_SIZE = 12; // 필드 위 1블록 크기 (12px)
+            fieldItems.forEach(fItem => {
+                const baseItem = ITEM_DB[fItem.baseId];
+                if (!baseItem) return;
+                const shape = getRotatedShape(baseItem.shape, fItem.rot);
+                const h = shape.length, w = shape[0].length;
+                const itemPixelW = w * FIELD_CELL_SIZE;
+                const itemPixelH = h * FIELD_CELL_SIZE;
+                const startX = fItem.x - itemPixelW / 2;
+                const startY = fItem.y - itemPixelH / 2;
+
+                const isTarget = (fItem === targetedFieldItem);
+                const isError = (fItem.errorFlashTimer > 0);
+
+                // 바닥 은은한 그림자
+                ctx.fillStyle = "rgba(0, 0, 0, 0.4)";
+                ctx.beginPath();
+                ctx.ellipse(fItem.x, fItem.y + itemPixelH / 2 + 2, itemPixelW / 2 + 3, 5, 0, 0, Math.PI * 2);
+                ctx.fill();
+
+                // 테트리스 블록들 그리기
+                for(let r = 0; r < h; r++) {
+                    for(let c = 0; c < w; c++) {
+                        if (shape[r][c] === 1) {
+                            let bx = startX + c * FIELD_CELL_SIZE;
+                            let by = startY + r * FIELD_CELL_SIZE;
+
+                            ctx.fillStyle = baseItem.color;
+                            ctx.fillRect(bx, by, FIELD_CELL_SIZE, FIELD_CELL_SIZE);
+
+                            // 테두리 피드백: 가방 부족 시 빨간색 점멸 / 타겟 시 노란색 강조 / 평상시 옅은 테두리
+                            if (isError) {
+                                ctx.strokeStyle = "#ff2222";
+                                ctx.lineWidth = 2.5;
+                            } else if (isTarget) {
+                                ctx.strokeStyle = "#ffd700";
+                                ctx.lineWidth = 2;
+                            } else {
+                                ctx.strokeStyle = "rgba(255, 255, 255, 0.4)";
+                                ctx.lineWidth = 1;
+                            }
+                            ctx.strokeRect(bx, by, FIELD_CELL_SIZE, FIELD_CELL_SIZE);
+                        }
+                    }
+                }
+
+                // 머리 위 이름표 텍스트
+                ctx.save();
+                ctx.font = isTarget ? "bold 11px sans-serif" : "10px sans-serif";
+                ctx.textAlign = "center";
+                ctx.textBaseline = "bottom";
+                ctx.fillStyle = isError ? "#ff4444" : (isTarget ? "#ffe066" : "rgba(255, 255, 255, 0.8)");
+                ctx.shadowColor = "black";
+                ctx.shadowBlur = 3;
+                ctx.fillText(baseItem.name, fItem.x, startY - 2);
+                ctx.restore();
+            });
+
+            // 이펙트 렌더링
             for (let i = visualEffects.length - 1; i >= 0; i--) {
                 let eff = visualEffects[i];
                 ctx.save(); ctx.beginPath(); ctx.arc(eff.x, eff.y, eff.radius, 0, Math.PI * 2);
@@ -1860,8 +1962,7 @@
                 if (eff.timer <= 0) visualEffects.splice(i, 1);
             }
 
-            // [MOD-018-5: 플레이어 본체 및 무기 스윙 렌더링]
-            // 파란색 동그라미 본체
+            // 플레이어 본체
             ctx.beginPath();
             ctx.arc(player.x, player.y, playerRadius, 0, Math.PI * 2);
             ctx.fillStyle = "#00a2ff"; 
@@ -1870,28 +1971,25 @@
             ctx.strokeStyle = "#004488"; 
             ctx.stroke();
 
-            // 안 보이는 오른팔(오프셋 적용)을 기점으로 한 무기 회전축 시스템
+            // 무기 및 조준선
             if (gameState === "playing") {
                 let wMouseX = mouseX + camera.x;
                 let wMouseY = mouseY + camera.y;
-                const aimAngle = Math.atan2(wMouseY - pCenterY, wMouseX - pCenterX); // 마우스가 위치한 각도
+                const aimAngle = Math.atan2(wMouseY - pCenterY, wMouseX - pCenterX);
 
-                // 우클릭으로 꾹 누르고 있는 스킬 조준선 UI를 표시합니다.
                 if (player.aimingSkill === "leap_only") {
                     const fixedLeapDist = player.width * 3;
                     const leapW = player.width + 10;
                     ctx.save(); ctx.translate(pCenterX, pCenterY); ctx.rotate(aimAngle);
                     ctx.fillStyle = "rgba(255, 215, 0, 0.3)"; ctx.fillRect(0, -leapW / 2, fixedLeapDist, leapW);
                     ctx.strokeStyle = "gold"; ctx.lineWidth = 2; ctx.strokeRect(0, -leapW / 2, fixedLeapDist, leapW); ctx.restore();
-                }
-                else if (player.aimingSkill === "jump_slam") {
+                } else if (player.aimingSkill === "jump_slam") {
                     ctx.save(); ctx.beginPath(); ctx.arc(wMouseX, wMouseY, 80, 0, Math.PI * 2);
                     ctx.fillStyle = "rgba(255, 69, 0, 0.25)"; ctx.fill();
                     ctx.strokeStyle = "orangered"; ctx.lineWidth = 2; ctx.stroke();
                     ctx.beginPath(); ctx.moveTo(pCenterX, pCenterY); ctx.lineTo(wMouseX, wMouseY);
                     ctx.strokeStyle = "rgba(255, 69, 0, 0.4)"; ctx.setLineDash([6, 6]); ctx.stroke(); ctx.restore();
-                } 
-                else if (player.aimingSkill === "charge") {
+                } else if (player.aimingSkill === "charge") {
                     const chargeDist = Math.hypot(wMouseX - pCenterX, wMouseY - pCenterY);
                     const chargeW = player.width + 10;
                     ctx.save(); ctx.translate(pCenterX, pCenterY); ctx.rotate(aimAngle);
@@ -1899,32 +1997,18 @@
                     ctx.strokeStyle = "gold"; ctx.lineWidth = 2; ctx.strokeRect(0, -chargeW / 2, chargeDist, chargeW); ctx.restore();
                 } 
                 
-                // === 기본 무기 (하얀 네모) 렌더링 ===
-                const weaponLength = 50;  // 무기의 긴 길이
-                const weaponWidth = 12;   // 무기 두께
-                const pivotX = 0;         // 어깨축 (중앙)
-                const pivotY = playerRadius + 25; // 몸통에서 25px 떨어진 위치 (오른손)
-
-                let currentAngle = aimAngle; // 평소 캐릭터 어깨가 조준하는 기본 각도
+                const weaponLength = 50, weaponWidth = 12, pivotX = 0, pivotY = playerRadius + 25;
+                let currentAngle = aimAngle;
                 let isSwinging = (attackTimer > 0 && player.lastAttackAngle !== undefined);
-                
-                // 평소에는 손목을 안쪽으로 30도 꺾어 가드를 올리고 있는 비스듬한 상태 유지
                 let wristAngle = -Math.PI / 6; 
 
-                // 공격 발동 시 휘두르는 애니메이션 재생 (30프레임 동안 역동적 변화)
                 if (isSwinging) {
-                    let progress = 1.0 - (attackTimer / 30); // 0.0 -> 1.0
-                    
-                    // 타겟 방향 기준 120도 범위를 그으며 스윙
+                    let progress = 1.0 - (attackTimer / 30);
                     let startAngle = player.lastAttackAngle - Math.PI / 3;
                     let endAngle = player.lastAttackAngle + Math.PI / 3;
-                    
                     currentAngle = startAngle + (endAngle - startAngle) * progress;
-
-                    // 원심력을 받아 무기가 바깥쪽으로 쫙 펴졌다가(0도) 다시 돌아오는(-30도) 손목 스냅
                     wristAngle = (-Math.PI / 6) * (1 - Math.sin(progress * Math.PI));
 
-                    // 무기 끝이 허공에 남기는 검기(궤적) 이펙트 라인
                     ctx.beginPath();
                     const swingRadius = Math.hypot(weaponLength, pivotY);
                     const tipOffsetAngle = Math.atan2(pivotY, weaponLength);
@@ -1934,36 +2018,23 @@
                     ctx.stroke();
                 }
 
-                // 어깨-팔-손목 계층적 관절(Hierarchical Transform) 좌표 연산
                 ctx.save();
-                ctx.translate(pCenterX, pCenterY); // 캐릭터 중심
-                ctx.rotate(currentAngle);          // 어깨 회전
+                ctx.translate(pCenterX, pCenterY);
+                ctx.rotate(currentAngle);
+                ctx.translate(pivotX, pivotY);
+                ctx.rotate(wristAngle);
                 
-                ctx.translate(pivotX, pivotY);     // 오른손 위치로 이동
-                ctx.rotate(wristAngle);            // 손목 꺾기
-                
-                // 실제 무기 렌더링 영역
                 ctx.fillStyle = "rgba(255, 255, 255, 0.8)";
                 ctx.fillRect(0, -weaponWidth / 2, weaponLength, weaponWidth);
-                
-                // 무기 판정용 붉은 테두리 (히트박스 윤곽선)
                 ctx.strokeStyle = "red";
                 ctx.lineWidth = 1.5;
                 ctx.strokeRect(0, -weaponWidth / 2, weaponLength, weaponWidth);
                 
-                // 손 위치를 나타내는 흰색 점 (회전축)
-                ctx.beginPath();
-                ctx.arc(0, 0, 5, 0, Math.PI * 2);
-                ctx.fillStyle = "white";
-                ctx.fill();
-                ctx.strokeStyle = "black";
-                ctx.lineWidth = 1.5;
-                ctx.stroke();
-
-                ctx.restore(); // 관절 변형 복구
+                ctx.beginPath(); ctx.arc(0, 0, 5, 0, Math.PI * 2);
+                ctx.fillStyle = "white"; ctx.fill(); ctx.strokeStyle = "black"; ctx.lineWidth = 1.5; ctx.stroke();
+                ctx.restore();
             }
 
-            // 허공으로 날아가는 플로팅 텍스트(데미지 숫자) 렌더링 후 삭제
             for (let i = floatingTexts.length - 1; i >= 0; i--) {
                 let ft = floatingTexts[i];
                 ctx.fillStyle = ft.color; ctx.globalAlpha = ft.alpha;
@@ -1975,52 +2046,40 @@
             ctx.globalAlpha = 1.0; 
 
             ctx.restore(); 
-            // === [월드 렌더링 종료 - 이후는 카메라에 구애받지 않는 고정 UI] ===
 
-            // [MOD-018-6: 좌상단 HUD 및 우상단 퀘스트 창 렌더링]
+            // HUD
             const hudX = 10, hudY = 10, hudW = 210, hudH = 95;
-
-            ctx.fillStyle = "rgba(0, 0, 0, 0.75)";
-            ctx.fillRect(hudX, hudY, hudW, hudH);
-
-            ctx.fillStyle = "white"; ctx.font = "bold 13px sans-serif";
-            ctx.textAlign = "left"; ctx.textBaseline = "top";
+            ctx.fillStyle = "rgba(0, 0, 0, 0.75)"; ctx.fillRect(hudX, hudY, hudW, hudH);
+            ctx.fillStyle = "white"; ctx.font = "bold 13px sans-serif"; ctx.textAlign = "left"; ctx.textBaseline = "top";
             ctx.fillText(`[Lv.${player.level}] ${player.name}`, hudX + 10, hudY + 10); 
 
             const barW = 180, barH = 10;
             let currentBarY = hudY + 30;
 
-            // HP 게이지 (빨강)
             ctx.fillStyle = "rgba(0, 0, 0, 0.9)"; ctx.fillRect(hudX + 15, currentBarY, barW, barH);
             ctx.fillStyle = "red"; ctx.fillRect(hudX + 15, currentBarY, barW * (Math.max(0, player.currentHp) / player.maxHp), barH);
             ctx.fillStyle = "white"; ctx.font = "10px sans-serif"; ctx.fillText(`HP: ${Math.floor(player.currentHp)}/${player.maxHp}`, hudX + 20, currentBarY - 1);
             currentBarY += 15;
 
-            // ST(스태미나) 게이지 (노랑)
             ctx.fillStyle = "rgba(0, 0, 0, 0.9)"; ctx.fillRect(hudX + 15, currentBarY, barW, barH);
             ctx.fillStyle = "yellow"; ctx.fillRect(hudX + 15, currentBarY, barW * (player.currentStamina / player.maxStamina), barH);
             ctx.fillStyle = "black"; ctx.fillText(`ST: ${Math.floor(player.currentStamina)}/${player.maxStamina}`, hudX + 20, currentBarY - 1);
             currentBarY += 15;
 
-            // MP 게이지 (파랑)
             ctx.fillStyle = "rgba(0, 0, 0, 0.9)"; ctx.fillRect(hudX + 15, currentBarY, barW, barH);
             ctx.fillStyle = "dodgerblue"; ctx.fillRect(hudX + 15, currentBarY, barW * (player.currentMana / player.maxMana), barH);
             ctx.fillStyle = "white"; ctx.fillText(`MP: ${Math.floor(player.currentMana)}/${player.maxMana}`, hudX + 20, currentBarY - 1);
             currentBarY += 15;
 
-            // EXP 게이지 (초록, 게이지 두께가 조금 얇음)
             ctx.fillStyle = "rgba(0, 0, 0, 0.9)"; ctx.fillRect(hudX + 15, currentBarY, barW, barH - 2);
             ctx.fillStyle = "limegreen"; ctx.fillRect(hudX + 15, currentBarY, barW * (player.exp / player.maxExp), barH - 2);
             ctx.fillStyle = "black"; ctx.fillText(`EXP: ${Math.floor(player.exp)}/${player.maxExp}`, hudX + 20, currentBarY - 2);
 
-            // 우측 상단 퀘스트 목표 알리미 창
-            ctx.fillStyle = "rgba(0, 0, 0, 0.7)";
-            ctx.fillRect(canvas.width - 220, 10, 210, 36);
+            ctx.fillStyle = "rgba(0, 0, 0, 0.7)"; ctx.fillRect(canvas.width - 220, 10, 210, 36);
             ctx.font = "bold 13px sans-serif"; ctx.textAlign = "left"; ctx.textBaseline = "middle";
-            ctx.fillStyle = quest.active && quest.current >= quest.target ? "gold" : "white"; // 완료 시 금색 하이라이트
+            ctx.fillStyle = quest.active && quest.current >= quest.target ? "gold" : "white";
             ctx.fillText(quest.active ? `퀘스트: 고블린 (${quest.current}/${quest.target})` : "진행중인 퀘스트 없음", canvas.width - 210, 28);
 
-            // 다음 프레임 예약 루프 (모니터 주사율에 맞춰 반복)
             requestAnimationFrame(gameLoop);
         }
         // [MOD-018-END]
@@ -2263,19 +2322,16 @@
         }
         // [MOD-020-6-END]
 
-        // [MOD-020-7: 드래그 앤 드롭 (크로스 보드 호환, 장비 탈착, 올바른 슬롯 녹색 피드백 및 오토 스왑 지원)]
-        
-        // 1. 인벤토리 또는 창고에서 아이템을 마우스/터치로 잡았을 때 실행되는 함수
+        // [MOD-020-7: 드래그 앤 드롭 (크로스 보드 호환, 장비 탈착, 올바른 슬롯 녹색 피드백 및 필드 버리기 지원)]
         function startDrag(e, itemObj, htmlEl, sourceName) {
             if (e.type === "mousedown" && e.button !== 0) return; 
-            handleItemMouseLeave(); // 잡는 순간 떠있던 툴팁 숨기기
+            handleItemMouseLeave();
 
-            // 드래그 상태 정보 초기화
             dragItemState.active = true;
             dragItemState.itemRef = itemObj;
             dragItemState.origX = itemObj.gridX;
             dragItemState.origY = itemObj.gridY;
-            dragItemState.source = sourceName; // 출처 ('inventory' 또는 'storage')
+            dragItemState.source = sourceName;
             dragItemState.hoveredEquipSlot = null; 
 
             let clientX = e.type.includes("touch") ? e.touches[0].clientX : e.clientX;
@@ -2286,14 +2342,12 @@
             const boardRect = board.getBoundingClientRect();
             const currentScale = boardRect.width / (INV_COLS * GRID_CELL_SIZE);
 
-            // 마우스 커서와 블록 좌상단 사이의 거리(오프셋) 계산
             const elRect = htmlEl.getBoundingClientRect();
             dragItemState.offsetX = (clientX - elRect.left) / currentScale;
             dragItemState.offsetY = (clientY - elRect.top) / currentScale;
             dragItemState.lastClientX = clientX;
             dragItemState.lastClientY = clientY;
 
-            // 기존 가방/창고 배열에서 현재 아이템이 차지하던 자리를 임시로 비움(null) 처리
             const baseItem = ITEM_DB[itemObj.baseId];
             const shape = getRotatedShape(baseItem.shape, itemObj.rot);
             const h = shape.length, w = shape[0].length;
@@ -2308,7 +2362,6 @@
                 }
             }
 
-            // 마우스를 따라다닐 반투명 잔상(Ghost DOM) 생성
             let ghost = document.createElement("div");
             ghost.className = "grid-item-wrapper dragging"; 
             ghost.style.width = htmlEl.style.width;
@@ -2317,9 +2370,8 @@
             
             board.appendChild(ghost);
             dragItemState.ghostEl = ghost;
-            htmlEl.style.display = "none"; // 원래 블록은 화면에서 숨김
+            htmlEl.style.display = "none";
 
-            // 마우스/터치 이동 및 뗌 이벤트 연결
             document.addEventListener("mousemove", onDragMove);
             document.addEventListener("mouseup", onDragEnd);
             document.addEventListener("touchmove", onDragMove, { passive: false });
@@ -2328,7 +2380,6 @@
             updateDragGhost(); 
         }
 
-        // 2. 장착 중인 슬롯(십자가 칸)에서 장비를 뽑아낼 때 실행되는 전용 함수
         function startDragFromEquip(e, slotName, itemObj) {
             if (e.type === "mousedown" && e.button !== 0) return; 
             handleItemMouseLeave();
@@ -2344,7 +2395,6 @@
             let clientX = e.type.includes("touch") ? e.touches[0].clientX : e.clientX;
             let clientY = e.type.includes("touch") ? e.touches[0].clientY : e.clientY;
 
-            // 들고 있는 순간 장착 칸을 비우고 스탯과 장비창 UI 갱신
             player.equipment[slotName] = null;
             if (currentEnchantTargetSlot === slotName) clearEnchantRegistration();
             updatePlayerTotalStats();
@@ -2359,7 +2409,6 @@
             dragItemState.lastClientX = clientX;
             dragItemState.lastClientY = clientY;
 
-            // 장비칸에서 뽑아낸 아이템의 형태에 맞는 잔상(Ghost DOM) 생성
             let ghost = createGhostDOMForItem(itemObj);
             ghost.className = "grid-item-wrapper dragging"; 
             
@@ -2374,7 +2423,6 @@
             updateDragGhost(); 
         }
 
-        // 3. 아이템의 모양(Shape) 데이터를 바탕으로 고스트 DOM을 만들어주는 보조 함수
         function createGhostDOMForItem(itemObj) {
             const baseItem = ITEM_DB[itemObj.baseId];
             const shape = getRotatedShape(baseItem.shape, itemObj.rot);
@@ -2413,7 +2461,6 @@
             return ghost;
         }
 
-        // 4. 마우스나 터치 이동 시 좌표를 기록하고 고스트 업데이트를 호출하는 함수
         function onDragMove(e) {
             if (!dragItemState.active) return;
             if(e.type === "touchmove" && e.touches.length > 0) {
@@ -2426,7 +2473,6 @@
             updateDragGhost();
         }
 
-        // 5. [핵심 변경] 마우스 이동마다 잔상 위치를 이동시키고 색상(녹색/빨강)을 판정하는 함수
         function updateDragGhost() {
             if(!dragItemState.ghostEl) return;
             const invBoard = document.getElementById("inventoryBoard");
@@ -2442,7 +2488,6 @@
             let targetRect = null;
             let targetMap = null;
 
-            // 마우스 커서가 창고 위인지, 가방 위인지 판별
             if (gameState === "storage" && dragItemState.lastClientX >= stoRect.left && dragItemState.lastClientX <= stoRect.right && dragItemState.lastClientY >= stoRect.top && dragItemState.lastClientY <= stoRect.bottom) {
                 targetBoardName = "storage"; targetRect = stoRect; targetMap = storageMap;
             } else if (invRect.width > 0 && dragItemState.lastClientX >= invRect.left && dragItemState.lastClientX <= invRect.right && dragItemState.lastClientY >= invRect.top && dragItemState.lastClientY <= invRect.bottom) {
@@ -2453,7 +2498,6 @@
             let isInsideBoard = false;
             let rawGridX = 0, rawGridY = 0;
 
-            // 가방/창고 그리드 안쪽 위에 있는 경우 (격자 빈칸 검사)
             if (targetBoardName) {
                 let localX = (dragItemState.lastClientX - targetRect.left) / currentScale - dragItemState.offsetX;
                 let localY = (dragItemState.lastClientY - targetRect.top) / currentScale - dragItemState.offsetY;
@@ -2485,7 +2529,6 @@
                     activeBoardDOM.appendChild(dragItemState.ghostEl);
                 }
                 
-                // 가방 안쪽에 잘 맞으면 격자에 딱 붙여주고(Snap), 벗어나면 마우스를 자연스럽게 따라다님
                 if (isInsideBoard) {
                     dragItemState.ghostEl.style.left = (rawGridX * GRID_CELL_SIZE) + "px";
                     dragItemState.ghostEl.style.top = (rawGridY * GRID_CELL_SIZE) + "px";
@@ -2494,7 +2537,6 @@
                     dragItemState.ghostEl.style.top = localY + "px";
                 }
             } else {
-                // 가방/창고 격자판을 완전히 벗어난 상태
                 dragItemState.isValid = false;
                 let activeBoardDOM = dragItemState.ghostEl.parentElement;
                 let activeRect = activeBoardDOM.getBoundingClientRect();
@@ -2504,7 +2546,7 @@
                 dragItemState.ghostEl.style.top = localY + "px";
             }
 
-            // ★ [순서 변경 및 핵심 개선] 장비 슬롯과 겹쳤는지 먼저 검사합니다.
+            // 슬롯 호버 판정
             dragItemState.hoveredEquipSlot = null; 
             const ghostRect = dragItemState.ghostEl.getBoundingClientRect();
             const baseItem = ITEM_DB[dragItemState.itemRef.baseId];
@@ -2513,12 +2555,11 @@
                 const slotRect = slot.getBoundingClientRect();
                 const isOverlapping = !(ghostRect.right < slotRect.left || ghostRect.left > slotRect.right || ghostRect.bottom < slotRect.top || ghostRect.top > slotRect.bottom);
                 
-                // 아이템이 '장비' 타입이고 슬롯 부위와 딱 일치할 때
                 if (isOverlapping && baseItem.type === "equip" && baseItem.equipSlot === slot.getAttribute('data-slot')) {
                     slot.style.boxShadow = "0 0 15px gold"; 
                     slot.style.borderColor = "gold"; 
                     slot.style.transform = "scale(1.1)"; 
-                    dragItemState.hoveredEquipSlot = slot; // 일치하는 장비칸 저장!
+                    dragItemState.hoveredEquipSlot = slot; 
                 } else {
                     slot.style.boxShadow = ""; 
                     slot.style.borderColor = ""; 
@@ -2526,10 +2567,7 @@
                 }
             });
 
-            // ★ [색상 통합 판정] 
-            // 1) 가방/창고의 빈칸 위(isValid) 이거나 
-            // 2) 알맞은 장비 슬롯 위(hoveredEquipSlot) 이면 -> "초록색(정상)"
-            // 둘 다 아니면 -> "빨간색(불가)"
+            // 색상 판정: 가방/창고 빈자리 or 알맞은 장비 슬롯 위면 초록색
             const isAcceptable = dragItemState.isValid || (dragItemState.hoveredEquipSlot !== null);
             let blocks = dragItemState.ghostEl.querySelectorAll('.grid-item-block');
             blocks.forEach(b => {
@@ -2538,7 +2576,6 @@
             });
         }
 
-        // 6. 마우스/터치를 뗐을 때 장착, 이동, 또는 롤백을 처리하는 함수
         function onDragEnd(e) {
             if (!dragItemState.active) return;
             document.removeEventListener("mousemove", onDragMove);
@@ -2549,7 +2586,7 @@
             let isEquipped = false;
             let sourceArray = dragItemState.source === "storage" ? personalStorage : myInventoryItems;
 
-            // [판정 1] 알맞은 장비 슬롯 위에 내려놓은 경우 -> 장착 또는 오토 스왑 처리
+            // [판정 1] 장비 슬롯 장착 또는 오토 스왑
             if (dragItemState.hoveredEquipSlot) {
                 let targetSlotName = dragItemState.hoveredEquipSlot.getAttribute('data-slot');
                 let baseItem = ITEM_DB[dragItemState.itemRef.baseId];
@@ -2558,7 +2595,6 @@
                     let oldItem = player.equipment[targetSlotName];
                     let canSwap = true;
 
-                    // 이미 장착된 기존 아이템이 있는 경우 가방 빈자리로 오토 스왑(Swap)
                     if (oldItem) {
                         let targetMap = dragItemState.source === "storage" ? storageMap : gridMap;
                         let targetArr = dragItemState.source === "storage" ? personalStorage : myInventoryItems;
@@ -2590,7 +2626,7 @@
                         }
                         if(!dragItemState.itemRef.sockets) dragItemState.itemRef.sockets = Array(baseItem.maxSockets).fill(null);
                         
-                        player.equipment[targetSlotName] = dragItemState.itemRef; // 최종 장착
+                        player.equipment[targetSlotName] = dragItemState.itemRef;
                         
                         if (typeof updatePlayerTotalStats === "function") updatePlayerTotalStats();
                         if (typeof renderEquipSlotsUI === "function") renderEquipSlotsUI();
@@ -2598,19 +2634,18 @@
                 }
             }
 
-            // 하이라이트된 장비 슬롯 테두리 효과 초기화
             document.querySelectorAll('.equip-slot').forEach(s => {
                 s.style.boxShadow = ""; s.style.borderColor = ""; s.style.transform = "scale(1.0)";
             });
 
-            // [판정 2] 장착되지 않고 가방/창고 내부로 이동하거나 실패했을 때
+            // [판정 2] 장착되지 않은 경우: 보관 배치 vs 필드 버리기 vs 롤백
             if (!isEquipped) {
                 if (dragItemState.isValid && dragItemState.targetBoard) {
-                    // 유효한 빈 공간에 내려놓은 경우
+                    // 가방이나 창고 안쪽 유효 공간에 내려놓은 경우
                     let targetArray = dragItemState.targetBoard === "storage" ? personalStorage : myInventoryItems;
                     
                     if (dragItemState.source === "equipment") {
-                        targetArray.push(dragItemState.itemRef); // 장비 해제
+                        targetArray.push(dragItemState.itemRef);
                     } else if (dragItemState.source !== dragItemState.targetBoard) {
                         let idx = sourceArray.findIndex(i => (i.id || i.uid) === (dragItemState.itemRef.id || dragItemState.itemRef.uid));
                         if(idx > -1) sourceArray.splice(idx, 1);
@@ -2619,19 +2654,59 @@
                     dragItemState.itemRef.gridX = dragItemState.currentGridX;
                     dragItemState.itemRef.gridY = dragItemState.currentGridY;
                 } else {
-                    // 잘못된 허공에 내려놓은 경우 -> 원래 위치로 안전 롤백
-                    if (dragItemState.source === "equipment") {
-                        player.equipment[dragItemState.sourceSlot] = dragItemState.itemRef;
-                        updatePlayerTotalStats();
-                        renderEquipSlotsUI();
+                    // [핵심: 인벤토리 UI 밖으로 완전히 던졌는지 검사]
+                    const invContainer = document.getElementById("invMainContainer");
+                    const invRect = invContainer ? invContainer.getBoundingClientRect() : null;
+                    const isOutsideUI = invRect && (
+                        dragItemState.lastClientX < invRect.left ||
+                        dragItemState.lastClientX > invRect.right ||
+                        dragItemState.lastClientY < invRect.top ||
+                        dragItemState.lastClientY > invRect.bottom
+                    );
+
+                    if (isOutsideUI) {
+                        // ★ [필드 버리기 확정]: 플레이어 발밑 주변에 흩뿌려짐
+                        const dropDist = 35;
+                        const dropAngle = Math.random() * Math.PI * 2;
+                        let dropX = Math.max(50, Math.min(WORLD_WIDTH - 50, player.x + Math.cos(dropAngle) * dropDist));
+                        let dropY = Math.max(50, Math.min(WORLD_HEIGHT - 50, player.y + Math.sin(dropAngle) * dropDist));
+
+                        fieldItems.push({
+                            id: dragItemState.itemRef.id || ("field_" + Date.now()),
+                            baseId: dragItemState.itemRef.baseId,
+                            rot: dragItemState.itemRef.rot || 0,
+                            sockets: dragItemState.itemRef.sockets ? [...dragItemState.itemRef.sockets] : null,
+                            x: dropX,
+                            y: dropY,
+                            pickupDelay: 60, // 버린 직후 1초간 바로 주워짐 방지
+                            errorFlashTimer: 0
+                        });
+
+                        // 소속 목록에서 완전히 제거
+                        if (dragItemState.source === "inventory") {
+                            let idx = myInventoryItems.findIndex(i => (i.id || i.uid) === (dragItemState.itemRef.id || dragItemState.itemRef.uid));
+                            if (idx > -1) myInventoryItems.splice(idx, 1);
+                        } else if (dragItemState.source === "storage") {
+                            let idx = personalStorage.findIndex(i => (i.id || i.uid) === (dragItemState.itemRef.id || dragItemState.itemRef.uid));
+                            if (idx > -1) personalStorage.splice(idx, 1);
+                        } else if (dragItemState.source === "equipment") {
+                            updatePlayerTotalStats();
+                            renderEquipSlotsUI();
+                        }
                     } else {
-                        dragItemState.itemRef.gridX = dragItemState.origX;
-                        dragItemState.itemRef.gridY = dragItemState.origY;
+                        // UI 박스 안쪽의 빈 공간(스탯창 등)에 잘못 내려놓은 경우: 원래 위치로 안전 롤백
+                        if (dragItemState.source === "equipment") {
+                            player.equipment[dragItemState.sourceSlot] = dragItemState.itemRef;
+                            updatePlayerTotalStats();
+                            renderEquipSlotsUI();
+                        } else {
+                            dragItemState.itemRef.gridX = dragItemState.origX;
+                            dragItemState.itemRef.gridY = dragItemState.origY;
+                        }
                     }
                 }
             }
 
-            // 드래그 종료 및 고스트 DOM 삭제
             dragItemState.active = false;
             if(dragItemState.ghostEl) {
                 dragItemState.ghostEl.remove(); 
