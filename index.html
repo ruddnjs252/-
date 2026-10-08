@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>리퀘 (Re-Quest) v0.2.5.1008.21</title>
+    <title>리퀘 (Re-Quest) v0.2.5.1008.22</title>
     
     <style>
         /* [MOD-001: 기본 화면 및 컨테이너 스타일] */
@@ -599,7 +599,7 @@
         
         // ★ 내 컴퓨터에 켜둔 백엔드 서버(3000번 포트)로 무전기 연결
         // (나중에 친구들과 할 때는 이 주소를 Ngrok 주소 등으로 바꾸면 됩니다)
-        const socket = io("http://localhost:3000");
+        const socket = io();
 
         const oldCharUI = document.getElementById("charCreationUI");
         if(oldCharUI) oldCharUI.remove();
