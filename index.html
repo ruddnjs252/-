@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>리퀘 (Re-Quest) v0.2.599994</title>
+    <title>리퀘 (Re-Quest) v0.2.59999</title>
     
     <style>
         /* [MOD-001: 기본 화면 및 컨테이너 스타일] */
@@ -250,47 +250,9 @@
         #q-slot-7 { transform: rotate(270deg) translateY(-17vmin); }
         #q-slot-8 { transform: rotate(315deg) translateY(-17vmin); }
         /* [MOD-003-END] */
-
-        /* [MOD-022: 인트로 및 ESC 메뉴 스타일] */
-        #introUI {
-            position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
-            background: #111; z-index: 20000; display: flex; flex-direction: column;
-            align-items: center; justify-content: center;
-        }
-        #intro-title { font-size: 50px; color: gold; text-shadow: 0 0 20px rgba(255, 215, 0, 0.5); margin-bottom: 30px; font-weight: bold; text-align: center;}
-        #intro-btn { padding: 15px 40px; font-size: 20px; background: #c00; color: white; border: 2px solid #f55; border-radius: 8px; cursor: pointer; font-weight: bold; transition: 0.2s; }
-        #intro-btn:hover { background: #f00; transform: scale(1.05); box-shadow: 0 0 15px red; }
-
-        #escMenuUI {
-            display: none; flex-direction: column; align-items: center; justify-content: center;
-            background: rgba(0, 0, 0, 0.85); z-index: 15000;
-        }
-        .esc-menu-box {
-            background: #222; border: 2px solid #555; padding: 30px; border-radius: 8px; text-align: center; width: 300px;
-        }
-        .esc-btn { width: 100%; padding: 12px; margin: 8px 0; background: #444; color: white; border: 1px solid #777; cursor: pointer; font-size: 16px; font-weight: bold; border-radius: 4px; }
-        .esc-btn:hover { background: #555; border-color: white; }
-        /* [MOD-022-END] */
     </style>
 </head>
 <body>
-<!-- [MOD-022-HTML: 인트로 & ESC 메뉴] -->
-    <div id="introUI">
-        <div id="intro-title">Re-Quest<br><span style="font-size: 24px; color: #aaa;">끝없는 성장</span></div>
-        <button id="intro-btn" onclick="startGame()">게임 시작</button>
-        <div style="margin-top: 20px; font-size: 12px; color: #555;">(버튼을 누르면 전체화면으로 시작됩니다)</div>
-    </div>
-
-    <div id="escMenuUI" class="ui-layer">
-        <div class="esc-menu-box">
-            <h2 style="color: gold; margin-top: 0;">일시정지</h2>
-            <button class="esc-btn" onclick="toggleEscMenu()">게임으로 돌아가기</button>
-            <button class="esc-btn" onclick="toggleFullScreen()">전체화면 전환</button>
-            <button class="esc-btn" onclick="alert('설정 기능은 준비 중입니다.')">설정</button>
-        </div>
-    </div>
-    <!-- [MOD-022-HTML-END] -->
-    
     <!-- [MOD-004: 오버레이 UI 및 캔버스 렌더링 영역] -->
     <!-- [MOD-004-1: 모바일 가상 패드 및 방사형 퀵슬롯 HTML] -->
     <div id="vpad-container">
@@ -488,37 +450,36 @@
         window.addEventListener('resize', resizeCanvas);
         resizeCanvas();
 
-       // [MOD-010-2: 게임 상태 및 플레이어 데이터 객체]
-        let gameState = "intro"; // [수정] 처음에 playing이 아니라 intro로 시작합니다.
+        // [MOD-010-2: 게임 상태 및 플레이어 데이터 객체]
+        let gameState = "playing"; 
         let currentMap = "guild";  
 
-        // --- 아래쪽에 [전체화면 및 게임 시작 관련 함수] 추가 ---
-        function startGame() {
-            document.getElementById("introUI").style.display = "none";
-            gameState = "playing";
-            // 전체화면 강제 실행 코드 삭제 완료!
-        }
-
-        function toggleFullScreen(forceEnter = false) {
-            if (!document.fullscreenElement) {
-                if (document.documentElement.requestFullscreen) {
-                    document.documentElement.requestFullscreen().catch(err => console.log(err));
-                }
-            } else if (!forceEnter) {
-                if (document.exitFullscreen) document.exitFullscreen();
-            }
-        }
-
-        function toggleEscMenu() {
-            const escUI = document.getElementById("escMenuUI");
-            if (gameState === "playing") {
-                gameState = "escMenu";
-                escUI.style.display = "flex";
-            } else if (gameState === "escMenu") {
-                gameState = "playing";
-                escUI.style.display = "none";
-            }
-        }
+        let player = {
+            name: "방랑자",
+            x: 500, y: 500, width: 30, height: 30, color: "cyan", speed: 5, 
+            stats: { hp: 3, str: 3, dex: 3, mana: 3, stamina: 3, charm: 3 }, 
+            baseStats: { hp: 3, str: 3, dex: 3, mana: 3, stamina: 3, charm: 3 }, // <-- [핵심 수정] 한글 스탯명을 모두 영어로 통일!
+            equipment: { 
+                head: null, mainWeapon: null, chest: null, subWeapon: null, shoes: null, throwable: null,
+                artifact_0: null, artifact_1: null, artifact_2: null, artifact_3: null, artifact_4: null
+            },
+            job: "무소속", 
+            acquiredJobs: [], 
+            currentSkillIdx: 0,
+            skillCooldowns: {}, 
+            level: 1, exp: 0, maxExp: 100, 
+            maxHp: 9, currentHp: 9, 
+            maxStamina: 9, currentStamina: 9, staminaRegenTimer: 0, 
+            maxMana: 9, currentMana: 9, 
+            knockbackDirX: 0, knockbackDirY: 0, 
+            dashSpeed: 0, dashDirX: 0, dashDirY: 0, dashTimer: 0, 
+            targetX: 0, targetY: 0, 
+            activeSkillType: null, 
+            aimingSkill: null, 
+            currentQuickSlotIdx: 0, 
+            lockedTarget: null 
+        };
+        // (기존에 있던 잘못된 [MOD-030] 부분은 여기서 완전히 삭제되었습니다.)
 
         // [MOD-010-3: 시스템, 퀘스트, 이펙트 등 전역 관리 변수]
         let quest = { active: false, target: 10, current: 0 }; // 퀘스트 진행 상태
@@ -1098,8 +1059,7 @@
             if (e.key.length === 1) keys[e.key.toLowerCase()] = true;
 
             if (e.key.toLowerCase() === 'r') handleRKey();
-            
-            if (e.key.toLowerCase() === 'e' && gameState !== "charCreation" && gameState !== "dead" && gameState !== "knockback") {    
+            if (e.key.toLowerCase() === 'e' && gameState !== "charCreation" && gameState !== "dead" && gameState !== "knockback") {
                 if (gameState === "playing") {
                     gameState = "inventory";
                     document.getElementById("inventoryUI").style.display = "flex";
@@ -1108,15 +1068,6 @@
                     if(typeof switchTab === "function") switchTab('inv');
                 } else {
                     if(typeof closeUI === "function") closeUI();
-                }
-            }
-
-            // [수정] 중복된 R, E 키 코드를 지우고 ESC 키를 완전히 독립적으로 안전하게 배치했습니다!
-            if (e.key === "Escape") {
-                if (gameState === "playing" || gameState === "escMenu") {
-                    toggleEscMenu();
-                } else if (gameState === "inventory" || gameState === "storage") {
-                    closeUI(); // 가방/창고가 열려있을 때 ESC를 누르면 닫기
                 }
             }
             
@@ -1367,6 +1318,8 @@
                 if(!el) continue;
                 
                 let item = player.equipment[slot];
+                
+                // 이벤트 중복 등록 방지를 위한 초기화
                 el.onmouseenter = null; el.onmouseleave = null; el.onmousemove = null;
                 el.onmousedown = null; el.ontouchstart = null;
 
@@ -1375,20 +1328,12 @@
                     el.style.backgroundColor = baseItem.color;
                     el.innerHTML = `<span style="color:white; font-size:9px; font-weight:bold; pointer-events:none; text-align:center;">${baseItem.name}</span>`;
                     
+                    // 툴팁 및 장비 탈착(드래그) 이벤트 연결
                     el.onmouseenter = (e) => handleItemMouseEnter(e, item);
                     el.onmouseleave = handleItemMouseLeave;
                     el.onmousemove = handleItemMouseMove;
-                    
-                    // [터치 충돌 해결] 인챈트 창이 켜져 있을 땐 드래그 로직을 막아서 onclick(장비 등록)이 정상 발동하게 둠
-                    el.onmousedown = (e) => { 
-                        if (currentRightView !== 'enchant') startDragFromEquip(e, slot, item); 
-                    };
-                    el.ontouchstart = (e) => { 
-                        if (currentRightView !== 'enchant') {
-                            e.preventDefault(); 
-                            startDragFromEquip(e, slot, item); 
-                        }
-                    };
+                    el.onmousedown = (e) => startDragFromEquip(e, slot, item);
+                    el.ontouchstart = (e) => { e.preventDefault(); startDragFromEquip(e, slot, item); };
                 } else {
                     el.style.backgroundColor = "#2a2a2a";
                     let hintText = document.querySelector(`.slot-${slot} .slot-hint`)?.innerText || "";
@@ -1397,6 +1342,7 @@
             }
             setTimeout(updateNotiBadges, 10);
         }
+
         function updatePlayerTotalStats() {
             for(let key in player.baseStats) player.stats[key] = player.baseStats[key];
 
@@ -1617,42 +1563,20 @@
         function autoScaleInventory() {
             const container = document.querySelector('.inv-container');
             if (!container) return;
-            
-            // [해상도 버그 수정] 창고나 인챈트 창이 켜지면 전체 폭을 970으로 넓게 잡아서 축소 비율을 키움
-            let baseW = 650;
-            const baseH = 450;
-            if (currentRightView === 'enchant' || gameState === 'storage') {
-                baseW = 970;
-            }
-
-            const scaleX = (window.innerWidth * 0.9) / baseW; // 화면 꽉 차지 않게 여백 10%
-            const scaleY = (window.innerHeight * 0.9) / baseH;
+            const baseW = 650, baseH = 450;
+            const scaleX = (window.innerWidth * 0.85) / baseW;
+            const scaleY = (window.innerHeight * 0.85) / baseH;
             let scale = Math.min(scaleX, scaleY);
-            scale = Math.max(0.3, Math.min(scale, 2.5)); // 폴드 대응을 위해 최소 스케일 허용치를 0.3까지 낮춤
+            scale = Math.max(0.5, Math.min(scale, 2.5));
             container.style.transform = `scale(${scale})`;
         }
+        window.addEventListener('resize', autoScaleInventory);
 
-        // 창을 전환할 때 너비가 달라지므로 즉각적으로 크기를 다시 맞추도록(autoScaleInventory) 추가
-        function toggleRightPanelView() {
-            const btn = document.getElementById("modeSwitchBtn");
-            const viewInv = document.getElementById("viewInventory");
-            const viewEnc = document.getElementById("viewEnchant");
-            
-            if (currentRightView === 'inventory') {
-                currentRightView = 'enchant';
-                viewInv.style.display = 'none'; viewEnc.style.display = 'flex';
-                btn.innerHTML = '&laquo;'; 
-            } else {
-                currentRightView = 'inventory';
-                viewInv.style.display = 'block'; viewEnc.style.display = 'none';
-                btn.innerHTML = '&raquo;';
-                document.getElementById('enchantPopupUI').style.display = 'none';
-                
-                clearEnchantRegistration();
-                if (typeof renderGridInventory === "function") renderGridInventory();
-            }
-            updateNotiBadges();
-            autoScaleInventory(); // [추가] 뷰 전환 시 즉시 스케일링 재적용!
+        function switchTab(tabId) {
+            renderEquipSlotsUI(); 
+            if (typeof renderGridInventory === "function") renderGridInventory();
+            updatePlayerTotalStats(); 
+            autoScaleInventory();
         }
         // [MOD-017-1-END]
         
@@ -1680,7 +1604,7 @@
             ctx.clearRect(0, 0, canvas.width, canvas.height); // 프레임 지우기
 
             // UI 조작 중에는 배경 업데이트 및 연산을 멈춥니다.
-            if (gameState === "charCreation" || gameState === "npcMenu" || gameState === "intro" || gameState === "escMenu") { 
+            if (gameState === "charCreation" || gameState === "npcMenu") { 
                 requestAnimationFrame(gameLoop); return; 
             }
 
@@ -2632,7 +2556,7 @@
         gameLoop();
         // [MOD-019-END]
         
-      // [MOD-021: 유틸리티 및 툴팁 시스템]
+        // [MOD-021: 유틸리티 및 툴팁 시스템]
         let tooltipTimer = null;
         let tooltipVisible = false;
         const tooltipEl = document.createElement("div");
@@ -2653,11 +2577,7 @@
             if (!tooltipVisible) return;
             let x = e.type.includes("touch") ? e.touches[0].clientX : e.clientX;
             let y = e.type.includes("touch") ? e.touches[0].clientY : e.clientY;
-            
-            // [수정] 툴팁이 화면 우측이나 하단으로 뚫고 나가지 않도록 X축, Y축 모두 든든하게 방어합니다.
-            if (x + 180 > window.innerWidth) x -= 180; 
-            if (y + 150 > window.innerHeight) y -= 150; 
-            
+            if (y + 150 > window.innerHeight) y -= 150; // 화면 우측 밖으로 나가지 않도록 조정
             tooltipEl.style.left = (x + 15) + "px";
             tooltipEl.style.top = (y + 15) + "px";
         }
