@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>리퀘 (Re-Quest) v0.2.5.1008.18</title>
+    <title>리퀘 (Re-Quest) v0.2.5.1008.19</title>
     
     <style>
         /* [MOD-001: 기본 화면 및 컨테이너 스타일] */
@@ -1264,13 +1264,17 @@
         }
 
         window.addEventListener("keydown", (e) => {
-            // ★ [ESC 메뉴 연동] ESC 누르면 모바일 톱니바퀴와 동일한 명령 수행
             if (e.key === "Escape") {
                 if (typeof handleEscAction === "function") handleEscAction();
                 return;
             }
 
-            if (typeof isMenuOpen !== 'undefined' && isMenuOpen) return; // 메뉴 열림 시 조작 차단
+            if (typeof isMenuOpen !== 'undefined' && isMenuOpen) return; 
+
+            // ★ [버그 수정] 타이틀, 로그인, 인트로, 로비 중에는 E, F, R 등의 게임 조작키를 완전히 차단!
+            // (단, 여기서 이벤트를 막지 않고 return만 하므로 닉네임 입력칸에 타이핑하는 것은 정상 작동합니다)
+            const introStates = ["title", "login", "intro", "lobby", "npcMenu"];
+            if (introStates.includes(gameState)) return; 
 
             keys[e.key] = true;
             if (e.key.length === 1) keys[e.key.toLowerCase()] = true;
@@ -1281,7 +1285,7 @@
                 if (targetedFieldItem) pickupFieldItem(targetedFieldItem);
             }
 
-            if (e.key.toLowerCase() === 'e' && gameState !== "charCreation" && gameState !== "dead" && gameState !== "knockback") {
+            if (e.key.toLowerCase() === 'e' && gameState !== "dead" && gameState !== "knockback") {
                 if (gameState === "playing") {
                     gameState = "inventory";
                     document.getElementById("inventoryUI").style.display = "flex";
