@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>리퀘 (Re-Quest) v0.2.5.1008.11</title>
+    <title>리퀘 (Re-Quest) v0.2.5.1008.12</title>
     
     <style>
         /* [MOD-001: 기본 화면 및 컨테이너 스타일] */
@@ -1284,14 +1284,10 @@
         
         // [MOD-017: UI 제어 및 충돌(Collision) 유틸리티]
         
- // [MOD-017-1: 장비창 UI 업데이트, 인챈트 로직 및 스마트 알림 뱃지]
+ // [MOD-017-1: 장비창 UI 업데이트, 인챈트 로직 및 스마트 알림 뱃지 (스탯 패널 연동을 위한 터치 정리)]
         let currentRightView = 'inventory'; 
         let currentEnchantTargetSlot = null; 
         let pendingEnchant = null; 
-
-        // [신규] 더블 터치 감지용 전역 변수
-        let lastTapTime = 0;
-        let lastTapItemId = null;
 
         const SLOT_HINTS = {
             head: "머리", mainWeapon: "주무기", chest: "갑옷",
@@ -1375,7 +1371,6 @@
                 
                 let item = player.equipment[slot];
                 
-                el.onmouseenter = null; el.onmouseleave = null; el.onmousemove = null;
                 el.onmousedown = null; el.ontouchstart = null;
 
                 if(item) {
@@ -1383,34 +1378,12 @@
                     el.style.backgroundColor = baseItem.color;
                     el.innerHTML = `<span style="color:white; font-size:9px; font-weight:bold; pointer-events:none; text-align:center;">${baseItem.name}</span>`;
                     
-                    el.onmouseenter = (e) => handleItemMouseEnter(e, item);
-                    el.onmouseleave = handleItemMouseLeave;
-                    el.onmousemove = handleItemMouseMove;
-                    
+                    // 더블 터치 및 기존 호버 로직 제거. 클릭/터치 시 즉시 드래그 및 패널 호출로 일원화
                     el.onmousedown = (e) => { 
-                        handleItemMouseLeave(); // 클릭 시 툴팁 타이머 즉시 암살
                         if (currentRightView !== 'enchant') startDragFromEquip(e, slot, item); 
                     };
                     
                     el.ontouchstart = (e) => { 
-                        // ★ [이슈 2 완벽 해결] 터치하는 순간 무조건 툴팁 예약 1초 타이머 즉시 암살!
-                        handleItemMouseLeave(); 
-
-                        let currentTime = Date.now();
-                        let itemId = item.id || item.uid;
-
-                        // ★ [이슈 1 완벽 해결] 0.3초 내에 두 번 터치(따닥!) 하면 툴팁 띄우기
-                        if (lastTapItemId === itemId && currentTime - lastTapTime < 300) {
-                            lastTapTime = 0;
-                            showTooltip(e, item);
-                            e.preventDefault(); 
-                            return; // 여기서 함수를 끝내서 드래그나 클릭을 막음
-                        }
-                        
-                        lastTapTime = currentTime;
-                        lastTapItemId = itemId;
-
-                        // 인챈트 모드가 아닐 때만 드래그 시작 (인챈트 모드면 기본 클릭 이벤트 발동)
                         if (currentRightView !== 'enchant') {
                             e.preventDefault(); 
                             startDragFromEquip(e, slot, item); 
@@ -2348,24 +2321,97 @@
         }
         // [MOD-020-6-END]
 
-       // [MOD-020-7: 드래그 앤 드롭 (크로스 보드 호환, 장비 탈착, 올바른 슬롯 녹색 피드백 및 필드 버리기 지원)]
+       // [MOD-020-7: 드래그 앤 드롭 및 스마트 스탯 패널(카멜레온 스위칭) 지원]
+
+        // ★ [신규] 드래그 중 표시될 스탯 패널 DOM 요소 생성 및 스타일링
+        const dragStatsPanel = document.createElement("div");
+        dragStatsPanel.id = "dragStatsPanel";
+        dragStatsPanel.style.position = "absolute";
+        dragStatsPanel.style.display = "none";
+        dragStatsPanel.style.backgroundColor = "rgba(10, 10, 15, 0.95)";
+        dragStatsPanel.style.border = "2px solid #555";
+        dragStatsPanel.style.borderRadius = "6px";
+        dragStatsPanel.style.padding = "10px";
+        dragStatsPanel.style.boxSizing = "border-box";
+        dragStatsPanel.style.color = "white";
+        dragStatsPanel.style.zIndex = "50";
+        dragStatsPanel.style.pointerEvents = "none"; // 터치/마우스 방해 금지
+        dragStatsPanel.style.boxShadow = "0 5px 20px rgba(0,0,0,0.8)";
+        dragStatsPanel.style.flexDirection = "column";
+        dragStatsPanel.style.justifyContent = "flex-start";
+
+        // 스탯 패널 정보 업데이트 및 화면 출력 함수
+        function showDragStatsPanel(itemObj, source) {
+            const baseItem = ITEM_DB[itemObj.baseId];
+            if (!baseItem) return;
+
+            let titleHtml = baseItem.name;
+            let typeKor = baseItem.type === "equip" ? `[장비 - ${SLOT_HINTS[baseItem.equipSlot] || baseItem.equipSlot}]` : (baseItem.type === "enchant" ? "[인챈트 두루마리]" : `[${baseItem.type}]`);
+            
+            let statHtml = "";
+            if(baseItem.stats) {
+                for(let k in baseItem.stats) statHtml += `<div>${k.toUpperCase()}: +${baseItem.stats[k]}</div>`;
+            } else {
+                statHtml = `<div style="color:gray; font-weight:normal; font-size: 11px;">능력치 없음</div>`;
+            }
+
+            let enchantHtml = "";
+            if (itemObj.sockets) {
+                let enchants = itemObj.sockets.filter(s => s !== null);
+                if (enchants.length > 0) {
+                    enchants.forEach(sId => {
+                        enchantHtml += `<div style="color:#ff4444; font-size:11px;">- ${ITEM_DB[sId].enchantEffect.name}</div>`;
+                    });
+                } else {
+                    enchantHtml = `<div style="color:gray; font-size:10px;">빈 소켓 ${itemObj.sockets.length}개</div>`;
+                }
+            }
+
+            dragStatsPanel.innerHTML = `
+                <div style="font-weight: bold; font-size: 14px; color: gold; margin-bottom: 5px; text-align: center;">${titleHtml}</div>
+                <div style="color: #888; font-size: 11px; margin-bottom: 8px; text-align: center; border-bottom: 1px solid #333; padding-bottom: 5px;">${typeKor}</div>
+                <div style="color: #00ffcc; font-weight: bold; font-size: 12px; margin-bottom: 5px; text-align: center; line-height: 1.4;">${statHtml}</div>
+                ${itemObj.sockets ? `<div style="margin-top: auto; border-top: 1px dashed #555; padding-top: 5px; text-align: center;">
+                    <div style="color: #ff8800; font-weight: bold; font-size: 11px; margin-bottom: 3px;">[인챈트]</div>
+                    ${enchantHtml}
+                </div>` : ''}
+            `;
+
+            // [핵심] 출처에 따른 가변 위치 적용 (카멜레온 스위칭)
+            if (source === "inventory" || source === "equipment") {
+                const statSection = document.getElementById("statSection");
+                if(statSection) {
+                    dragStatsPanel.style.width = "100%";
+                    dragStatsPanel.style.height = "100%";
+                    dragStatsPanel.style.top = "0";
+                    dragStatsPanel.style.left = "0";
+                    dragStatsPanel.style.transform = "none";
+                    statSection.appendChild(dragStatsPanel);
+                }
+            } else if (source === "storage") {
+                const storagePanel = document.getElementById("storagePanel");
+                if(storagePanel) {
+                    dragStatsPanel.style.width = "150px";
+                    dragStatsPanel.style.height = "205px";
+                    dragStatsPanel.style.top = "50%";
+                    dragStatsPanel.style.left = "50%";
+                    dragStatsPanel.style.transform = "translate(-50%, -50%)"; // 창고 화면 정중앙 덮기
+                    storagePanel.appendChild(dragStatsPanel);
+                }
+            }
+            dragStatsPanel.style.display = "flex";
+        }
+
+        function hideDragStatsPanel() {
+            dragStatsPanel.style.display = "none";
+            if (dragStatsPanel.parentElement) {
+                dragStatsPanel.parentElement.removeChild(dragStatsPanel);
+            }
+        }
+
+        // --- 드래그 로직 ---
         function startDrag(e, itemObj, htmlEl, sourceName) {
             if (e.type === "mousedown" && e.button !== 0) return; 
-            handleItemMouseLeave(); // 터치/클릭 즉시 툴팁 타이머 암살
-
-            // ★ [가방 내 아이템 더블 터치(따닥) 판정]
-            if (e.type.includes("touch")) {
-                let currentTime = Date.now();
-                let itemId = itemObj.id || itemObj.uid;
-                if (lastTapItemId === itemId && currentTime - lastTapTime < 300) {
-                    lastTapTime = 0;
-                    showTooltip(e, itemObj);
-                    e.preventDefault();
-                    return; // 드래그 취소!
-                }
-                lastTapTime = currentTime;
-                lastTapItemId = itemId;
-            }
 
             dragItemState.active = true;
             dragItemState.itemRef = itemObj;
@@ -2418,11 +2464,11 @@
             document.addEventListener("touchend", onDragEnd);
             
             updateDragGhost(); 
+            showDragStatsPanel(itemObj, sourceName); // ★ 패널 호출
         }
 
         function startDragFromEquip(e, slotName, itemObj) {
             if (e.type === "mousedown" && e.button !== 0) return; 
-            handleItemMouseLeave();
 
             dragItemState.active = true;
             dragItemState.itemRef = itemObj;
@@ -2461,6 +2507,7 @@
             document.addEventListener("touchend", onDragEnd);
             
             updateDragGhost(); 
+            showDragStatsPanel(itemObj, "equipment"); // ★ 패널 호출
         }
 
         function createGhostDOMForItem(itemObj) {
@@ -2620,6 +2667,8 @@
             document.removeEventListener("mouseup", onDragEnd);
             document.removeEventListener("touchmove", onDragMove);
             document.removeEventListener("touchend", onDragEnd);
+
+            hideDragStatsPanel(); // ★ 드래그가 끝나면 스탯 패널 즉시 숨김
 
             let isEquipped = false;
             let sourceArray = dragItemState.source === "storage" ? personalStorage : myInventoryItems;
