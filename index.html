@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>리퀘 (Re-Quest) v0.2.5.1008.10</title>
+    <title>리퀘 (Re-Quest) v0.2.5.1008.11</title>
     
     <style>
         /* [MOD-001: 기본 화면 및 컨테이너 스타일] */
@@ -1284,26 +1284,24 @@
         
         // [MOD-017: UI 제어 및 충돌(Collision) 유틸리티]
         
- // [MOD-017-1: 장비창 UI 업데이트, 인챈트 로직 및 스마트 알림 뱃지 (동적 스케일링 최대치 해제 및 터치 충돌 방지)]
+ // [MOD-017-1: 장비창 UI 업데이트, 인챈트 로직 및 스마트 알림 뱃지]
         let currentRightView = 'inventory'; 
         let currentEnchantTargetSlot = null; 
-        let pendingEnchant = null; // 확정 대기 중인 인챈트 정보 보관
+        let pendingEnchant = null; 
 
-        // 각 장비 슬롯별 고유 기본 안내 텍스트 기준표 (장비 해제 시 복구용)
+        // [신규] 더블 터치 감지용 전역 변수
+        let lastTapTime = 0;
+        let lastTapItemId = null;
+
         const SLOT_HINTS = {
-            head: "머리",
-            mainWeapon: "주무기",
-            chest: "갑옷",
-            subWeapon: "부무기",
-            shoes: "신발",
-            throwable: "" // 투척칸은 CSS로 표시되므로 비워둠
+            head: "머리", mainWeapon: "주무기", chest: "갑옷",
+            subWeapon: "부무기", shoes: "신발", throwable: "" 
         };
 
-        // 인챈트 등록 상태를 초기화하는 함수
         function clearEnchantRegistration() {
             if (!currentEnchantTargetSlot) return; 
             currentEnchantTargetSlot = null;
-            pendingEnchant = null; // 장비를 해제하면 대기 중이던 인챈트도 초기화
+            pendingEnchant = null; 
             
             const content = document.getElementById("enchantContent");
             const targetSlotHint = document.getElementById("enchantTargetHint");
@@ -1319,7 +1317,6 @@
             updateNotiBadges(); 
         }
 
-        // 인챈트 등록 슬롯 클릭 이벤트 연결
         setTimeout(() => {
             const targetSlot = document.getElementById("enchantTargetSlot");
             if (targetSlot) {
@@ -1328,7 +1325,6 @@
             }
         }, 500);
 
-        // 느낌표 알림 뱃지 갱신 함수
         function updateNotiBadges() {
             document.querySelectorAll('.noti-badge:not(.socket-badge)').forEach(e => e.remove());
 
@@ -1372,7 +1368,6 @@
             }
         }
 
-        // 장비 슬롯 렌더링 함수
         function renderEquipSlotsUI() {
             for(let slot in player.equipment) {
                 let el = document.querySelector(`.slot-${slot}, [data-slot="${slot}"]`);
@@ -1392,11 +1387,30 @@
                     el.onmouseleave = handleItemMouseLeave;
                     el.onmousemove = handleItemMouseMove;
                     
-                    // ★ [핵심 수정] 인챈트 창이 켜져있을 땐 드래그 로직을 완전히 무시하도록 조건문 추가!
                     el.onmousedown = (e) => { 
+                        handleItemMouseLeave(); // 클릭 시 툴팁 타이머 즉시 암살
                         if (currentRightView !== 'enchant') startDragFromEquip(e, slot, item); 
                     };
+                    
                     el.ontouchstart = (e) => { 
+                        // ★ [이슈 2 완벽 해결] 터치하는 순간 무조건 툴팁 예약 1초 타이머 즉시 암살!
+                        handleItemMouseLeave(); 
+
+                        let currentTime = Date.now();
+                        let itemId = item.id || item.uid;
+
+                        // ★ [이슈 1 완벽 해결] 0.3초 내에 두 번 터치(따닥!) 하면 툴팁 띄우기
+                        if (lastTapItemId === itemId && currentTime - lastTapTime < 300) {
+                            lastTapTime = 0;
+                            showTooltip(e, item);
+                            e.preventDefault(); 
+                            return; // 여기서 함수를 끝내서 드래그나 클릭을 막음
+                        }
+                        
+                        lastTapTime = currentTime;
+                        lastTapItemId = itemId;
+
+                        // 인챈트 모드가 아닐 때만 드래그 시작 (인챈트 모드면 기본 클릭 이벤트 발동)
                         if (currentRightView !== 'enchant') {
                             e.preventDefault(); 
                             startDragFromEquip(e, slot, item); 
@@ -1411,7 +1425,6 @@
             setTimeout(updateNotiBadges, 10);
         }
 
-        // 착용 장비 및 인챈트 수치를 합산하여 스탯 갱신
         function updatePlayerTotalStats() {
             for(let key in player.baseStats) player.stats[key] = player.baseStats[key];
 
@@ -1436,7 +1449,6 @@
             if (typeof drawRadarChart === "function") drawRadarChart("infoRadarCanvas");
         }
 
-        // 우측 패널(인벤토리 <-> 인챈트) 전환 함수
         function toggleRightPanelView() {
             const btn = document.getElementById("modeSwitchBtn");
             const viewInv = document.getElementById("viewInventory");
@@ -1456,10 +1468,9 @@
                 if (typeof renderGridInventory === "function") renderGridInventory();
             }
             updateNotiBadges();
-            autoScaleInventory(); // [스케일링 연동] 창이 늘어나고 줄어드므로 즉각 배율 재계산!
+            autoScaleInventory(); 
         }
 
-        // 인챈트를 위해 장비 슬롯을 선택했을 때 실행되는 함수
         function selectEquipSlotForEnchant(slotNameKOR, slotKey) {
             if (currentRightView !== 'enchant') return;
             
@@ -1539,7 +1550,6 @@
             setTimeout(updateNotiBadges, 10); 
         }
 
-        // 인챈트 선택 팝업창 열기
         function openEnchantPopup(slotKey, socketIndex) {
             let allScrolls = [...myInventoryItems];
             if (gameState === "storage") {
@@ -1568,7 +1578,6 @@
             popup.style.display = 'flex';
         }
 
-        // 인챈트 임시 적용(대기) 단계
         function stageEnchant(slotKey, socketIndex, scrollId) {
             pendingEnchant = { slotKey, socketIndex, scrollId };
             document.getElementById('enchantPopupUI').style.display = 'none';
@@ -1576,7 +1585,6 @@
             selectEquipSlotForEnchant(slotNameKOR, slotKey); 
         }
 
-        // 인챈트 최종 확정 및 스크롤 소모
         function confirmPendingEnchant() {
             if(!pendingEnchant) return;
             let slotKey = pendingEnchant.slotKey;
@@ -1608,13 +1616,11 @@
             selectEquipSlotForEnchant(slotNameKOR, slotKey); 
         }
 
-        // 인챈트 취소
         function cancelPendingEnchant(slotNameKOR, slotKey) {
             pendingEnchant = null;
             selectEquipSlotForEnchant(slotNameKOR, slotKey);
         }
 
-        // 통합 인벤토리 UI 닫기
         function closeUI() {
             gameState = "playing";
             document.getElementById("inventoryUI").style.display = "none";
@@ -1629,38 +1635,30 @@
             if(vpad) vpad.style.display = "block"; 
         }
         
-        // ★ [동적 스케일링 핵심 엔진] 화면 해상도에 맞춰 UI 비율을 쥐락펴락함
         function autoScaleInventory() {
             const container = document.querySelector('.inv-container');
             if (!container) return;
 
-            // 1. 상황별 '진짜 요구 너비(Base Width)' 판단
-            let baseW = 520; // 가방만 열렸을 때
+            let baseW = 520; 
             if (currentRightView === 'enchant' || gameState === 'storage') {
-                baseW = 860; // 추가 패널 열렸을 때
+                baseW = 860; 
             }
-            const baseH = 450; // 기본 요구 높이
+            const baseH = 450; 
 
-            // 2. 화면 가로세로 대비 여백 10%(0.9)를 포함한 최적 비율 계산
             const scaleX = (window.innerWidth * 0.9) / baseW;
             const scaleY = (window.innerHeight * 0.9) / baseH;
-            
-            // 3. 더 작은 비율 채택
             let scale = Math.min(scaleX, scaleY);
-            
-            // 4. PC 전체화면을 위해 스케일링 상한선을 1.1에서 1.8배로 대폭 상향
             scale = Math.max(0.5, Math.min(scale, 1.8));
             
             container.style.transform = `scale(${scale})`;
         }
         window.addEventListener('resize', autoScaleInventory);
 
-        // UI 탭 및 인벤토리 강제 갱신
         function switchTab(tabId) {
             renderEquipSlotsUI(); 
             if (typeof renderGridInventory === "function") renderGridInventory();
             updatePlayerTotalStats(); 
-            autoScaleInventory(); // 창을 열 때 즉시 화면 핏(Fit) 검사
+            autoScaleInventory(); 
         }
         // [MOD-017-1-END]
         
@@ -2350,10 +2348,24 @@
         }
         // [MOD-020-6-END]
 
-        // [MOD-020-7: 드래그 앤 드롭 (크로스 보드 호환, 장비 탈착, 올바른 슬롯 녹색 피드백 및 필드 버리기 지원)]
+       // [MOD-020-7: 드래그 앤 드롭 (크로스 보드 호환, 장비 탈착, 올바른 슬롯 녹색 피드백 및 필드 버리기 지원)]
         function startDrag(e, itemObj, htmlEl, sourceName) {
             if (e.type === "mousedown" && e.button !== 0) return; 
-            handleItemMouseLeave();
+            handleItemMouseLeave(); // 터치/클릭 즉시 툴팁 타이머 암살
+
+            // ★ [가방 내 아이템 더블 터치(따닥) 판정]
+            if (e.type.includes("touch")) {
+                let currentTime = Date.now();
+                let itemId = itemObj.id || itemObj.uid;
+                if (lastTapItemId === itemId && currentTime - lastTapTime < 300) {
+                    lastTapTime = 0;
+                    showTooltip(e, itemObj);
+                    e.preventDefault();
+                    return; // 드래그 취소!
+                }
+                lastTapTime = currentTime;
+                lastTapItemId = itemId;
+            }
 
             dragItemState.active = true;
             dragItemState.itemRef = itemObj;
@@ -2574,7 +2586,6 @@
                 dragItemState.ghostEl.style.top = localY + "px";
             }
 
-            // 슬롯 호버 판정
             dragItemState.hoveredEquipSlot = null; 
             const ghostRect = dragItemState.ghostEl.getBoundingClientRect();
             const baseItem = ITEM_DB[dragItemState.itemRef.baseId];
@@ -2595,7 +2606,6 @@
                 }
             });
 
-            // 색상 판정: 가방/창고 빈자리 or 알맞은 장비 슬롯 위면 초록색
             const isAcceptable = dragItemState.isValid || (dragItemState.hoveredEquipSlot !== null);
             let blocks = dragItemState.ghostEl.querySelectorAll('.grid-item-block');
             blocks.forEach(b => {
@@ -2614,7 +2624,6 @@
             let isEquipped = false;
             let sourceArray = dragItemState.source === "storage" ? personalStorage : myInventoryItems;
 
-            // [판정 1] 장비 슬롯 장착 또는 오토 스왑
             if (dragItemState.hoveredEquipSlot) {
                 let targetSlotName = dragItemState.hoveredEquipSlot.getAttribute('data-slot');
                 let baseItem = ITEM_DB[dragItemState.itemRef.baseId];
@@ -2666,10 +2675,8 @@
                 s.style.boxShadow = ""; s.style.borderColor = ""; s.style.transform = "scale(1.0)";
             });
 
-            // [판정 2] 장착되지 않은 경우: 보관 배치 vs 필드 버리기 vs 롤백
             if (!isEquipped) {
                 if (dragItemState.isValid && dragItemState.targetBoard) {
-                    // 가방이나 창고 안쪽 유효 공간에 내려놓은 경우
                     let targetArray = dragItemState.targetBoard === "storage" ? personalStorage : myInventoryItems;
                     
                     if (dragItemState.source === "equipment") {
@@ -2682,7 +2689,6 @@
                     dragItemState.itemRef.gridX = dragItemState.currentGridX;
                     dragItemState.itemRef.gridY = dragItemState.currentGridY;
                 } else {
-                    // [핵심: 인벤토리 UI 밖으로 완전히 던졌는지 검사]
                     const invContainer = document.getElementById("invMainContainer");
                     const invRect = invContainer ? invContainer.getBoundingClientRect() : null;
                     const isOutsideUI = invRect && (
@@ -2693,7 +2699,6 @@
                     );
 
                     if (isOutsideUI) {
-                        // ★ [필드 버리기 확정]: 플레이어 발밑 주변에 흩뿌려짐
                         const dropDist = 35;
                         const dropAngle = Math.random() * Math.PI * 2;
                         let dropX = Math.max(50, Math.min(WORLD_WIDTH - 50, player.x + Math.cos(dropAngle) * dropDist));
@@ -2706,11 +2711,10 @@
                             sockets: dragItemState.itemRef.sockets ? [...dragItemState.itemRef.sockets] : null,
                             x: dropX,
                             y: dropY,
-                            pickupDelay: 60, // 버린 직후 1초간 바로 주워짐 방지
+                            pickupDelay: 60, 
                             errorFlashTimer: 0
                         });
 
-                        // 소속 목록에서 완전히 제거
                         if (dragItemState.source === "inventory") {
                             let idx = myInventoryItems.findIndex(i => (i.id || i.uid) === (dragItemState.itemRef.id || dragItemState.itemRef.uid));
                             if (idx > -1) myInventoryItems.splice(idx, 1);
@@ -2722,7 +2726,6 @@
                             renderEquipSlotsUI();
                         }
                     } else {
-                        // UI 박스 안쪽의 빈 공간(스탯창 등)에 잘못 내려놓은 경우: 원래 위치로 안전 롤백
                         if (dragItemState.source === "equipment") {
                             player.equipment[dragItemState.sourceSlot] = dragItemState.itemRef;
                             updatePlayerTotalStats();
@@ -2756,10 +2759,18 @@
         tooltipEl.className = "item-tooltip";
         document.body.appendChild(tooltipEl);
 
+        // ★ [신규] 화면 아무 곳이나 터치하면 켜져 있던 툴팁 닫기
+        document.addEventListener("touchstart", (e) => {
+            if (tooltipVisible && !tooltipEl.contains(e.target)) {
+                handleItemMouseLeave();
+            }
+        });
+
         function handleItemMouseEnter(e, itemObj) {
             if (dragItemState.active) return;
             clearTimeout(tooltipTimer);
-            tooltipTimer = setTimeout(() => showTooltip(e, itemObj), 1000); // 1초 대기 후 툴팁 표시
+            // PC용 1초 대기 툴팁 (모바일에서는 터치 시 즉시 암살되므로 작동안함)
+            tooltipTimer = setTimeout(() => showTooltip(e, itemObj), 1000); 
         }
         function handleItemMouseLeave() {
             clearTimeout(tooltipTimer);
@@ -2770,7 +2781,10 @@
             if (!tooltipVisible) return;
             let x = e.type.includes("touch") ? e.touches[0].clientX : e.clientX;
             let y = e.type.includes("touch") ? e.touches[0].clientY : e.clientY;
-            if (y + 150 > window.innerHeight) y -= 150; // 화면 우측 밖으로 나가지 않도록 조정
+            
+            if (x + 180 > window.innerWidth) x -= 180; 
+            if (y + 150 > window.innerHeight) y -= 150; 
+            
             tooltipEl.style.left = (x + 15) + "px";
             tooltipEl.style.top = (y + 15) + "px";
         }
@@ -2813,7 +2827,6 @@
             handleItemMouseMove(e);
         }
 
-        // --- 오토 스왑을 위한 빈 공간 탐색 헬퍼 함수 ---
         function canPlaceItem(itemObj, gridX, gridY, map) {
             const baseItem = ITEM_DB[itemObj.baseId];
             const shape = getRotatedShape(baseItem.shape, itemObj.rot);
