@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>리퀘 (Re-Quest) v0.2.5.1008.14</title>
+    <title>리퀘 (Re-Quest) v0.2.5.1008.15</title>
     
     <style>
         /* [MOD-001: 기본 화면 및 컨테이너 스타일] */
@@ -1042,8 +1042,7 @@
         setTimeout(updateQuickSlotUI, 100); // 로드 시 UI 강제 갱신
         // [MOD-015-END]
         
-        // [MOD-016: 입력 이벤트 리스너]
-        
+       // [MOD-016: 입력 이벤트 리스너]
         function pickupFieldItem(targetItem) {
             if (!targetItem || targetItem.pickupDelay > 0) return;
             let freePos = findFreeSpace(targetItem, gridMap);
@@ -1075,19 +1074,13 @@
         }
 
         window.addEventListener("keydown", (e) => {
-            // [신규] ESC 메뉴 호출 및 스마트 닫기 로직
+            // ★ [ESC 메뉴 연동] ESC 누르면 모바일 톱니바퀴와 동일한 명령 수행
             if (e.key === "Escape") {
-                if (typeof isMenuOpen !== 'undefined' && isMenuOpen) {
-                    toggleSystemMenu(); // 1. 메뉴가 열려있으면 메뉴 닫기
-                } else if (gameState === "inventory" || gameState === "storage") {
-                    if (typeof closeUI === "function") closeUI(); // 2. 가방/창고가 열려있으면 가방 닫기
-                } else if (gameState === "playing") {
-                    toggleSystemMenu(); // 3. 평상시면 메뉴 열기
-                }
+                if (typeof handleEscAction === "function") handleEscAction();
                 return;
             }
 
-            if (typeof isMenuOpen !== 'undefined' && isMenuOpen) return; // 메뉴 열렸을 때 조작 차단
+            if (typeof isMenuOpen !== 'undefined' && isMenuOpen) return; // 메뉴 열림 시 조작 차단
 
             keys[e.key] = true;
             if (e.key.length === 1) keys[e.key.toLowerCase()] = true;
@@ -1148,7 +1141,7 @@
         }
 
         canvas.addEventListener("mousedown", (e) => {
-            if (typeof isMenuOpen !== 'undefined' && isMenuOpen) return; // 메뉴 창 열림 방어막
+            if (typeof isMenuOpen !== 'undefined' && isMenuOpen) return; 
             if (gameState !== "playing") return;
 
             let wMouseX = mouseX + camera.x;
@@ -1209,7 +1202,7 @@
             let startX = 0, startY = 0;
 
             window.addEventListener("touchstart", (e) => {
-                if (typeof isMenuOpen !== 'undefined' && isMenuOpen) return; // 메뉴 열림 방어
+                if (typeof isMenuOpen !== 'undefined' && isMenuOpen) return; 
                 for (let i = 0; i < e.changedTouches.length; i++) {
                     let t = e.changedTouches[i];
                     if (t.clientX < window.innerWidth / 2 && touchId === null) {
@@ -1228,7 +1221,7 @@
             }, { passive: false });
 
             window.addEventListener("touchmove", (e) => {
-                if (typeof isMenuOpen !== 'undefined' && isMenuOpen) return; // 메뉴 열림 방어
+                if (typeof isMenuOpen !== 'undefined' && isMenuOpen) return; 
                 for (let i = 0; i < e.changedTouches.length; i++) {
                     let t = e.changedTouches[i];
                     if (t.identifier === touchId) {
@@ -1680,18 +1673,16 @@
             
             const activeSkill = typeof getActiveQuickSlotSkill === "function" ? getActiveQuickSlotSkill() : null;
 
-            // 스킬 쿨타임 감소
             for (let sId in player.skillCooldowns) {
                 if (player.skillCooldowns[sId] > 0) player.skillCooldowns[sId]--;
             }
 
-            // === [필드 아이템 타이머 차감 및 스마트 타겟팅 계산] ===
             if (gameState === "playing") {
                 let wMouseX = mouseX + camera.x;
                 let wMouseY = mouseY + camera.y;
                 let minScore = Infinity;
                 let bestTarget = null;
-                const PICKUP_RADIUS = 105; // 크기 확대에 맞춰 유효 습득 사거리 소폭 상향
+                const PICKUP_RADIUS = 105; 
 
                 for (let i = 0; i < fieldItems.length; i++) {
                     let fItem = fieldItems[i];
@@ -1702,7 +1693,6 @@
                     
                     if (distToPlayer <= PICKUP_RADIUS) {
                         let distToMouse = Math.hypot(fItem.x - wMouseX, fItem.y - wMouseY);
-                        // 커진 아이템 크기에 맞춰 마우스 조준 판정 반경 45px로 확장
                         let score = distToMouse < 45 ? distToMouse : distToPlayer + 100;
                         if (score < minScore) {
                             minScore = score;
@@ -1713,7 +1703,6 @@
                 targetedFieldItem = bestTarget;
             }
 
-            // === [플레이어 및 전투 업데이트 영역] ===
             if (gameState === "playing") {
                 let nextX = player.x;
                 let nextY = player.y;
@@ -1896,10 +1885,10 @@
                 }
             }
 
-            // === [필드 아이템 렌더링 (확대된 18px 크기 및 좌측 테트리스 그림자)] ===
-            const FIELD_CELL_SIZE = 18; // [수정] 12px -> 18px로 크기 확대!
-            const SHADOW_OFFSET_X = -5; // [수정] 커진 크기에 맞춰 그림자 X 오프셋 -5px
-            const SHADOW_OFFSET_Y = 3;  // [수정] 커진 크기에 맞춰 그림자 Y 오프셋 +3px
+            // 필드 아이템 렌더링
+            const FIELD_CELL_SIZE = 18; 
+            const SHADOW_OFFSET_X = -5; 
+            const SHADOW_OFFSET_Y = 3;  
 
             fieldItems.forEach(fItem => {
                 const baseItem = ITEM_DB[fItem.baseId];
@@ -1914,7 +1903,6 @@
                 const isTarget = (fItem === targetedFieldItem);
                 const isError = (fItem.errorFlashTimer > 0);
 
-                // 1) [형태 일치 그림자] 아이템 모양 그대로 좌측에 렌더링
                 ctx.fillStyle = "rgba(0, 0, 0, 0.35)";
                 for(let r = 0; r < h; r++) {
                     for(let c = 0; c < w; c++) {
@@ -1926,7 +1914,6 @@
                     }
                 }
 
-                // 2) 실제 테트리스 블록 본체 그리기
                 for(let r = 0; r < h; r++) {
                     for(let c = 0; c < w; c++) {
                         if (shape[r][c] === 1) {
@@ -1936,35 +1923,27 @@
                             ctx.fillStyle = baseItem.color;
                             ctx.fillRect(bx, by, FIELD_CELL_SIZE, FIELD_CELL_SIZE);
 
-                            // 테두리 피드백: 가방 부족 시 빨간색 점멸 / 타겟 시 노란색 강조 / 평상시 옅은 테두리
                             if (isError) {
-                                ctx.strokeStyle = "#ff2222";
-                                ctx.lineWidth = 2.5;
+                                ctx.strokeStyle = "#ff2222"; ctx.lineWidth = 2.5;
                             } else if (isTarget) {
-                                ctx.strokeStyle = "#ffd700";
-                                ctx.lineWidth = 2.5;
+                                ctx.strokeStyle = "#ffd700"; ctx.lineWidth = 2.5;
                             } else {
-                                ctx.strokeStyle = "rgba(255, 255, 255, 0.4)";
-                                ctx.lineWidth = 1;
+                                ctx.strokeStyle = "rgba(255, 255, 255, 0.4)"; ctx.lineWidth = 1;
                             }
                             ctx.strokeRect(bx, by, FIELD_CELL_SIZE, FIELD_CELL_SIZE);
                         }
                     }
                 }
 
-                // 머리 위 이름표 텍스트
                 ctx.save();
                 ctx.font = isTarget ? "bold 12px sans-serif" : "11px sans-serif";
-                ctx.textAlign = "center";
-                ctx.textBaseline = "bottom";
+                ctx.textAlign = "center"; ctx.textBaseline = "bottom";
                 ctx.fillStyle = isError ? "#ff4444" : (isTarget ? "#ffe066" : "rgba(255, 255, 255, 0.85)");
-                ctx.shadowColor = "black";
-                ctx.shadowBlur = 3;
+                ctx.shadowColor = "black"; ctx.shadowBlur = 3;
                 ctx.fillText(baseItem.name, fItem.x, startY - 3);
                 ctx.restore();
             });
 
-            // 이펙트 렌더링
             for (let i = visualEffects.length - 1; i >= 0; i--) {
                 let eff = visualEffects[i];
                 ctx.save(); ctx.beginPath(); ctx.arc(eff.x, eff.y, eff.radius, 0, Math.PI * 2);
@@ -2086,10 +2065,7 @@
             ctx.fillStyle = "limegreen"; ctx.fillRect(hudX + 15, currentBarY, barW * (player.exp / player.maxExp), barH - 2);
             ctx.fillStyle = "black"; ctx.fillText(`EXP: ${Math.floor(player.exp)}/${player.maxExp}`, hudX + 20, currentBarY - 2);
 
-            ctx.fillStyle = "rgba(0, 0, 0, 0.7)"; ctx.fillRect(canvas.width - 220, 10, 210, 36);
-            ctx.font = "bold 13px sans-serif"; ctx.textAlign = "left"; ctx.textBaseline = "middle";
-            ctx.fillStyle = quest.active && quest.current >= quest.target ? "gold" : "white";
-            ctx.fillText(quest.active ? `퀘스트: 고블린 (${quest.current}/${quest.target})` : "진행중인 퀘스트 없음", canvas.width - 210, 28);
+            // [퀘스트 UI 삭제됨]
 
             requestAnimationFrame(gameLoop);
         }
@@ -2902,10 +2878,51 @@
         }
         // [MOD-021-END]
 
-        // [MOD-022: ESC 메뉴 및 시스템 UI (동적 렌더링 방식)]
+        // [MOD-022: 모바일 톱니바퀴 버튼 및 시스템 메뉴 구현]
         let isMenuOpen = false;
 
-        // 1. 메뉴 UI 동적 생성 및 바디(Body)에 덧씌우기
+        // 1. 공통 ESC / 뒤로가기 중앙 관제탑
+        function handleEscAction() {
+            if (typeof isMenuOpen !== 'undefined' && isMenuOpen) {
+                toggleSystemMenu(); // 메뉴가 열려있으면 닫기
+            } else if (gameState === "inventory" || gameState === "storage") {
+                if (typeof closeUI === "function") closeUI(); // 가방/창고가 열려있으면 닫기
+            } else if (gameState === "playing") {
+                toggleSystemMenu(); // 평상시면 메뉴 열기
+            }
+        }
+
+        // 2. 모바일 전용 톱니바퀴 버튼 생성 및 바디에 부착
+        const mobileMenuBtn = document.createElement("div");
+        mobileMenuBtn.id = "mobileMenuBtn";
+        mobileMenuBtn.innerHTML = "⚙️"; 
+        mobileMenuBtn.style.cssText = "position: fixed; top: 15px; right: 15px; width: 45px; height: 45px; background: rgba(0,0,0,0.7); border: 2px solid #666; border-radius: 8px; color: white; font-size: 24px; display: none; justify-content: center; align-items: center; z-index: 2500; cursor: pointer; user-select: none; box-shadow: 0 4px 10px rgba(0,0,0,0.5); transition: background 0.1s;";
+        document.body.appendChild(mobileMenuBtn);
+
+        // 버튼 터치 액션 (터치 시 살짝 밝아지는 피드백 추가)
+        mobileMenuBtn.addEventListener("touchstart", (e) => {
+            e.preventDefault();
+            mobileMenuBtn.style.background = "rgba(100,100,100,0.9)";
+            setTimeout(() => { mobileMenuBtn.style.background = "rgba(0,0,0,0.7)"; }, 150);
+            handleEscAction();
+        });
+
+        // 3. 모바일 터치 기기에서만 버튼이 보이게 만드는 마법의 CSS 주입
+        const sysStyle = document.createElement("style");
+        sysStyle.innerHTML = `
+            @media (pointer: coarse) { 
+                #mobileMenuBtn { display: flex !important; } /* 터치스크린 감지 시 톱니바퀴 노출 */
+            }
+            .sys-btn {
+                background: #333; color: white; border: 1px solid #666; padding: 14px; border-radius: 6px;
+                font-size: 15px; font-weight: bold; cursor: pointer; transition: all 0.2s;
+            }
+            .sys-btn:hover { background: #555; border-color: white; transform: translateY(-2px); }
+            .sys-btn:active { transform: translateY(0px); }
+        `;
+        document.head.appendChild(sysStyle);
+
+        // 4. 시스템 메뉴(반투명 배경 및 팝업) 동적 생성
         const sysMenuOverlay = document.createElement("div");
         sysMenuOverlay.id = "sysMenuOverlay";
         sysMenuOverlay.style.cssText = "position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0, 0, 0, 0.75); z-index: 3000; display: none; justify-content: center; align-items: center; backdrop-filter: blur(2px);";
@@ -2928,19 +2945,7 @@
         `;
         document.body.appendChild(sysMenuOverlay);
 
-        // CSS 스타일용 주입
-        const sysStyle = document.createElement("style");
-        sysStyle.innerHTML = `
-            .sys-btn {
-                background: #333; color: white; border: 1px solid #666; padding: 14px; border-radius: 6px;
-                font-size: 15px; font-weight: bold; cursor: pointer; transition: all 0.2s;
-            }
-            .sys-btn:hover { background: #555; border-color: white; transform: translateY(-2px); }
-            .sys-btn:active { transform: translateY(0px); }
-        `;
-        document.head.appendChild(sysStyle);
-
-        // 2. 메뉴 팝업 기능 로직
+        // 5. 메뉴 로직 함수들
         function toggleSystemMenu() {
             isMenuOpen = !isMenuOpen;
             
@@ -2950,10 +2955,8 @@
                 document.getElementById("sysMenuSettings").style.display = "none";
                 document.getElementById("lobbyNoti").style.opacity = "0";
                 
-                // 키보드 이동 값 초기화 (달리던 중 ESC 누르면 쭉 미끄러지는 현상 방지)
-                keys = {}; 
+                keys = {}; // 조작 꼬임 방지 (미끄러짐 차단)
                 
-                // 전체화면 상태 텍스트 갱신 (창 모드 <-> 전체화면)
                 const btnFs = document.getElementById("btnFullscreen");
                 btnFs.innerText = document.fullscreenElement ? "창 모드" : "전체화면";
             } else {
@@ -2989,7 +2992,6 @@
             const noti = document.getElementById("lobbyNoti");
             noti.style.opacity = "1";
             clearTimeout(notiTimer);
-            // 2초 뒤에 메시지가 다시 스르륵 사라짐 (자연스러운 피드백)
             notiTimer = setTimeout(() => { noti.style.opacity = "0"; }, 2000);
         }
         // [MOD-022-END]
