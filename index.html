@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>리퀘 (Re-Quest) v0.2.5.1008.4</title>
+    <title>리퀘 (Re-Quest) v0.2.5.1008.5</title>
     
     <style>
         /* [MOD-001: 기본 화면 및 컨테이너 스타일] */
@@ -1663,7 +1663,7 @@
         }
         // [MOD-017-END]
 
-        // [MOD-018: 메인 게임 루프 (60프레임 반복 렌더링)]
+       // [MOD-018: 메인 게임 루프 (60프레임 반복 렌더링)]
         function gameLoop() {
             ctx.clearRect(0, 0, canvas.width, canvas.height);
 
@@ -1682,7 +1682,7 @@
                 if (player.skillCooldowns[sId] > 0) player.skillCooldowns[sId]--;
             }
 
-            // === [신규: 필드 아이템 타이머 차감 및 스마트 타겟팅 계산] ===
+            // === [필드 아이템 타이머 차감 및 스마트 타겟팅 계산] ===
             if (gameState === "playing") {
                 let wMouseX = mouseX + camera.x;
                 let wMouseY = mouseY + camera.y;
@@ -1697,10 +1697,8 @@
 
                     let distToPlayer = Math.hypot(fItem.x - pCenterX, fItem.y - pCenterY);
                     
-                    // 습득 사거리 안에 들어온 아이템만 검사
                     if (distToPlayer <= PICKUP_RADIUS) {
                         let distToMouse = Math.hypot(fItem.x - wMouseX, fItem.y - wMouseY);
-                        // 마우스 커서가 40px 안쪽으로 가까우면 마우스 우선, 아니면 플레이어 최단거리 우선
                         let score = distToMouse < 40 ? distToMouse : distToPlayer + 100;
                         if (score < minScore) {
                             minScore = score;
@@ -1708,10 +1706,10 @@
                         }
                     }
                 }
-                targetedFieldItem = bestTarget; // 현재 노란색 테두리를 켤 타겟 확정
+                targetedFieldItem = bestTarget;
             }
 
-            // === [업데이트 영역] ===
+            // === [플레이어 및 전투 업데이트 영역] ===
             if (gameState === "playing") {
                 let nextX = player.x;
                 let nextY = player.y;
@@ -1894,8 +1892,11 @@
                 }
             }
 
-            // === [신규: 필드 아이템 렌더링 (미니멀 테트리스 형태 및 스마트 하이라이트)] ===
+            // === [필드 아이템 렌더링 (형태 일치형 왼쪽 그림자 적용)] ===
             const FIELD_CELL_SIZE = 12; // 필드 위 1블록 크기 (12px)
+            const SHADOW_OFFSET_X = -4; // [그림자] 아이템 왼쪽으로 -4px 이동
+            const SHADOW_OFFSET_Y = 2;  // [그림자] 바닥 입체감을 위해 살짝 아래로 +2px
+
             fieldItems.forEach(fItem => {
                 const baseItem = ITEM_DB[fItem.baseId];
                 if (!baseItem) return;
@@ -1909,13 +1910,19 @@
                 const isTarget = (fItem === targetedFieldItem);
                 const isError = (fItem.errorFlashTimer > 0);
 
-                // 바닥 은은한 그림자
-                ctx.fillStyle = "rgba(0, 0, 0, 0.4)";
-                ctx.beginPath();
-                ctx.ellipse(fItem.x, fItem.y + itemPixelH / 2 + 2, itemPixelW / 2 + 3, 5, 0, 0, Math.PI * 2);
-                ctx.fill();
+                // 1) [형태 일치 그림자] 아이템 본체와 똑같은 블록 형태로 왼쪽 옆에 먼저 그리기
+                ctx.fillStyle = "rgba(0, 0, 0, 0.35)";
+                for(let r = 0; r < h; r++) {
+                    for(let c = 0; c < w; c++) {
+                        if (shape[r][c] === 1) {
+                            let shadowX = startX + c * FIELD_CELL_SIZE + SHADOW_OFFSET_X;
+                            let shadowY = startY + r * FIELD_CELL_SIZE + SHADOW_OFFSET_Y;
+                            ctx.fillRect(shadowX, shadowY, FIELD_CELL_SIZE, FIELD_CELL_SIZE);
+                        }
+                    }
+                }
 
-                // 테트리스 블록들 그리기
+                // 2) 실제 테트리스 블록들 그리기
                 for(let r = 0; r < h; r++) {
                     for(let c = 0; c < w; c++) {
                         if (shape[r][c] === 1) {
@@ -2050,7 +2057,8 @@
             // HUD
             const hudX = 10, hudY = 10, hudW = 210, hudH = 95;
             ctx.fillStyle = "rgba(0, 0, 0, 0.75)"; ctx.fillRect(hudX, hudY, hudW, hudH);
-            ctx.fillStyle = "white"; ctx.font = "bold 13px sans-serif"; ctx.textAlign = "left"; ctx.textBaseline = "top";
+            ctx.fillStyle = "white"; ctx.font = "bold 13px sans-serif";
+            ctx.textAlign = "left"; ctx.textBaseline = "top";
             ctx.fillText(`[Lv.${player.level}] ${player.name}`, hudX + 10, hudY + 10); 
 
             const barW = 180, barH = 10;
