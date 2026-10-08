@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>리퀘 (Re-Quest) v0.2.5.1008.17</title>
+    <title>리퀘 (Re-Quest) v0.2.5.1008.18</title>
     
     <style>
         /* [MOD-001: 기본 화면 및 컨테이너 스타일] */
@@ -3184,6 +3184,40 @@
             notiTimer = setTimeout(() => { noti.style.opacity = "0"; }, 2000);
         }
         // [MOD-022-END]
+
+        // [MOD-023: 버그 픽스 (인트로 퀵슬롯 숨김 및 창고 오픈 기능 복구)]
+        
+        // 1. [문제 1 해결] 인트로 화면에서 퀵슬롯(V-pad) 영역 전체 숨기기
+        // (DOM이 확실히 로드된 직후 숨기기 위해 약간의 지연을 줍니다)
+        setTimeout(() => {
+            if (gameState === "title" || gameState === "login" || gameState === "intro" || gameState === "lobby") {
+                const vpad = document.getElementById("vpad-container");
+                if (vpad) vpad.style.display = "none";
+            }
+        }, 50);
+
+        // 2. [문제 2 해결] 누락되었던 창고 열기 함수 복구
+        function openStorage() {
+            gameState = "storage";
+            document.getElementById("inventoryUI").style.display = "flex";
+            
+            // 개인 창고 패널 화면에 노출
+            const sp = document.getElementById("storagePanel");
+            if (sp) sp.style.display = "flex";
+            
+            // 창고가 열려있는 동안에는 방해되지 않게 조작 패드/퀵슬롯 가리기
+            const vpad = document.getElementById("vpad-container");
+            if (vpad) vpad.style.display = "none";
+            
+            // 만약 우측 패널이 인챈트 창으로 켜져있다면, 창고를 열 때 가방 뷰로 강제 원복
+            if (typeof currentRightView !== 'undefined' && currentRightView === 'enchant') {
+                toggleRightPanelView(); 
+            } else {
+                if (typeof renderGridInventory === "function") renderGridInventory();
+                if (typeof autoScaleInventory === "function") autoScaleInventory();
+            }
+        }
+        // [MOD-023-END]
         
     </script>
 </body>
