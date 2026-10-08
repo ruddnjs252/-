@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>리퀘 (Re-Quest) v0.2.5.1008.23</title>
+    <title>리퀘 (Re-Quest) v0.2.5.1008.24</title>
     
     <style>
         /* [MOD-001: 기본 화면 및 컨테이너 스타일] */
@@ -595,7 +595,7 @@
         }
         // [MOD-012-END]
 
-      // [MOD-013: 순수 닉네임 설정 및 인트로/임시 로비 파이프라인]
+      // [MOD-013: 순수 닉네임 설정 및 인트로/임시 로비 파이프라인 (통신 코드 완전 제거)]
         
         // 1. 기존의 쓸모없어진 캐릭터 생성 UI는 DOM에서 영구 삭제
         const oldCharUI = document.getElementById("charCreationUI");
@@ -635,7 +635,7 @@
         `;
         document.body.appendChild(titleScreen);
 
-        // [2단계: 닉네임 설정 화면 (비밀번호 제거)]
+        // [2단계: 닉네임 설정 화면 (오직 이름만 설정)]
         const loginScreen = document.createElement("div");
         loginScreen.className = "intro-screen hidden-screen";
         loginScreen.innerHTML = `
@@ -698,7 +698,7 @@
             setTimeout(() => { document.getElementById("loginNameInput").focus(); }, 100);
         });
 
-        // 닉네임 입력 완료 후 인트로 진입
+        // ★ [로컬 전용] 닉네임 입력 즉시 인트로로 진입 (서버 대기 없음)
         window.submitLogin = function() {
             const nameInput = document.getElementById("loginNameInput").value.trim();
             const errorMsg = document.getElementById("loginErrorMsg");
