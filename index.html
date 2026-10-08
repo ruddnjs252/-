@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>리퀘 (Re-Quest) v0.2.5.1008.22</title>
+    <title>리퀘 (Re-Quest) v0.2.5.1008.23</title>
     
     <style>
         /* [MOD-001: 기본 화면 및 컨테이너 스타일] */
@@ -595,17 +595,24 @@
         }
         // [MOD-012-END]
 
-      // [MOD-013: 서버 연동 로그인 및 로비 파이프라인]
+      // [MOD-013: 순수 닉네임 설정 및 인트로/임시 로비 파이프라인]
         
-        // ★ 내 컴퓨터에 켜둔 백엔드 서버(3000번 포트)로 무전기 연결
-        // (나중에 친구들과 할 때는 이 주소를 Ngrok 주소 등으로 바꾸면 됩니다)
-        const socket = io();
-
+        // 1. 기존의 쓸모없어진 캐릭터 생성 UI는 DOM에서 영구 삭제
         const oldCharUI = document.getElementById("charCreationUI");
         if(oldCharUI) oldCharUI.remove();
 
+        // [신규 무기 추가] 마법사용 지팡이가 DB에 없다면 임시로 추가
+        if (typeof ITEM_DB !== 'undefined' && !ITEM_DB["wand_basic"]) {
+            ITEM_DB["wand_basic"] = {
+                name: "초보자 지팡이", type: "equip", equipSlot: "mainWeapon", color: "#8B4513", 
+                shape: [[1],[1],[1]], stats: { str: 0, mana: 8 }, maxSockets: 2, 
+                desc: "마력을 집중하기 좋은 튼튼한 나무 지팡이."
+            };
+        }
+
         gameState = "title"; 
         
+        // 폰트 및 공통 스타일 주입
         const introStyle = document.createElement("style");
         introStyle.innerHTML = `
             .intro-screen { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: black; color: white; display: flex; flex-direction: column; justify-content: center; align-items: center; z-index: 5000; transition: opacity 0.5s ease; user-select: none; }
@@ -628,15 +635,14 @@
         `;
         document.body.appendChild(titleScreen);
 
-        // [2단계: 서버 연동 로그인 화면]
+        // [2단계: 닉네임 설정 화면 (비밀번호 제거)]
         const loginScreen = document.createElement("div");
         loginScreen.className = "intro-screen hidden-screen";
         loginScreen.innerHTML = `
-            <div style="font-size: 24px; font-weight: bold; margin-bottom: 20px; color: gold;">서버 접속</div>
-            <input type="text" id="loginIdInput" class="login-input" placeholder="아이디" maxlength="12">
-            <input type="password" id="loginPwInput" class="login-input" placeholder="비밀번호" maxlength="16">
-            <button id="loginBtn" class="lobby-btn" style="margin-top: 10px; font-size: 16px; width: 220px;" onclick="submitLogin()">접속 / 신규가입</button>
-            <div id="loginErrorMsg" style="color: #ff4444; font-size: 12px; margin-top: 10px; opacity: 0; transition: 0.3s;">아이디와 비밀번호를 입력해주세요.</div>
+            <div style="font-size: 24px; font-weight: bold; margin-bottom: 20px; color: gold;">모험가 정보 설정</div>
+            <input type="text" id="loginNameInput" class="login-input" placeholder="사용할 닉네임 입력" maxlength="10">
+            <button class="lobby-btn" style="margin-top: 10px; font-size: 16px; width: 220px;" onclick="submitLogin()">확인</button>
+            <div id="loginErrorMsg" style="color: #ff4444; font-size: 12px; margin-top: 10px; opacity: 0; transition: 0.3s;">닉네임을 입력해주세요.</div>
         `;
         document.body.appendChild(loginScreen);
 
@@ -689,70 +695,45 @@
             gameState = "login";
             titleScreen.classList.add("hidden-screen");
             loginScreen.classList.remove("hidden-screen");
-            setTimeout(() => { document.getElementById("loginIdInput").focus(); }, 100);
+            setTimeout(() => { document.getElementById("loginNameInput").focus(); }, 100);
         });
 
-        // ★ [핵심] 로그인 버튼 클릭 시 서버로 정보 전송
+        // 닉네임 입력 완료 후 인트로 진입
         window.submitLogin = function() {
-            const idInput = document.getElementById("loginIdInput").value.trim();
-            const pwInput = document.getElementById("loginPwInput").value.trim();
+            const nameInput = document.getElementById("loginNameInput").value.trim();
             const errorMsg = document.getElementById("loginErrorMsg");
 
-            if(!idInput || !pwInput) {
-                errorMsg.innerText = "아이디와 비밀번호를 모두 입력해주세요.";
+            if(!nameInput) {
+                errorMsg.innerText = "닉네임을 입력해주세요.";
                 errorMsg.style.opacity = "1";
                 return;
             }
 
-            // 버튼 비활성화 (중복 클릭 방지)
-            const btn = document.getElementById("loginBtn");
-            btn.innerText = "서버 확인 중...";
-            btn.disabled = true;
+            player.name = nameInput; 
+            document.getElementById("lobbyWelcomeMsg").innerHTML = `환영합니다, <span style="color:gold;">${player.name}</span> 님`;
+            
+            gameState = "intro";
+            loginScreen.classList.add("hidden-screen");
+            animScreen.classList.remove("hidden-screen");
 
-            // 서버로 로그인/가입 요청 발사!
-            socket.emit("login_attempt", { id: idInput, pw: pwInput });
-        };
+            const hasVisited = localStorage.getItem("utu_visited");
+            const skipMsg = document.getElementById("animSkipMsg");
 
-        // ★ 서버의 응답을 기다렸다가 처리
-        socket.on('login_result', (response) => {
-            const errorMsg = document.getElementById("loginErrorMsg");
-            const btn = document.getElementById("loginBtn");
-            btn.innerText = "접속 / 신규가입";
-            btn.disabled = false;
-
-            if (response.success) {
-                // 로그인 성공! (player.name에 접속한 아이디를 씌웁니다)
-                const idInput = document.getElementById("loginIdInput").value.trim();
-                player.name = idInput; 
-                document.getElementById("lobbyWelcomeMsg").innerHTML = `환영합니다, <span style="color:gold;">${player.name}</span> 님`;
-                
-                gameState = "intro";
-                loginScreen.classList.add("hidden-screen");
-                animScreen.classList.remove("hidden-screen");
-
-                const hasVisited = localStorage.getItem("utu_visited");
-                const skipMsg = document.getElementById("animSkipMsg");
-
-                if (hasVisited) {
-                    canSkipIntro = true;
-                    skipMsg.innerText = "(화면을 터치하여 즉시 스킵)";
-                } else {
-                    canSkipIntro = false;
-                    skipMsg.innerText = "(첫 접속 - 애니메이션 재생 중...)";
-                    localStorage.setItem("utu_visited", "true"); 
-                    
-                    setTimeout(() => {
-                        canSkipIntro = true;
-                        skipMsg.innerText = "(아무 곳이나 터치하여 스킵)";
-                        introAnimTimer = setTimeout(skipIntroToLobby, 3000); 
-                    }, 3000);
-                }
+            if (hasVisited) {
+                canSkipIntro = true;
+                skipMsg.innerText = "(화면을 터치하여 즉시 스킵)";
             } else {
-                // 비밀번호 틀림 등 실패 처리
-                errorMsg.innerText = response.message;
-                errorMsg.style.opacity = "1";
+                canSkipIntro = false;
+                skipMsg.innerText = "(첫 접속 - 애니메이션 재생 중...)";
+                localStorage.setItem("utu_visited", "true"); 
+                
+                setTimeout(() => {
+                    canSkipIntro = true;
+                    skipMsg.innerText = "(아무 곳이나 터치하여 스킵)";
+                    introAnimTimer = setTimeout(skipIntroToLobby, 3000); 
+                }, 3000);
             }
-        });
+        };
 
         animScreen.addEventListener("click", () => {
             if (gameState === "intro" && canSkipIntro) skipIntroToLobby();
