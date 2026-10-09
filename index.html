@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>리퀘 (Re-Quest) v0.2.5.1009.6</title>
+    <title>리퀘 (Re-Quest) v0.2.5.1009.7</title>
     
     <style>
         /* [MOD-001: 기본 화면 및 컨테이너 스타일] */
@@ -265,7 +265,7 @@
         .q-slot-far { opacity: 0.1; z-index: 1; background: transparent; }  
         /* [MOD-003-3-END] */
 
-        /* [MOD-024: 스킬 덱 빌딩 UI 스타일] */
+       /* [MOD-024: 스킬 덱 빌딩 UI 스타일] */
         .skill-icon { 
             width: 45px; height: 45px; background: #222; border: 2px solid #666; border-radius: 6px; 
             display: flex; align-items: center; justify-content: center; 
@@ -286,6 +286,12 @@
             position: fixed; pointer-events: none; opacity: 0.9; z-index: 9999; 
             transform: translate(-50%, -50%); box-shadow: 0 10px 20px rgba(0,0,0,0.8);
         }
+
+        /* ★ 세로 스크롤바 커스텀 디자인 */
+        #skillListContainer::-webkit-scrollbar { width: 6px; }
+        #skillListContainer::-webkit-scrollbar-track { background: #222; border-radius: 3px; }
+        #skillListContainer::-webkit-scrollbar-thumb { background: #555; border-radius: 3px; }
+        #skillListContainer::-webkit-scrollbar-thumb:hover { background: #777; }
         /* [MOD-024-END] */
         
     </style>
@@ -428,8 +434,8 @@
                                 <span style="font-size: 10px; color: gray;">드래그하여 장착</span>
                             </div>
                             
-                            <!-- 스킬 인벤토리 -->
-                            <div id="skillListContainer" style="display: grid; grid-template-columns: repeat(6, 1fr); gap: 6px; overflow-y: auto; flex: 1; align-content: start;">
+                            <!-- ★ 스킬 인벤토리: 가로 스크롤 제거, 한 줄 5칸, 세로 스크롤 활성화 -->
+                            <div id="skillListContainer" style="display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; overflow-y: auto; overflow-x: hidden; flex: 1; align-content: start; padding-right: 5px;">
                                 <!-- 스킬 아이콘들이 JS로 생성됨 -->
                             </div>
                             
@@ -1114,9 +1120,9 @@
             wind: { id: "wind", name: "바람", type: "wind", cooldown: 3, bonusDmg: 8 }
         };
         
-        // 기획안에 맞춰 기본 퀵슬롯 덱을 5칸으로 설정
+        // ★ 기획안에 맞춰 퀵슬롯 덱을 5칸의 "빈 슬롯"으로 초기화
         if (!player.quickSlots) {
-            player.quickSlots = [ MOCK_SKILLS.leap, MOCK_SKILLS.charge, MOCK_SKILLS.slam, MOCK_SKILLS.slash, MOCK_SKILLS.heal ];
+            player.quickSlots = [ null, null, null, null, null ];
             player.currentQuickSlotIdx = 0;
             player.lockedTarget = null;
         }
@@ -1128,7 +1134,6 @@
         function getActiveQuickSlotSkill() {
             return player.quickSlots[player.currentQuickSlotIdx];
         }
-
         // [MOD-015-2: 사다리형 UI 회전 로직]
         function handleRKey() {
             if (gameState !== "playing" || player.dashTimer > 0) return;
@@ -3281,18 +3286,22 @@
         // [MOD-025: 스킬 덱 드래그 앤 드롭 세팅 로직]
         let dragSkillState = { active: false, skillObj: null, ghostEl: null, sourceIdx: -1 };
 
-        // 통합 패널(enchant 뷰)이 열릴 때 스킬 목록 렌더링
         function renderSkillUI() {
             const list = document.getElementById("skillListContainer");
             if (!list) return;
             list.innerHTML = "";
             
-            // 1. 보유 스킬 리스트업 (테스트용으로 MOCK_SKILLS 전체 노출)
+            // ★ 장착 중인 스킬의 ID 목록 수집
+            let equippedIds = player.quickSlots.filter(s => s !== null).map(s => s.id);
+            
+            // 1. 보유 스킬 리스트업
             Object.values(MOCK_SKILLS).forEach(skill => {
+                // ★ 이미 퀵슬롯에 장착된 스킬은 목록에서 제외하고 그리지 않음!
+                if (equippedIds.includes(skill.id)) return; 
+
                 let div = document.createElement("div");
                 div.className = "skill-icon";
                 div.innerText = skill.name;
-                // 스킬 목록에서 드래그 시작 (sourceIdx: -1 은 인벤토리를 의미)
                 const startDrag = (e) => { e.preventDefault(); startSkillDrag(e, skill, -1); };
                 div.addEventListener("mousedown", startDrag);
                 div.addEventListener("touchstart", startDrag, { passive: false });
@@ -3310,7 +3319,6 @@
                     div.className = "skill-icon";
                     div.innerText = skill.name;
                     div.style.width = "90%"; div.style.height = "90%"; div.style.border = "none";
-                    // 장착된 스킬을 다시 드래그해서 뺄 수 있음 (sourceIdx: i)
                     const startDrag = (e) => { e.preventDefault(); startSkillDrag(e, skill, i); };
                     div.addEventListener("mousedown", startDrag);
                     div.addEventListener("touchstart", startDrag, { passive: false });
@@ -3319,7 +3327,6 @@
             }
         }
 
-        // 스킬 드래그 시작
         function startSkillDrag(e, skillObj, sourceIdx) {
             if (e.type === "mousedown" && e.button !== 0) return;
             dragSkillState.active = true;
@@ -3340,7 +3347,6 @@
             document.addEventListener("touchend", endSkillDrag);
         }
 
-        // 스킬 드래그 이동
         function moveSkillGhost(e) {
             if (!dragSkillState.active || !dragSkillState.ghostEl) return;
             let clientX = e.type.includes("touch") ? e.touches[0].clientX : e.clientX;
@@ -3349,7 +3355,6 @@
             dragSkillState.ghostEl.style.left = clientX + "px";
             dragSkillState.ghostEl.style.top = clientY + "px";
 
-            // 사다리 슬롯 위를 지나갈 때 하이라이트 효과
             document.querySelectorAll('.deck-slot').forEach(slot => {
                 const rect = slot.getBoundingClientRect();
                 if (clientX >= rect.left && clientX <= rect.right && clientY >= rect.top && clientY <= rect.bottom) {
@@ -3360,7 +3365,6 @@
             });
         }
 
-        // 스킬 드래그 종료 (장착)
         function endSkillDrag(e) {
             if (!dragSkillState.active) return;
             document.removeEventListener("mousemove", moveSkillGhost);
@@ -3377,30 +3381,23 @@
                 slot.classList.remove("highlight");
                 const rect = slot.getBoundingClientRect();
                 
-                // 특정 사다리 슬롯에 드롭한 경우
                 if (clientX >= rect.left && clientX <= rect.right && clientY >= rect.top && clientY <= rect.bottom) {
                     let targetIdx = parseInt(slot.getAttribute("data-idx"));
                     
-                    // 슬롯 위치 교환 로직
                     if (dragSkillState.sourceIdx !== -1) {
-                        // 이미 장착된 스킬끼리 위치 바꾸기
                         let temp = player.quickSlots[targetIdx];
                         player.quickSlots[targetIdx] = dragSkillState.skillObj;
                         player.quickSlots[dragSkillState.sourceIdx] = temp;
                     } else {
-                        // 목록에서 새로 장착하기
                         player.quickSlots[targetIdx] = dragSkillState.skillObj;
                     }
                     droppedOnSlot = true;
                 }
             });
 
-            // 허공에 버린 경우 (장착 해제)
+            // ★ 장착 해제: 사다리 밖(목록이나 허공)에 드롭하면 무조건 스킬 해제!
             if (!droppedOnSlot && dragSkillState.sourceIdx !== -1) {
-                const viewRect = document.getElementById("viewEnchant").getBoundingClientRect();
-                if (clientY < viewRect.bottom - 80) { // 사다리 구역 밖으로 드롭 시
-                    player.quickSlots[dragSkillState.sourceIdx] = null;
-                }
+                player.quickSlots[dragSkillState.sourceIdx] = null;
             }
 
             dragSkillState.ghostEl.remove();
@@ -3410,7 +3407,6 @@
             if(typeof updateQuickSlotUI === "function") updateQuickSlotUI(); // 게임 HUD 즉시 갱신
         }
 
-        // ★ 우측 패널 전환 시 스킬창을 그려주도록 기존 함수에 한 줄 추가 (Hook)
         const originalToggle = toggleRightPanelView;
         toggleRightPanelView = function() {
             originalToggle();
