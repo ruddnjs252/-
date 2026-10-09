@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>리퀘 (Re-Quest) v0.2.5.1009.1</title>
+    <title>리퀘 (Re-Quest) v0.2.5.1009.2</title>
     
     <style>
         /* [MOD-001: 기본 화면 및 컨테이너 스타일] */
@@ -204,72 +204,67 @@
             .vpad-btn, #vpad-stick-base { display: none !important; }
         }
         /* [MOD-003-2-END] */
-        /* [MOD-003-3: 방사형 8칸 리볼버 퀵슬롯 UI] */
+        /* [MOD-003-3: 가로형 5칸 사다리 퀵슬롯 UI] */
         #quick-slot-wrapper {
             position: fixed; 
-            bottom: -8vmin; /* UI를 화면 하단으로 내려 시야 확보 */
+            bottom: 3vmin; /* 화면 하단 적당한 위치로 조정 */
             left: 50%; transform: translateX(-50%);
-            width: 50vmin; height: 26vmin; z-index: 9000;
-            overflow: hidden; pointer-events: none; /* 클릭 이벤트 통과 */
+            width: 70vmin; height: 14vmin; z-index: 9000;
+            display: flex; justify-content: center; align-items: center;
+            pointer-events: none; /* 클릭 이벤트 통과 */
         }
-        #quick-slot-container {
-            position: absolute; bottom: 0; left: 0; width: 50vmin; height: 25vmin;
-            border-radius: 25vmin 25vmin 0 0; /* 반원 형태 */
-            background-color: rgba(255, 165, 0, 0.85); border: 3px solid #ffcc00; border-bottom: none;
-            box-sizing: border-box; 
+        
+        .q-slot-ladder {
+            width: 9vmin; height: 9vmin;
+            border: 2px solid rgba(255, 255, 255, 0.4);
+            background: rgba(0, 0, 0, 0.5);
+            display: flex; align-items: center; justify-content: center;
+            margin: 0 0.5vmin;
+            transition: all 0.2s ease-out; /* 부드러운 전환 효과 */
+            pointer-events: auto; cursor: pointer;
+            border-radius: 4px; box-sizing: border-box;
         }
-        #quick-slot-wheel {
-            position: absolute; bottom: 0; left: 50%;
-            width: 36vmin; height: 36vmin; margin-left: -18vmin; margin-bottom: -18vmin;
-            border-radius: 50%; transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275); /* 회전 애니메이션 */
-        }
-        /* 현재 슬롯을 가리키는 빨간 12시 고정 바늘 */
-        .quick-slot-pointer {
-            position: absolute; bottom: 0; left: 50%; transform: translateX(-50%);
-            width: 0; height: 0; border-left: 2vmin solid transparent; border-right: 2vmin solid transparent;
-            border-bottom: 12vmin solid #e60000; z-index: 9001; transform-origin: bottom center;
-        }
-        .q-slot {
-            position: absolute; width: 9vmin; height: 9vmin; border-radius: 50%;
-            border: 2px solid rgba(255, 255, 255, 0.8); background: rgba(0, 0, 0, 0.4);
-            top: 50%; left: 50%; margin-top: -4.5vmin; margin-left: -4.5vmin;
-            display: flex; align-items: center; justify-content: center; pointer-events: auto; cursor: pointer;
-        }
-        /* 슬롯 내부 텍스트 컨테이너 (바퀴가 돌아도 글씨는 똑바로 서도록 카운터 회전) */
+        
         .q-slot-inner {
-            display: flex; align-items: center; justify-content: center; width: 100%; height: 100%;
-            transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            text-align: center; color: white;
+            font-size: 1.5vmin; font-weight: bold; pointer-events: none;
         }
-        /* 8개 슬롯을 45도 간격으로 원형 배치 */
-        #q-slot-1 { transform: rotate(0deg) translateY(-17vmin); }
-        #q-slot-2 { transform: rotate(45deg) translateY(-17vmin); }
-        #q-slot-3 { transform: rotate(90deg) translateY(-17vmin); }
-        #q-slot-4 { transform: rotate(135deg) translateY(-17vmin); }
-        #q-slot-5 { transform: rotate(180deg) translateY(-17vmin); }
-        #q-slot-6 { transform: rotate(225deg) translateY(-17vmin); }
-        #q-slot-7 { transform: rotate(270deg) translateY(-17vmin); }
-        #q-slot-8 { transform: rotate(315deg) translateY(-17vmin); }
-        /* [MOD-003-END] */
+        
+        /* 각 위치별 스타일 (JS에서 동적으로 부여됨) */
+        .q-slot-center {
+            width: 12vmin; height: 12vmin;
+            border: 3px solid gold; background: rgba(50, 50, 0, 0.85);
+            box-shadow: 0 0 15px rgba(255, 215, 0, 0.6); z-index: 10;
+        }
+        .q-slot-center .q-slot-inner { font-size: 2.2vmin; color: gold; }
+        
+        .q-slot-side { opacity: 0.7; z-index: 5; } /* 양옆 대기 스킬 */
+        .q-slot-far { opacity: 0.2; z-index: 1; }  /* 끝부분 흐릿한 스킬 */
+        /* [MOD-003-3-END] */
     </style>
 </head>
 <body>
     <!-- [MOD-004: 오버레이 UI 및 캔버스 렌더링 영역] -->
     <!-- [MOD-004-1: 모바일 가상 패드 및 방사형 퀵슬롯 HTML] -->
     <div id="vpad-container">
+        <!-- [MOD-004-1: 모바일 가상 패드 및 사다리형 퀵슬롯 HTML] -->
+    <div id="vpad-container">
+        <!-- 5칸 사다리형 슬롯 -->
         <div id="quick-slot-wrapper">
-            <div id="quick-slot-container"></div>
-            <div class="quick-slot-pointer"></div>
-            <div id="quick-slot-wheel">
-                <div id="q-slot-1" class="q-slot"><div class="q-slot-inner"></div></div>
-                <div id="q-slot-2" class="q-slot"><div class="q-slot-inner"></div></div>
-                <div id="q-slot-3" class="q-slot"><div class="q-slot-inner"></div></div>
-                <div id="q-slot-4" class="q-slot"><div class="q-slot-inner"></div></div>
-                <div id="q-slot-5" class="q-slot"><div class="q-slot-inner"></div></div>
-                <div id="q-slot-6" class="q-slot"><div class="q-slot-inner"></div></div>
-                <div id="q-slot-7" class="q-slot"><div class="q-slot-inner"></div></div>
-                <div id="q-slot-8" class="q-slot"><div class="q-slot-inner"></div></div>
-            </div>
+            <div id="q-slot-0" class="q-slot-ladder q-slot-far"><div class="q-slot-inner"></div></div>
+            <div id="q-slot-1" class="q-slot-ladder q-slot-side"><div class="q-slot-inner"></div></div>
+            <div id="q-slot-2" class="q-slot-ladder q-slot-center"><div class="q-slot-inner"></div></div>
+            <div id="q-slot-3" class="q-slot-ladder q-slot-side"><div class="q-slot-inner"></div></div>
+            <div id="q-slot-4" class="q-slot-ladder q-slot-far"><div class="q-slot-inner"></div></div>
         </div>
+        
+        <div id="vpad-stick-base"><div id="vpad-stick-knob"></div></div>
+        <div id="vpad-atk" class="vpad-btn">공격</div>
+        <div id="vpad-skill" class="vpad-btn">스킬</div>
+        <div id="vpad-r" class="vpad-btn">R변경</div>
+        <div id="vpad-e" class="vpad-btn">가방</div>
+    </div>
+    <!-- [MOD-004-1-END] -->
         
         <div id="vpad-stick-base"><div id="vpad-stick-knob"></div></div>
         <div id="vpad-atk" class="vpad-btn">공격</div>
@@ -1040,7 +1035,6 @@
 
         // [MOD-015: 스킬 시스템 및 전투 연산 로직]
         // [MOD-015-1: 스킬 데이터 모형 및 퀵슬롯 초기화]
-        // (추후 에디터에서 JSON 형태로 분리될 데이터 구조입니다.)
         const MOCK_SKILLS = {
             leap: { id: "leap", name: "도약", type: "leap_only", cooldown: 2, bonusDmg: 0 },
             charge: { id: "charge", name: "돌진", type: "charge", cooldown: 3, bonusDmg: 10 },
@@ -1052,11 +1046,10 @@
             wind: { id: "wind", name: "바람", type: "wind", cooldown: 3, bonusDmg: 8 }
         };
         
-        // 8칸 퀵슬롯이 비어있다면 테스트용 스킬로 가득 채워 초기화합니다.
+        // 기획안에 맞춰 기본 퀵슬롯 덱을 5칸으로 설정
         if (!player.quickSlots) {
-            player.quickSlots = [ MOCK_SKILLS.leap, MOCK_SKILLS.charge, MOCK_SKILLS.slam, MOCK_SKILLS.slash, MOCK_SKILLS.heal, MOCK_SKILLS.fire, MOCK_SKILLS.ice, MOCK_SKILLS.wind ];
+            player.quickSlots = [ MOCK_SKILLS.leap, MOCK_SKILLS.charge, MOCK_SKILLS.slam, MOCK_SKILLS.slash, MOCK_SKILLS.heal ];
             player.currentQuickSlotIdx = 0;
-            player.rotationCount = 0; 
             player.lockedTarget = null;
         }
 
@@ -1068,46 +1061,52 @@
             return player.quickSlots[player.currentQuickSlotIdx];
         }
 
-        // [MOD-015-2: 리볼버 UI 회전 로직]
-        // R키를 누를 때마다 누적 카운트를 올려 바퀴를 무한 회전시킵니다. (CSS transform 대응)
+        // [MOD-015-2: 사다리형 UI 회전 로직]
         function handleRKey() {
             if (gameState !== "playing" || player.dashTimer > 0) return;
             
-            player.rotationCount++; // 회전수 누적
-            player.currentQuickSlotIdx = ((player.rotationCount % 8) + 8) % 8; // 음수 방어 및 8칸 인덱스 보정
-            player.aimingSkill = null; // 무기(스킬)가 변경되면 조준 상태 해제
-            updateQuickSlotUI(); // DOM 요소 업데이트
+            const N = player.quickSlots.length;
+            if (N > 0) {
+                // R키를 누르면 현재 인덱스를 다음으로 넘김
+                player.currentQuickSlotIdx = (player.currentQuickSlotIdx + 1) % N;
+                player.aimingSkill = null; 
+                updateQuickSlotUI(); 
+            }
         }
 
         function updateQuickSlotUI() {
-            const wheel = document.getElementById("quick-slot-wheel");
-            if (wheel) {
-                let rotation = -(player.rotationCount * 45); // 1회전당 반시계로 45도 회전
-                wheel.style.transform = `rotate(${rotation}deg)`;
-            }
+            const N = player.quickSlots.length;
+            if (N === 0) return;
 
-            for(let i=0; i<8; i++) {
-                let slot = document.getElementById("q-slot-" + (i+1));
+            const centerIdx = player.currentQuickSlotIdx;
+            
+            // 화면에 보여줄 5개의 스킬 인덱스 계산 (좌측 2개, 중앙, 우측 2개)
+            const displayIndices = [
+                (centerIdx - 2 + N) % N,
+                (centerIdx - 1 + N) % N,
+                centerIdx,
+                (centerIdx + 1) % N,
+                (centerIdx + 2) % N
+            ];
+
+            for (let i = 0; i < 5; i++) {
+                let slot = document.getElementById("q-slot-" + i);
                 let inner = slot ? slot.querySelector('.q-slot-inner') : null;
                 if (!slot || !inner) continue;
                 
-                let skill = player.quickSlots[i];
-                inner.innerHTML = skill ? `<span style="color:white; font-size:11px; font-weight:bold;">${skill.name}</span>` : "";
+                let skillIdx = displayIndices[i];
+                let skill = player.quickSlots[skillIdx];
+                
+                inner.innerHTML = skill ? skill.name : "";
 
-                // 바퀴가 돌아도 텍스트 글씨는 항상 똑바로 서있도록 역방향(Counter-Rotation) 회전 적용
-                let counterRotation = -(i * 45) + (player.rotationCount * 45);
-                inner.style.transform = `rotate(${counterRotation}deg)`;
-
-                // 현재 선택된 슬롯(12시 바늘 위치)은 빨간 테두리로 강조
-                if (i === player.currentQuickSlotIdx) {
-                    slot.style.border = "3px solid #ff3333";
-                    slot.style.background = "rgba(255, 50, 50, 0.6)";
-                } else {
-                    slot.style.border = "2px solid rgba(255, 255, 255, 0.8)";
-                    slot.style.background = "rgba(0, 0, 0, 0.4)";
-                }
+                // 순서에 맞게 클래스(디자인)를 다시 배정하여 밀려가는 효과를 줌
+                slot.className = "q-slot-ladder";
+                if (i === 0 || i === 4) slot.classList.add("q-slot-far");
+                else if (i === 1 || i === 3) slot.classList.add("q-slot-side");
+                else if (i === 2) slot.classList.add("q-slot-center");
             }
         }
+        // [MOD-015-2-END]
 
         // [MOD-015-3: 스킬 조준 및 발동 로직]
         // 마우스 우클릭 시 현재 선택된 슬롯의 스킬 쿨타임을 점검하고 조준(aiming) 상태로 전환합니다.
@@ -1234,31 +1233,9 @@
         // [MOD-015-END]
         
        // [MOD-016: 입력 이벤트 리스너]
-        function pickupFieldItem(targetItem) {
-            if (!targetItem || targetItem.pickupDelay > 0) return;
-            let freePos = findFreeSpace(targetItem, gridMap);
-            if (!freePos) {
-                targetItem.errorFlashTimer = 25;
-                return;
-            }
-            myInventoryItems.push({
-                id: targetItem.id, baseId: targetItem.baseId,
-                gridX: freePos.x, gridY: freePos.y,
-                rot: targetItem.rot, sockets: targetItem.sockets
-            });
-            fieldItems = fieldItems.filter(f => f !== targetItem);
-            if (targetedFieldItem === targetItem) targetedFieldItem = null;
-            if (typeof renderGridInventory === "function") renderGridInventory();
-            if (typeof updateNotiBadges === "function") updateNotiBadges();
-        }
-
+        // [MOD-016-1: 단축키 및 슬롯 클릭 처리]
         function selectQuickSlot(index) {
             if (gameState !== "playing" || player.dashTimer > 0) return;
-            let currentIdx = ((player.rotationCount % 8) + 8) % 8;
-            let diff = index - currentIdx;
-            if (diff < -4) diff += 8;
-            if (diff > 4) diff -= 8;
-            player.rotationCount += diff;
             player.currentQuickSlotIdx = index;
             player.aimingSkill = null; 
             if (typeof updateQuickSlotUI === "function") updateQuickSlotUI();
@@ -1272,8 +1249,6 @@
 
             if (typeof isMenuOpen !== 'undefined' && isMenuOpen) return; 
 
-            // ★ [버그 수정] 타이틀, 로그인, 인트로, 로비 중에는 E, F, R 등의 게임 조작키를 완전히 차단!
-            // (단, 여기서 이벤트를 막지 않고 return만 하므로 닉네임 입력칸에 타이핑하는 것은 정상 작동합니다)
             const introStates = ["title", "login", "intro", "lobby", "npcMenu"];
             if (introStates.includes(gameState)) return; 
 
@@ -1297,8 +1272,9 @@
                 }
             }
             
+            // 숫자키 1~5로 스킬 덱 직접 선택
             if (gameState === "playing") {
-                if (e.key >= '1' && e.key <= '8') { selectQuickSlot(parseInt(e.key) - 1); }
+                if (e.key >= '1' && e.key <= '5') { selectQuickSlot(parseInt(e.key) - 1); }
             }
         });
 
@@ -1309,17 +1285,26 @@
 
         window.addEventListener("contextmenu", (e) => { e.preventDefault(); });
 
-        for (let i = 1; i <= 8; i++) {
+        // 화면 5칸을 클릭/터치 시 중앙으로 불러오기
+        for (let i = 0; i < 5; i++) {
             let el = document.getElementById("q-slot-" + i);
             if (el) {
-                el.addEventListener("touchstart", (e) => { 
+                const triggerIdx = () => {
                     if (typeof isMenuOpen !== 'undefined' && isMenuOpen) return;
-                    e.preventDefault(); selectQuickSlot(i - 1); 
-                });
-                el.addEventListener("mousedown", (e) => { 
-                    if (typeof isMenuOpen !== 'undefined' && isMenuOpen) return;
-                    e.preventDefault(); selectQuickSlot(i - 1); 
-                });
+                    const N = player.quickSlots.length;
+                    const centerIdx = player.currentQuickSlotIdx;
+                    const displayIndices = [
+                        (centerIdx - 2 + N) % N,
+                        (centerIdx - 1 + N) % N,
+                        centerIdx,
+                        (centerIdx + 1) % N,
+                        (centerIdx + 2) % N
+                    ];
+                    // 클릭한 위치에 해당하는 실제 스킬 인덱스로 장전
+                    selectQuickSlot(displayIndices[i]); 
+                };
+                el.addEventListener("touchstart", (e) => { e.preventDefault(); triggerIdx(); });
+                el.addEventListener("mousedown", (e) => { e.preventDefault(); triggerIdx(); });
             }
         }
         // [MOD-016-1-END]
