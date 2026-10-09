@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>리퀘 (Re-Quest) v0.2.5.1009.7</title>
+    <title>리퀘 (Re-Quest) v0.2.5.1009.8</title>
     
     <style>
         /* [MOD-001: 기본 화면 및 컨테이너 스타일] */
@@ -1117,17 +1117,24 @@
             heal: { id: "heal", name: "치료", type: "heal", cooldown: 10, bonusDmg: 0 },
             fire: { id: "fire", name: "화염", type: "fire", cooldown: 4, bonusDmg: 15 },
             ice: { id: "ice", name: "얼음", type: "ice", cooldown: 4, bonusDmg: 12 },
-            wind: { id: "wind", name: "바람", type: "wind", cooldown: 3, bonusDmg: 8 }
+            wind: { id: "wind", name: "바람", type: "wind", cooldown: 3, bonusDmg: 8 },
+            teleport: { id: "teleport", name: "순간이동", type: "teleport", cooldown: 5, bonusDmg: 0 } // ★ 순간이동 추가
         };
         
-        // ★ 기획안에 맞춰 퀵슬롯 덱을 5칸의 "빈 슬롯"으로 초기화
         if (!player.quickSlots) {
             player.quickSlots = [ null, null, null, null, null ];
             player.currentQuickSlotIdx = 0;
             player.lockedTarget = null;
         }
 
-        // 리워크된 캐릭터 동그라미 크기에 맞춰 충돌 판정용 width/height 44px로 덮어쓰기
+        // ★ 습득 스킬 및 알림 뱃지 관리 변수
+        if (!player.unlockedSkills) {
+            player.unlockedSkills = ["leap", "charge", "slam", "slash", "heal"];
+        }
+        if (!player.newlyAcquiredSkills) {
+            player.newlyAcquiredSkills = [];
+        }
+
         player.width = 44;
         player.height = 44;
 
@@ -1263,6 +1270,41 @@
                     player.activeSkillType = "charge";
                     addVisualEffect(pCenterX, pCenterY, 40, "yellow");
                 }
+                player.aimingSkill = null;
+                return true;
+            }
+            // ★ 이동계 스킬 2: 순간이동 (마우스 방향으로 일정 거리 즉시 이동)
+            else if (player.aimingSkill === "teleport") {
+                startSkillCooldown(activeSkill.id, activeSkill.cooldown);
+                
+                const maxDist = 250; // 최대 순간이동 거리 (사거리)
+                const dx = wMouseX - pCenterX;
+                const dy = wMouseY - pCenterY;
+                const dist = Math.hypot(dx, dy);
+                
+                let targetX = wMouseX;
+                let targetY = wMouseY;
+                
+                // 사거리를 벗어났으면 최대 사거리 지점으로 보정
+                if (dist > maxDist) {
+                    targetX = pCenterX + (dx / dist) * maxDist;
+                    targetY = pCenterY + (dy / dist) * maxDist;
+                }
+                
+                // 맵 경계선 뚫기 방지
+                targetX = Math.max(playerRadius, Math.min(WORLD_WIDTH - playerRadius, targetX));
+                targetY = Math.max(playerRadius, Math.min(WORLD_HEIGHT - playerRadius, targetY));
+                
+                // 벽(장애물) 충돌 검사
+                if (!checkObstacleCollision(targetX - playerRadius, targetY - playerRadius)) {
+                    addVisualEffect(player.x, player.y, 40, "purple"); // 사라질 때 보라색 파장
+                    player.x = targetX;
+                    player.y = targetY;
+                    addVisualEffect(player.x, player.y, 40, "cyan");   // 나타날 때 하늘색 파장
+                } else {
+                    addFloatingText(player.x, player.y - 20, "막힌 공간입니다!", "red");
+                }
+                
                 player.aimingSkill = null;
                 return true;
             }
@@ -1916,7 +1958,7 @@
         function gameLoop() {
             ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-            // ★ [핵심 수정] 타이틀, 로그인, 로비 화면일 때는 무거운 월드 렌더링을 건너뜀
+            // 타이틀, 로그인, 로비 화면일 때는 무거운 월드 렌더링을 건너뜀
             if (gameState === "title" || gameState === "login" || gameState === "intro" || gameState === "lobby" || gameState === "charCreation" || gameState === "npcMenu") { 
                 requestAnimationFrame(gameLoop); return; 
             }
@@ -2215,7 +2257,7 @@
             ctx.strokeStyle = "#004488"; 
             ctx.stroke();
 
-            // 무기 및 조준선
+            // 무기 및 조준선 렌더링
             if (gameState === "playing") {
                 let wMouseX = mouseX + camera.x;
                 let wMouseY = mouseY + camera.y;
@@ -2240,6 +2282,24 @@
                     ctx.fillStyle = "rgba(255, 215, 0, 0.25)"; ctx.fillRect(0, -chargeW / 2, chargeDist, chargeW);
                     ctx.strokeStyle = "gold"; ctx.lineWidth = 2; ctx.strokeRect(0, -chargeW / 2, chargeDist, chargeW); ctx.restore();
                 } 
+                // ★ 순간이동 궤적/도착지점 렌더링
+                else if (player.aimingSkill === "teleport") {
+                    const maxDist = 250;
+                    const dist = Math.min(maxDist, Math.hypot(wMouseX - pCenterX, wMouseY - pCenterY));
+                    const targetX = pCenterX + Math.cos(aimAngle) * dist;
+                    const targetY = pCenterY + Math.sin(aimAngle) * dist;
+                    
+                    ctx.save();
+                    // 도착 예정 지점 원
+                    ctx.beginPath(); ctx.arc(targetX, targetY, playerRadius, 0, Math.PI * 2);
+                    ctx.fillStyle = "rgba(100, 50, 255, 0.3)"; ctx.fill();
+                    ctx.strokeStyle = "purple"; ctx.lineWidth = 2; ctx.setLineDash([4, 4]); ctx.stroke();
+                    
+                    // 예상 궤적 연결선
+                    ctx.beginPath(); ctx.moveTo(pCenterX, pCenterY); ctx.lineTo(targetX, targetY);
+                    ctx.strokeStyle = "rgba(100, 50, 255, 0.5)"; ctx.stroke();
+                    ctx.restore();
+                }
                 
                 const weaponLength = 50, weaponWidth = 12, pivotX = 0, pivotY = playerRadius + 25;
                 let currentAngle = aimAngle;
@@ -2325,54 +2385,7 @@
         
 // [MOD-020: 그리드 인벤토리 및 장비창 시스템 통합 관리]
         
-     // [MOD-020-1: 그리드 환경 변수 및 장비 슬롯 정의]
-        const GRID_CELL_SIZE = 40; 
-        const INV_COLS = 8;        
-        const INV_ROWS = 10;       
-        
-        let gridMap = Array.from({ length: INV_ROWS }, () => Array(INV_COLS).fill(null));
-        let storageMap = Array.from({ length: INV_ROWS }, () => Array(INV_COLS).fill(null)); // ★ 버그 수정: 누락되었던 창고 맵 배열 추가!
-        
-        let equipmentSlots = {
-            helmet: null,   
-            armor: "item_2",    
-            weapon: "item_1",   
-            accessory: null 
-        };
-
-        // 아이템 기본 정보 데이터베이스 (ITEM_DB)
-        const ITEM_DB = {
-            // [기본 검]: 주무기(mainWeapon) 전용, 힘 +5, 소켓 3칸
-            "sword_basic":  { 
-                name: "기본 검", 
-                type: "equip", 
-                equipSlot: "mainWeapon", 
-                shape: [[1],[1],[1]], 
-                color: "rgba(120, 120, 150, 0.9)", 
-                stats: { str: 5 }, 
-                maxSockets: 3,
-                desc: "모험가들이 널리 사용하는 기본 검이다."
-            }, 
-            // [철갑옷]: 장비(equip) 타입 지정, 갑옷 슬롯(chest) 전용, 체력(hp) +10, 소켓 2칸
-            "armor_iron":   { 
-                name: "철갑옷", 
-                type: "equip", 
-                equipSlot: "chest", 
-                shape: [[1, 1], [1, 1]], 
-                color: "rgba(80, 80, 80, 0.9)", 
-                stats: { hp: 10 }, 
-                maxSockets: 2,
-                desc: "단단한 철판을 덧대어 만든 묵직한 갑옷이다."
-            },    
-            // [소비 아이템]: 포션
-            "potion_hp":    { 
-                name: "포션", 
-                type: "potion", 
-                shape: [[1]], 
-                color: "rgba(200, 50, 50, 0.9)",
-                desc: "체력을 회복시켜 주는 붉은 물약이다."
-            }, 
-            // [ㄱ자 도끼]: 주무기(mainWeapon) 전용
+    // [ㄱ자 도끼]: 주무기(mainWeapon) 전용
             "axe_battle":   { 
                 name: "ㄱ자 도끼", 
                 type: "equip", 
@@ -2389,6 +2402,15 @@
                 color: "#ff4444", 
                 enchantEffect: { stat: "str", value: 5, name: "강타(+5)" },
                 desc: "무기에 바르면 힘을 대폭 올려주는 주문서다."
+            },
+            // ★ 신규 아이템: 스킬북
+            "book_teleport": { 
+                name: "스킬북: 순간이동", 
+                type: "skillbook", 
+                skillId: "teleport",
+                shape: [[1]], 
+                color: "rgba(100, 50, 200, 0.9)", 
+                desc: "사용 시 [순간이동] 스킬을 습득한다.<br><span style='color:gold;'>(PC: 더블클릭 / 모바일: 두번 연속 터치)</span>"
             }
         };
 
@@ -2400,9 +2422,16 @@
             { id: "item_5", baseId: "axe_battle",  gridX: 5, gridY: 5, rot: 0 }  
         ];
 
-        // 창고에 기본적으로 두루마리 하나 지급
-        if (typeof personalStorage !== "undefined" && personalStorage.length === 0) {
-            personalStorage.push({ id: "scroll_1", baseId: "scroll_smite", gridX: 6, gridY: 8, rot: 0 });
+        // 창고 지급 로직
+        if (typeof personalStorage !== "undefined") {
+            if (personalStorage.length === 0) {
+                personalStorage.push({ id: "scroll_1", baseId: "scroll_smite", gridX: 6, gridY: 8, rot: 0 });
+            }
+            // ★ 순간이동 스킬북 창고에 자동 지급 (배우지 않았다면)
+            let hasTeleportBook = personalStorage.some(i => i.baseId === "book_teleport");
+            if (!hasTeleportBook && (!player.unlockedSkills || !player.unlockedSkills.includes("teleport"))) {
+                personalStorage.push({ id: "book_teleport_1", baseId: "book_teleport", gridX: 4, gridY: 8, rot: 0 });
+            }
         }
         // [MOD-020-1-END]
         
@@ -2502,17 +2531,69 @@
                 rotateHandle.addEventListener("touchstart", triggerRotate, { passive: false });
                 wrapper.appendChild(rotateHandle);
 
-               // (기존 코드) 출처(sourceName)를 명시하여 드래그 시작
-                wrapper.addEventListener("mousedown", (e) => startDrag(e, item, wrapper, sourceName));
-                wrapper.addEventListener("touchstart", (e) => startDrag(e, item, wrapper, sourceName), { passive: false });
+                // ★ 아이템 사용 (더블클릭 / 모바일 더블터치 / 우클릭) 기능 추가
+                const handleItemUse = (e) => {
+                    if (baseItem.type === "skillbook") {
+                        e.preventDefault(); e.stopPropagation();
+                        useSkillBook(item, sourceName);
+                    }
+                };
+
+                let lastTap = 0;
+                wrapper.addEventListener("dblclick", handleItemUse);
+                wrapper.addEventListener("contextmenu", handleItemUse);
                 
-                // [추가] 툴팁 이벤트 리스너 등록
+                wrapper.addEventListener("mousedown", (e) => startDrag(e, item, wrapper, sourceName));
+                wrapper.addEventListener("touchstart", (e) => { 
+                    let currentTime = new Date().getTime();
+                    let tapLength = currentTime - lastTap;
+                    if (tapLength > 0 && tapLength < 300) { // 0.3초 내 더블 터치 시 사용
+                        handleItemUse(e);
+                    } else {
+                        startDrag(e, item, wrapper, sourceName);
+                    }
+                    lastTap = currentTime;
+                }, { passive: false });
+                
                 wrapper.addEventListener("mouseenter", (e) => handleItemMouseEnter(e, item));
                 wrapper.addEventListener("mouseleave", handleItemMouseLeave);
                 wrapper.addEventListener("mousemove", handleItemMouseMove);
                 
                 board.appendChild(wrapper);
             });
+        }
+
+        // ★ [신규] 스킬북 사용 전역 함수
+        function useSkillBook(itemObj, sourceName) {
+            const baseItem = ITEM_DB[itemObj.baseId];
+            if (!baseItem || baseItem.type !== "skillbook") return;
+            
+            const skillId = baseItem.skillId;
+            if (player.unlockedSkills.includes(skillId)) {
+                addFloatingText(player.x, player.y - 30, "이미 습득한 스킬입니다.", "gray");
+                return;
+            }
+            
+            // 스킬 습득 및 새 스킬 뱃지 등록
+            player.unlockedSkills.push(skillId);
+            player.newlyAcquiredSkills.push(skillId);
+            
+            // 드래그 중이었다면 취소
+            if (dragItemState.active && dragItemState.ghostEl) {
+                dragItemState.ghostEl.remove();
+                dragItemState.active = false;
+                hideDragStatsPanel();
+            }
+
+            // 인벤토리/창고에서 아이템 소모(삭제)
+            let targetArray = sourceName === "storage" ? personalStorage : myInventoryItems;
+            let idx = targetArray.findIndex(i => (i.id || i.uid) === (itemObj.id || itemObj.uid));
+            if (idx > -1) targetArray.splice(idx, 1);
+            
+            addFloatingText(player.x, player.y - 30, `[${MOCK_SKILLS[skillId].name}] 습득!`, "gold");
+            
+            if (typeof renderGridInventory === "function") renderGridInventory();
+            if (currentRightView === 'enchant' && typeof renderSkillUI === "function") renderSkillUI();
         }
 
         function renderGridInventory() {
@@ -2685,7 +2766,7 @@
             
             board.appendChild(ghost);
             dragItemState.ghostEl = ghost;
-            htmlEl.style.display = "none";
+            dragItemState.originalEl = htmlEl;
 
             document.addEventListener("mousemove", onDragMove);
             document.addEventListener("mouseup", onDragEnd);
@@ -2779,6 +2860,13 @@
 
         function onDragMove(e) {
             if (!dragItemState.active) return;
+            
+            // ★ 수정: 드래그가 실제로 시작(이동)되었을 때 원본을 숨김
+            if (dragItemState.originalEl) {
+                dragItemState.originalEl.style.display = "none";
+                dragItemState.originalEl = null;
+            }
+
             if(e.type === "touchmove" && e.touches.length > 0) {
                 dragItemState.lastClientX = e.touches[0].clientX;
                 dragItemState.lastClientY = e.touches[0].clientY;
@@ -3295,14 +3383,45 @@
             let equippedIds = player.quickSlots.filter(s => s !== null).map(s => s.id);
             
             // 1. 보유 스킬 리스트업
-            Object.values(MOCK_SKILLS).forEach(skill => {
-                // ★ 이미 퀵슬롯에 장착된 스킬은 목록에서 제외하고 그리지 않음!
+            player.unlockedSkills.forEach(skillId => {
+                let skill = MOCK_SKILLS[skillId];
+                if (!skill) return;
+                
+                // 장착 중인 스킬은 목록에서 제외
                 if (equippedIds.includes(skill.id)) return; 
 
                 let div = document.createElement("div");
                 div.className = "skill-icon";
+                div.style.position = "relative"; // 뱃지 부착용
                 div.innerText = skill.name;
-                const startDrag = (e) => { e.preventDefault(); startSkillDrag(e, skill, -1); };
+                
+                // ★ 신규 획득 느낌표 뱃지 추가
+                if (player.newlyAcquiredSkills.includes(skill.id)) {
+                    let badge = document.createElement("div");
+                    badge.className = "noti-badge";
+                    badge.innerText = "!";
+                    badge.style.top = "-6px";
+                    badge.style.right = "-6px";
+                    badge.style.width = "14px";
+                    badge.style.height = "14px";
+                    badge.style.fontSize = "10px";
+                    div.appendChild(badge);
+                }
+
+                // ★ 마우스 호버(또는 터치) 시 뱃지 즉시 제거
+                const clearBadge = () => {
+                    let idx = player.newlyAcquiredSkills.indexOf(skill.id);
+                    if (idx > -1) {
+                        player.newlyAcquiredSkills.splice(idx, 1);
+                        let b = div.querySelector('.noti-badge');
+                        if (b) b.remove();
+                    }
+                };
+                
+                div.addEventListener("mouseenter", clearBadge);
+                div.addEventListener("touchstart", clearBadge, { passive: true });
+
+                const startDrag = (e) => { e.preventDefault(); clearBadge(); startSkillDrag(e, skill, -1); };
                 div.addEventListener("mousedown", startDrag);
                 div.addEventListener("touchstart", startDrag, { passive: false });
                 list.appendChild(div);
