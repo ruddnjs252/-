@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>리퀘 (Re-Quest) v0.2.5.1009.5</title>
+    <title>리퀘 (Re-Quest) v0.2.5.1009.6</title>
     
     <style>
         /* [MOD-001: 기본 화면 및 컨테이너 스타일] */
@@ -404,8 +404,10 @@
                         <div id="inventoryBoard" class="inventory-board"></div>
                     </div>
 
-                    <div id="viewEnchant" style="padding: 0; display: none; width: 320px; height: 400px; background-color: #1a1a1a; border: 2px solid #555; flex-direction: column; box-sizing: content-box; position: relative;">
-                        <div style="flex: 1; border-bottom: 2px solid #333; display: flex; flex-direction: row; padding: 15px 0;">
+                    <div id="viewEnchant" style="padding: 0; display: none; width: 320px; height: 400px; background-color: #1a1a1a; border: 2px solid #555; flex-direction: column; box-sizing: border-box; position: relative;">
+                        
+                        <!-- 1. 장비 인챈트 구역 (상단 140px) -->
+                        <div style="height: 140px; border-bottom: 2px solid #333; display: flex; flex-direction: row; padding: 15px 0; box-sizing: border-box;">
                             <div style="width: 80px; display: flex; justify-content: center; align-items: flex-start; border-right: 2px solid #333; padding-top: 5px;">
                                 <div id="enchantTargetSlot" class="enchant-target-slot">
                                     <span class="enchant-target-hint" id="enchantTargetHint">장비<br>등록</span>
@@ -413,19 +415,38 @@
                             </div>
                             <div style="flex: 1; display: flex; flex-direction: column; padding: 0 15px;">
                                 <h3 style="margin: 0 0 10px 0; color: gold; font-size: 14px; text-align: center;">장비 인챈트</h3>
-                                <div id="enchantContent" style="flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; color: gray; font-size: 12px; text-align: center;">
+                                <div id="enchantContent" style="flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; color: gray; font-size: 11px; text-align: center;">
                                     좌측 장비창에서 장비를<br>클릭하여 올려주세요.
                                 </div>
                             </div>
                         </div>
-                        <div style="height: 160px; padding: 15px;">
-                            <h3 style="margin: 0 0 10px 0; color: #00ffcc; font-size: 14px; text-align: center;">활성 스킬</h3>
-                            <div style="color: #555; text-align: center; margin-top: 30px; font-size: 11px;">(추후 스킬 리스트 구현 예정)</div>
+
+                        <!-- 2. 스킬 덱 빌딩 구역 (하단 나머지) -->
+                        <div style="flex: 1; display: flex; flex-direction: column; padding: 10px; box-sizing: border-box;">
+                            <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #444; padding-bottom: 5px; margin-bottom: 10px;">
+                                <h3 style="margin: 0; color: #00ffcc; font-size: 14px;">보유 스킬</h3>
+                                <span style="font-size: 10px; color: gray;">드래그하여 장착</span>
+                            </div>
+                            
+                            <!-- 스킬 인벤토리 -->
+                            <div id="skillListContainer" style="display: grid; grid-template-columns: repeat(6, 1fr); gap: 6px; overflow-y: auto; flex: 1; align-content: start;">
+                                <!-- 스킬 아이콘들이 JS로 생성됨 -->
+                            </div>
+                            
+                            <!-- 사다리 퀵슬롯 장착칸 (HUD 연동) -->
+                            <div style="margin-top: 10px; padding-top: 10px; border-top: 2px solid #333; display: flex; justify-content: center;">
+                                <div style="display: flex; border-top: 3px solid rgba(255,255,255,0.8); border-bottom: 3px solid rgba(255,255,255,0.8);">
+                                    <div class="deck-slot" id="deck-slot-0" data-idx="0"></div>
+                                    <div class="deck-slot" id="deck-slot-1" data-idx="1"></div>
+                                    <div class="deck-slot" id="deck-slot-2" data-idx="2" style="background: rgba(0, 255, 255, 0.15); border: 2px solid #00ffff; box-shadow: inset 0 0 10px rgba(0,255,255,0.5);"></div>
+                                    <div class="deck-slot" id="deck-slot-3" data-idx="3"></div>
+                                    <div class="deck-slot" id="deck-slot-4" data-idx="4"></div>
+                                </div>
+                            </div>
                         </div>
+
                         <div id="enchantPopupUI" class="enchant-popup"></div>
                     </div>
-                </div>
-
                 <!-- [추가] 개인 창고 패널 (가방 열렸을 때만 우측에 표시) -->
                 <div id="storagePanel" style="display: none; width: 320px; height: 400px; background-color: #1a1a1a; border: 2px solid #555; flex-direction: column; position: relative; box-sizing: content-box;">
                     <h3 style="margin: 0; padding: 15px; background: #222; border-bottom: 2px solid #333; text-align: center; color: gold; font-size: 14px;">개인 창고</h3>
