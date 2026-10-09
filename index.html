@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>리퀘 (Re-Quest) v0.2.5.1009.8</title>
+    <title>리퀘 (Re-Quest) v0.2.5.1009.9</title>
     
     <style>
         /* [MOD-001: 기본 화면 및 컨테이너 스타일] */
@@ -298,9 +298,7 @@
 </head>
 <body>
     <!-- [MOD-004: 오버레이 UI 및 캔버스 렌더링 영역] -->
-    <!-- [MOD-004-1: 모바일 가상 패드 및 방사형 퀵슬롯 HTML] -->
-    <div id="vpad-container">
-        <!-- [MOD-004-1: 모바일 가상 패드 및 사다리형 퀵슬롯 HTML] -->
+    <!-- [MOD-004-1: 모바일 가상 패드 및 사다리형 퀵슬롯 HTML] -->
     <div id="vpad-container">
         <!-- 5칸 사다리형 슬롯 -->
         <div id="quick-slot-wrapper">
@@ -318,15 +316,6 @@
         <div id="vpad-e" class="vpad-btn">가방</div>
     </div>
     <!-- [MOD-004-1-END] -->
-        
-        <div id="vpad-stick-base"><div id="vpad-stick-knob"></div></div>
-        <div id="vpad-atk" class="vpad-btn">공격</div>
-        <div id="vpad-skill" class="vpad-btn">스킬</div>
-        <div id="vpad-r" class="vpad-btn">R변경</div>
-        <div id="vpad-e" class="vpad-btn">가방</div>
-    </div>
-
-    <h1>리퀘: 끝없는 성장</h1>
     
     <!-- [MOD-004-2: 메인 게임 캔버스] -->
     <div id="gameContainer">
@@ -2383,9 +2372,54 @@
         }
         // [MOD-018-END]
         
-// [MOD-020: 그리드 인벤토리 및 장비창 시스템 통합 관리]
+// [MOD-020-1: 그리드 환경 변수 및 장비 슬롯 정의]
+        const GRID_CELL_SIZE = 40; 
+        const INV_COLS = 8;        
+        const INV_ROWS = 10;       
         
-    // [ㄱ자 도끼]: 주무기(mainWeapon) 전용
+        let gridMap = Array.from({ length: INV_ROWS }, () => Array(INV_COLS).fill(null));
+        let storageMap = Array.from({ length: INV_ROWS }, () => Array(INV_COLS).fill(null)); 
+        
+        let equipmentSlots = {
+            helmet: null,   
+            armor: "item_2",    
+            weapon: "item_1",   
+            accessory: null 
+        };
+
+        // 아이템 기본 정보 데이터베이스 (ITEM_DB)
+        const ITEM_DB = {
+            // [기본 검]: 주무기(mainWeapon) 전용, 힘 +5, 소켓 3칸
+            "sword_basic":  { 
+                name: "기본 검", 
+                type: "equip", 
+                equipSlot: "mainWeapon", 
+                shape: [[1],[1],[1]], 
+                color: "rgba(120, 120, 150, 0.9)", 
+                stats: { str: 5 }, 
+                maxSockets: 3,
+                desc: "모험가들이 널리 사용하는 기본 검이다."
+            }, 
+            // [철갑옷]: 장비(equip) 타입 지정, 갑옷 슬롯(chest) 전용, 체력(hp) +10, 소켓 2칸
+            "armor_iron":   { 
+                name: "철갑옷", 
+                type: "equip", 
+                equipSlot: "chest", 
+                shape: [[1, 1], [1, 1]], 
+                color: "rgba(80, 80, 80, 0.9)", 
+                stats: { hp: 10 }, 
+                maxSockets: 2,
+                desc: "단단한 철판을 덧대어 만든 묵직한 갑옷이다."
+            },    
+            // [소비 아이템]: 포션
+            "potion_hp":    { 
+                name: "포션", 
+                type: "potion", 
+                shape: [[1]], 
+                color: "rgba(200, 50, 50, 0.9)",
+                desc: "체력을 회복시켜 주는 붉은 물약이다."
+            }, 
+            // [ㄱ자 도끼]: 주무기(mainWeapon) 전용
             "axe_battle":   { 
                 name: "ㄱ자 도끼", 
                 type: "equip", 
