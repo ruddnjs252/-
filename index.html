@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>리퀘 (Re-Quest) v0.2.5.1008.롤백</title>
+    <title>리퀘 (Re-Quest) v0.2.5.1009.1</title>
     
     <style>
         /* [MOD-001: 기본 화면 및 컨테이너 스타일] */
@@ -325,7 +325,8 @@
  <!-- [MOD-006: 통합 UI (ui_1 가방 & ui_2 인챈트/스킬 & ui_3 창고)] -->
         <div id="inventoryUI" class="ui-layer">
             <div class="inv-container" id="invMainContainer">
-                <button class="close-btn" style="top: -15px; right: -15px; border-radius: 50%; width: 35px; height: 35px; padding: 0;" onclick="closeUI()">X</button>
+                <!-- ★ [버그 수정] 닫기 버튼을 패널 바깥(-15px)이 아니라 안쪽(10px)으로 밀어넣고 z-index 부여 -->
+                <button class="close-btn" style="top: 10px; right: 10px; border-radius: 50%; width: 35px; height: 35px; padding: 0; z-index: 100;" onclick="closeUI()">X</button>
                 
                 <div id="leftPanel">
                     <div id="equipSection">
@@ -2272,6 +2273,7 @@
         const INV_ROWS = 10;       
         
         let gridMap = Array.from({ length: INV_ROWS }, () => Array(INV_COLS).fill(null));
+        let storageMap = Array.from({ length: INV_ROWS }, () => Array(INV_COLS).fill(null)); // ★ 버그 수정: 누락되었던 창고 맵 배열 추가!
         
         let equipmentSlots = {
             helmet: null,   
@@ -2293,7 +2295,7 @@
                 maxSockets: 3,
                 desc: "모험가들이 널리 사용하는 기본 검이다."
             }, 
-            // [철갑옷 - 수정 완료]: 장비(equip) 타입 지정, 갑옷 슬롯(chest) 전용, 체력(hp) +10, 소켓 2칸
+            // [철갑옷]: 장비(equip) 타입 지정, 갑옷 슬롯(chest) 전용, 체력(hp) +10, 소켓 2칸
             "armor_iron":   { 
                 name: "철갑옷", 
                 type: "equip", 
