@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>UTU v0.2.5.1011.5</title>
+    <title>UTU v0.2.5.1011.6</title>
     
     <style>
         /* [MOD-001: 기본 화면 및 컨테이너 스타일] */
@@ -295,18 +295,18 @@
         .q-slot-far { opacity: 0.1; z-index: 1; background: transparent; }  
         /* [MOD-003-3-END] */
 
-       /* [MOD-024: 스킬 덱 빌딩 UI 스타일] */
+        /* [MOD-024: 스킬 덱 빌딩 UI 스타일] */
         .skill-icon { 
-            width: 45px; height: 45px; background: #222; border: 2px solid #666; border-radius: 6px; 
+            width: 40px; height: 40px; background: #222; border: 2px solid #666; border-radius: 5px; 
             display: flex; align-items: center; justify-content: center; 
-            color: white; font-size: 11px; font-weight: bold; cursor: grab; user-select: none; 
+            color: white; font-size: 10px; font-weight: bold; cursor: grab; user-select: none; 
             transition: 0.2s; box-sizing: border-box; box-shadow: inset 0 0 5px rgba(0,0,0,0.8);
         }
         .skill-icon:hover { border-color: #00ffcc; background: #333; }
         
         /* 덱 장착 사다리 슬롯 */
         .deck-slot { 
-            width: 50px; height: 50px; border-right: 2px solid rgba(255,255,255,0.6); 
+            width: 44px; height: 44px; border-right: 2px solid rgba(255,255,255,0.6); 
             display: flex; align-items: center; justify-content: center; box-sizing: border-box; background: rgba(0,0,0,0.5);
         }
         .deck-slot:first-child { border-left: 2px solid rgba(255,255,255,0.6); }
@@ -441,19 +441,19 @@
                         </div>
 
                         <!-- 2. 스킬 덱 빌딩 구역 (하단 나머지) -->
-                        <div style="flex: 1; display: flex; flex-direction: column; padding: 8px 10px; box-sizing: border-box; overflow: hidden;">
-                            <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #444; padding-bottom: 3px; margin-bottom: 6px;">
-                                <span style="margin: 0; color: #00ffcc; font-size: 11px; font-weight: bold;">보유 스킬</span>
-                                <span style="font-size: 9px; color: gray;">드래그하여 장착</span>
+                        <div style="flex: 1; display: flex; flex-direction: column; padding: 4px 10px 6px 10px; box-sizing: border-box; overflow: hidden;">
+                            <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #444; padding-bottom: 1px; margin-bottom: 3px; height: 16px;">
+                                <span style="margin: 0; color: #00ffcc; font-size: 10px; font-weight: bold; line-height: 1;">보유 스킬</span>
+                                <span style="font-size: 8px; color: gray; line-height: 1;">드래그하여 장착</span>
                             </div>
                             
                             <!-- ★ 스킬 인벤토리: 가로 스크롤 제거, 한 줄 5칸, 세로 스크롤 활성화 -->
-                            <div id="skillListContainer" style="display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; overflow-y: scroll; overflow-x: hidden; flex: 1; min-height: 0; align-content: start; padding-right: 6px;">
+                            <div id="skillListContainer" style="display: grid; grid-template-columns: repeat(5, 1fr); gap: 4px; overflow-y: scroll; overflow-x: hidden; flex: 1; min-height: 0; align-content: start; padding-right: 4px;">
                                 <!-- 스킬 아이콘들이 JS로 생성됨 -->
                             </div>
                             
                             <!-- 사다리 퀵슬롯 장착칸 (HUD 연동) -->
-                            <div style="margin-top: 10px; padding-top: 10px; border-top: 2px solid #333; display: flex; justify-content: center;">
+                            <div style="margin-top: 5px; padding-top: 5px; border-top: 1px solid #333; display: flex; justify-content: center;">
                                 <div style="display: flex; border-top: 3px solid rgba(255,255,255,0.8); border-bottom: 3px solid rgba(255,255,255,0.8);">
                                     <div class="deck-slot" id="deck-slot-0" data-idx="0"></div>
                                     <div class="deck-slot" id="deck-slot-1" data-idx="1"></div>
