@@ -106,8 +106,18 @@
                 <div id="rightPanel" style="display: flex; position: relative;">
                     <button id="modeSwitchBtn" onclick="toggleRightPanelView()" style="position: absolute; left: -27px; top: 10px; background: #333; color: white; border: 2px solid #555; padding: 15px 5px; cursor: pointer; z-index: 10; border-radius: 4px 0 0 4px;">&raquo;</button>
                     
-                    <div id="viewInventory" style="padding: 0; display: block;">
-                        <div id="inventoryBoard" class="inventory-board"></div>
+                    <div id="viewInventory" style="padding: 0; display: flex; flex-direction: column; width: 320px; height: 400px; box-sizing: border-box; position: relative; background: #111;">
+                        <!-- 상단 가방 장착 바 (5개 슬롯) -->
+                        <div id="invBagSlotBar" class="bag-slot-bar"></div>
+                        <!-- 인벤토리 섹션 스크롤 컨테이너 -->
+                        <div id="invSectionsContainer" class="inv-sections-container">
+                            <div class="inv-section" id="invSection_main">
+                                <div class="inv-section-header">
+                                    <span class="sec-title">📦 기본 소지품 (8 × 3)</span>
+                                </div>
+                                <div id="inventoryBoard_main" class="inventory-board" data-container="main" style="height: 120px;"></div>
+                            </div>
+                        </div>
                     </div>
 
                     <div id="viewEnchant" style="padding: 0; display: none; width: 320px; height: 400px; background-color: #1a1a1a; border: 2px solid #555; flex-direction: column; box-sizing: border-box; position: relative;">

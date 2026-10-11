@@ -67,6 +67,37 @@ const ITEM_DB = {
         shape: [[1]], 
         color: "rgba(100, 50, 200, 0.9)", 
         desc: "사용 시 [순간이동] 스킬을 습득한다.<br><span style='color:gold;'>(PC: 더블클릭 / 모바일: 두번 연속 터치)</span>"
+    },
+    // ★ 가방 아이템 3종
+    "bag_small": {
+        name: "소형 가방",
+        type: "bag",
+        equipSlot: "bag",
+        bagRows: 3,
+        bagCols: 8,
+        shape: [[1, 1], [1, 1]],
+        color: "#a0522d",
+        desc: "상단 가방 슬롯에 착용 시 8×3 (24칸) 크기의 추가 가방 공간이 열립니다."
+    },
+    "bag_medium": {
+        name: "중형 가방",
+        type: "bag",
+        equipSlot: "bag",
+        bagRows: 5,
+        bagCols: 8,
+        shape: [[1, 1], [1, 1]],
+        color: "#6b4226",
+        desc: "상단 가방 슬롯에 착용 시 8×5 (40칸) 크기의 추가 가방 공간이 열립니다."
+    },
+    "bag_large": {
+        name: "대형 가방",
+        type: "bag",
+        equipSlot: "bag",
+        bagRows: 8,
+        bagCols: 8,
+        shape: [[1, 1], [1, 1]],
+        color: "#3e2723",
+        desc: "상단 가방 슬롯에 착용 시 8×8 (64칸) 크기의 대용량 추가 가방 공간이 열립니다."
     }
 };
 // [ITEM-001-END]

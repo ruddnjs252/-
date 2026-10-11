@@ -362,10 +362,27 @@ function showTooltip(e, itemObj) {
 // [MOD-020-1: 그리드 환경 변수 및 장비 슬롯 정의]
         const GRID_CELL_SIZE = 40; 
         const INV_COLS = 8;        
-        const INV_ROWS = 10;       
-        
-        let gridMap = Array.from({ length: INV_ROWS }, () => Array(INV_COLS).fill(null));
-        let storageMap = Array.from({ length: INV_ROWS }, () => Array(INV_COLS).fill(null)); 
+        const BASE_INV_ROWS = 3;   // [기본 인벤토리: 가방 미착용 시 8x3 고정]
+        const STORAGE_ROWS = 10;   // [개인 창고: 8x10 고정]
+        const INV_ROWS = 10;       // 하위 호환성 유지용
+
+        // [플레이어 가방 장착 슬롯 5개]
+        if (typeof player !== "undefined" && !player.equippedBags) {
+            player.equippedBags = [null, null, null, null, null];
+        }
+
+        // [컨테이너별 2차원 격자 맵]
+        let containerMaps = {
+            main: Array.from({ length: BASE_INV_ROWS }, () => Array(INV_COLS).fill(null)),
+            storage: Array.from({ length: STORAGE_ROWS }, () => Array(INV_COLS).fill(null))
+        };
+        for (let i = 0; i < 5; i++) {
+            containerMaps['bag_' + i] = null;
+        }
+
+        // 하위 호환 참조
+        let gridMap = containerMaps.main;
+        let storageMap = containerMaps.storage;
         
         let equipmentSlots = {
             helmet: null,   
@@ -374,23 +391,44 @@ function showTooltip(e, itemObj) {
             accessory: null 
         };
 
-        // 아이템 기본 정보 데이터베이스 (ITEM_DB)는 data/items.js로 분리되었습니다.
+        let myInventoryItems = []; // [인벤토리 소지품 배열]
 
-        let myInventoryItems = []; // [사용자 요청: 인벤토리 개편 대비 가방 비움]
-
-        // [모든 기본 아이템 창고(personalStorage) 배치 - 8x10 그리드에 겹침 없이 정갈하게 배치]
+        // [개인 창고(personalStorage) 초기 배치 - 기본 아이템 7종 + 가방 3종 겹침 없이 배치]
         if (typeof personalStorage !== "undefined") {
             if (personalStorage.length === 0) {
                 personalStorage.push(
-                    { id: "item_sword_1", baseId: "sword_basic", gridX: 0, gridY: 0, rot: 0 }, // 1x3 (0,0 ~ 0,2)
-                    { id: "item_armor_1", baseId: "armor_iron",  gridX: 2, gridY: 0, rot: 0 }, // 2x3 (2,0 ~ 3,2)
-                    { id: "item_pot_1",   baseId: "potion_hp",   gridX: 5, gridY: 0, rot: 0 }, // 1x1 (5,0)
-                    { id: "item_pot_2",   baseId: "potion_hp",   gridX: 6, gridY: 0, rot: 0 }, // 1x1 (6,0)
-                    { id: "item_axe_1",   baseId: "axe_battle",  gridX: 0, gridY: 4, rot: 0 }, // 2x3 (0,4 ~ 1,6)
-                    { id: "scroll_1",     baseId: "scroll_smite", gridX: 3, gridY: 4, rot: 0 }, // 1x2 (3,4 ~ 3,5)
-                    { id: "book_teleport_1", baseId: "book_teleport", gridX: 5, gridY: 4, rot: 0 } // 2x2 (5,4 ~ 6,5)
+                    { id: "item_sword_1", baseId: "sword_basic", container: "storage", gridX: 0, gridY: 0, rot: 0 }, // 1x3
+                    { id: "item_armor_1", baseId: "armor_iron",  container: "storage", gridX: 2, gridY: 0, rot: 0 }, // 2x3
+                    { id: "item_pot_1",   baseId: "potion_hp",   container: "storage", gridX: 5, gridY: 0, rot: 0 }, // 1x1
+                    { id: "item_pot_2",   baseId: "potion_hp",   container: "storage", gridX: 6, gridY: 0, rot: 0 }, // 1x1
+                    { id: "item_axe_1",   baseId: "axe_battle",  container: "storage", gridX: 0, gridY: 4, rot: 0 }, // 2x3
+                    { id: "scroll_1",     baseId: "scroll_smite", container: "storage", gridX: 3, gridY: 4, rot: 0 }, // 1x2
+                    { id: "book_teleport_1", baseId: "book_teleport", container: "storage", gridX: 5, gridY: 4, rot: 0 }, // 1x1
+                    // ★ 신규 가방 3종 배치
+                    { id: "bag_s_1", baseId: "bag_small",  container: "storage", gridX: 0, gridY: 7, rot: 0 }, // 2x2 (0,7 ~ 1,8)
+                    { id: "bag_m_1", baseId: "bag_medium", container: "storage", gridX: 3, gridY: 7, rot: 0 }, // 2x2 (3,7 ~ 4,8)
+                    { id: "bag_l_1", baseId: "bag_large",  container: "storage", gridX: 6, gridY: 7, rot: 0 }  // 2x2 (6,7 ~ 7,8)
                 );
             }
+        }
+
+        // [컨테이너 맵 관리 유틸리티]
+        function getContainerMap(cId) {
+            if (cId === "storage") return containerMaps.storage;
+            if (cId === "main") return containerMaps.main;
+            if (cId && cId.startsWith("bag_")) {
+                let slotIdx = parseInt(cId.replace("bag_", ""));
+                if (typeof player !== "undefined" && player.equippedBags && player.equippedBags[slotIdx]) {
+                    let bagItem = player.equippedBags[slotIdx];
+                    let base = ITEM_DB[bagItem.baseId];
+                    let rows = (base && base.bagRows) ? base.bagRows : 3;
+                    if (!containerMaps[cId] || containerMaps[cId].length !== rows) {
+                        containerMaps[cId] = Array.from({ length: rows }, () => Array(INV_COLS).fill(null));
+                    }
+                    return containerMaps[cId];
+                }
+            }
+            return containerMaps.main;
         }
         // [MOD-020-1-END]
         
@@ -732,14 +770,19 @@ function showTooltip(e, itemObj) {
           }
       }
 
-      function renderBoardGrid(boardId, itemList, mapArray, sourceName) {
+      // [MOD-020-3: 멀티 보드 그리드 렌더링 시스템]
+      function renderBoardGrid(boardId, itemList, mapArray, sourceName, containerId) {
           const board = document.getElementById(boardId);
-          if (!board) return;
+          if (!board || !mapArray) return;
 
           board.innerHTML = "";
+          const rows = mapArray.length;
+          const cols = mapArray[0].length;
+          board.style.height = (rows * GRID_CELL_SIZE) + "px";
+          if (containerId) board.setAttribute("data-container", containerId);
 
-          for (let r = 0; r < INV_ROWS; r++) {
-              for (let c = 0; c < INV_COLS; c++) {
+          for (let r = 0; r < rows; r++) {
+              for (let c = 0; c < cols; c++) {
                   mapArray[r][c] = null;
               }
           }
@@ -758,7 +801,7 @@ function showTooltip(e, itemObj) {
                           const gy = item.gridY + r;
                           const gx = item.gridX + c;
 
-                          if (gy >= 0 && gy < INV_ROWS && gx >= 0 && gx < INV_COLS) {
+                          if (gy >= 0 && gy < rows && gx >= 0 && gx < cols) {
                               mapArray[gy][gx] = item.id || item.uid;
                           }
                       }
@@ -818,7 +861,7 @@ function showTooltip(e, itemObj) {
                   e.stopPropagation();
                   e.preventDefault();
                   closeItemDetail();
-                  attemptRotate(item, wrapper, sourceName);
+                  attemptRotate(item, wrapper, sourceName, containerId);
               };
 
               rotateHandle.addEventListener("mousedown", triggerRotate);
@@ -848,48 +891,25 @@ function showTooltip(e, itemObj) {
 
           const skillId = baseItem.skillId;
 
-          if (player.unlockedSkills.includes(skillId)) {
-              addFloatingText(
-                  player.x,
-                  player.y - 30,
-                  "이미 습득한 스킬입니다.",
-                  "gray"
-              );
-              return;
+          if (typeof playerUnlockedSkills !== "undefined" && !playerUnlockedSkills.includes(skillId)) {
+              playerUnlockedSkills.push(skillId);
           }
 
-          player.unlockedSkills.push(skillId);
-          player.newlyAcquiredSkills.push(skillId);
-
-          if (dragItemState.active && dragItemState.ghostEl) {
-              dragItemState.ghostEl.remove();
-              dragItemState.active = false;
-              hideDragStatsPanel();
+          if (typeof playerAvailableSkills !== "undefined" && !playerAvailableSkills.includes(skillId)) {
+              playerAvailableSkills.push(skillId);
           }
 
-          const targetArray =
-              sourceName === "storage" ? personalStorage : myInventoryItems;
-
-          const idx = targetArray.findIndex(
-              i => (i.id || i.uid) === (itemObj.id || itemObj.uid)
-          );
-
+          const targetArr = sourceName === "storage" ? personalStorage : myInventoryItems;
+          const idx = targetArr.findIndex(i => (i.id || i.uid) === (itemObj.id || itemObj.uid));
           if (idx > -1) {
-              targetArray.splice(idx, 1);
+              targetArr.splice(idx, 1);
           }
-
-          const skillName = MOCK_SKILLS[skillId]?.name || skillId;
-          addFloatingText(
-              player.x,
-              player.y - 30,
-              `[${skillName}] 습득!`,
-              "gold"
-          );
 
           closeItemDetail();
+          renderGridInventory();
 
-          if (typeof renderGridInventory === "function") {
-              renderGridInventory();
+          if (typeof addFloatingText === "function") {
+              addFloatingText(player.x, player.y - 20, "[순간이동] 스킬 습득!", "#00ffcc");
           }
 
           if (currentRightView === "enchant" &&
@@ -898,21 +918,120 @@ function showTooltip(e, itemObj) {
           }
       }
 
+      // [상단 5구 가방 슬롯 바 UI 렌더링]
+      function renderBagSlotsUI() {
+          const bar = document.getElementById("invBagSlotBar");
+          if (!bar) return;
+          bar.innerHTML = "";
+
+          if (typeof player === "undefined" || !player.equippedBags) {
+              if (typeof player !== "undefined") player.equippedBags = [null, null, null, null, null];
+              else return;
+          }
+
+          for (let i = 0; i < 5; i++) {
+              const slotEl = document.createElement("div");
+              slotEl.className = "bag-slot";
+              slotEl.dataset.slotIndex = i;
+
+              const bagItem = player.equippedBags[i];
+              if (bagItem) {
+                  slotEl.classList.add("equipped");
+                  const baseBag = ITEM_DB[bagItem.baseId];
+                  if (baseBag) slotEl.style.backgroundColor = baseBag.color;
+                  slotEl.innerHTML = `
+                      <div class="bag-slot-label" style="color:white; font-weight:bold;">🎒 ${i + 1}</div>
+                      <div class="bag-slot-info">${baseBag ? baseBag.name.replace(" 가방", "") : "가방"}</div>
+                  `;
+                  slotEl.onmouseenter = (e) => handleItemMouseEnter(e, bagItem);
+                  slotEl.onmouseleave = handleItemMouseLeave;
+                  slotEl.onmousemove = handleItemMouseMove;
+
+                  slotEl.onclick = () => unequipBag(i);
+                  slotEl.oncontextmenu = (e) => {
+                      e.preventDefault();
+                      unequipBag(i);
+                  };
+                  slotEl.onmousedown = (e) => {
+                      if (e.button !== 0) return;
+                      startDragFromBagSlot(e, i, bagItem);
+                  };
+              } else {
+                  slotEl.innerHTML = `
+                      <div class="bag-slot-label">🎒 ${i + 1}</div>
+                      <div style="font-size: 8px; color: #555;">빈 슬롯</div>
+                  `;
+              }
+              bar.appendChild(slotEl);
+          }
+      }
+
+      // [전체 그리드 인벤토리 렌더링: 가방 슬롯 + 기본 소지품(8x3) + 장착된 가방 섹션들 + 창고]
       function renderGridInventory() {
           renderEquipSlotsUI();
+          renderBagSlotsUI();
 
+          // 1. 기본 소지품 (8x3)
+          const mainItems = myInventoryItems.filter(i => (i.container || 'main') === 'main');
           renderBoardGrid(
-              "inventoryBoard",
-              myInventoryItems,
-              gridMap,
-              "inventory"
+              "inventoryBoard_main",
+              mainItems,
+              containerMaps.main,
+              "inventory",
+              "main"
           );
 
+          // 2. 장착된 가방 섹션들 동적 생성
+          const secContainer = document.getElementById("invSectionsContainer");
+          if (secContainer) {
+              const oldBagSecs = secContainer.querySelectorAll(".inv-section-dynamic-bag");
+              oldBagSecs.forEach(el => el.remove());
+
+              if (typeof player !== "undefined" && player.equippedBags) {
+                  for (let i = 0; i < 5; i++) {
+                      const bagItem = player.equippedBags[i];
+                      if (!bagItem) continue;
+
+                      const baseBag = ITEM_DB[bagItem.baseId];
+                      if (!baseBag) continue;
+
+                      const cId = 'bag_' + i;
+                      const cMap = getContainerMap(cId);
+
+                      const secDiv = document.createElement("div");
+                      secDiv.className = "inv-section inv-section-dynamic-bag";
+                      secDiv.id = "invSection_bag_" + i;
+
+                      const headerDiv = document.createElement("div");
+                      headerDiv.className = "inv-section-header";
+                      headerDiv.innerHTML = `
+                          <span class="sec-title">🎒 ${i + 1}번 가방: ${baseBag.name} (8 × ${baseBag.bagRows})</span>
+                          <span class="sec-badge">${INV_COLS * baseBag.bagRows}칸</span>
+                      `;
+
+                      const boardDiv = document.createElement("div");
+                      boardDiv.id = "inventoryBoard_bag_" + i;
+                      boardDiv.className = "inventory-board";
+                      boardDiv.setAttribute("data-container", cId);
+                      boardDiv.style.height = (baseBag.bagRows * GRID_CELL_SIZE) + "px";
+
+                      secDiv.appendChild(headerDiv);
+                      secDiv.appendChild(boardDiv);
+                      secContainer.appendChild(secDiv);
+
+                      const bagItems = myInventoryItems.filter(it => it.container === cId);
+                      renderBoardGrid("inventoryBoard_bag_" + i, bagItems, cMap, "inventory", cId);
+                  }
+              }
+          }
+
+          // 3. 개인 창고 (8x10)
           if (gameState === "storage") {
               renderBoardGrid(
                   "storageBoard",
                   personalStorage,
-                  storageMap,
+                  containerMaps.storage,
+                  "storage",
                   "storage"
               );
           }
@@ -923,19 +1042,25 @@ function showTooltip(e, itemObj) {
         // [MOD-020-5: 장비창 UI 렌더링 함수] - 기존 코드 유지 (덮어씌우지 않아도 됨)
 
         // [MOD-020-6: 비정형 블록 제자리 회전 검사 (멀티 보드 대응)]
-        function attemptRotate(itemObj, htmlEl, sourceName) {
+        function attemptRotate(itemObj, htmlEl, sourceName, containerId) {
             const baseItem = ITEM_DB[itemObj.baseId];
-            let nextRot = (itemObj.rot + 1) % 4; 
+            let nextRot = ((itemObj.rot || 0) + 1) % 4; 
             const newShape = getRotatedShape(baseItem.shape, nextRot);
             const newH = newShape.length, newW = newShape[0].length;
             let canRotate = true;
-            let targetMap = sourceName === "storage" ? storageMap : gridMap;
+
+            const cId = containerId || itemObj.container || (sourceName === "storage" ? "storage" : "main");
+            let targetMap = getContainerMap(cId);
+            if (!targetMap) return;
+
+            const maxRows = targetMap.length;
+            const maxCols = targetMap[0].length;
 
             for(let r = 0; r < newH; r++) {
                 for(let c = 0; c < newW; c++) {
                     if(newShape[r][c] === 1) {
                         let gy = itemObj.gridY + r, gx = itemObj.gridX + c;
-                        if(gy < 0 || gy >= INV_ROWS || gx < 0 || gx >= INV_COLS) { canRotate = false; break; }
+                        if(gy < 0 || gy >= maxRows || gx < 0 || gx >= maxCols) { canRotate = false; break; }
                         if(targetMap[gy][gx] !== null && targetMap[gy][gx] !== (itemObj.id || itemObj.uid)) { canRotate = false; break; }
                     }
                 }
@@ -956,9 +1081,176 @@ function showTooltip(e, itemObj) {
         }
         // [MOD-020-6-END]
 
-        // [MOD-020-7: 기존 드래그 상세창 완전 제거 - 클릭 상세창으로 단일화]
+        // [MOD-020-7: 가방 장착/해제 및 드래그 앤 드롭 시스템]
         function showDragStatsPanel(itemObj, source) {}
         function hideDragStatsPanel() {}
+
+        // [가방 착용 로직]
+        function equipBag(bagItem, targetSlotIdx, sourceArray) {
+            if (!bagItem || targetSlotIdx < 0 || targetSlotIdx >= 5) return false;
+            const baseBag = ITEM_DB[bagItem.baseId];
+            if (!baseBag || baseBag.type !== "bag") return false;
+
+            if (typeof player === "undefined") return false;
+            if (!player.equippedBags) player.equippedBags = [null, null, null, null, null];
+
+            const oldBag = player.equippedBags[targetSlotIdx];
+            if (oldBag) {
+                const insideItems = myInventoryItems.filter(it => it.container === 'bag_' + targetSlotIdx);
+                if (insideItems.length > 0) {
+                    if (typeof addFloatingText === "function") {
+                        addFloatingText(player.x, player.y - 30, "가방에 아이템이 있어 교체 불가!", "#ff4444");
+                    } else {
+                        alert("교체하려는 가방 안에 아이템이 들어있어 벗을 수 없습니다!");
+                    }
+                    return false;
+                }
+            }
+
+            // 소스 배열에서 가방 제거
+            if (sourceArray) {
+                const idx = sourceArray.findIndex(it => (it.id || it.uid) === (bagItem.id || bagItem.uid));
+                if (idx > -1) sourceArray.splice(idx, 1);
+            }
+
+            player.equippedBags[targetSlotIdx] = bagItem;
+            containerMaps['bag_' + targetSlotIdx] = Array.from({ length: baseBag.bagRows }, () => Array(INV_COLS).fill(null));
+
+            // 기존 가방이 있었으면 복귀
+            if (oldBag && sourceArray) {
+                let targetMap = getContainerMap(sourceArray === personalStorage ? "storage" : "main");
+                let freePos = findFreeSpace(oldBag, targetMap);
+                if (freePos) {
+                    oldBag.gridX = freePos.x;
+                    oldBag.gridY = freePos.y;
+                    oldBag.container = sourceArray === personalStorage ? "storage" : "main";
+                    sourceArray.push(oldBag);
+                } else {
+                    myInventoryItems.push(oldBag);
+                }
+            }
+
+            if (typeof addFloatingText === "function") {
+                addFloatingText(player.x, player.y - 30, "🎒 " + baseBag.name + " 착용!", "#ffd700");
+            }
+
+            renderGridInventory();
+            return true;
+        }
+
+        // [가방 해제 로직]
+        function unequipBag(slotIdx) {
+            if (slotIdx < 0 || slotIdx >= 5) return false;
+            if (typeof player === "undefined" || !player.equippedBags) return false;
+            const bagItem = player.equippedBags[slotIdx];
+            if (!bagItem) return false;
+
+            const insideItems = myInventoryItems.filter(it => it.container === 'bag_' + slotIdx);
+            if (insideItems.length > 0) {
+                if (typeof addFloatingText === "function") {
+                    addFloatingText(player.x, player.y - 30, "가방에 아이템이 있어 벗을 수 없습니다!", "#ff4444");
+                } else {
+                    alert("해당 가방에 보관 중인 아이템이 있어 가방을 벗을 수 없습니다! 먼저 가방을 비워주세요.");
+                }
+                return false;
+            }
+
+            const candidates = ['main'];
+            for (let i = 0; i < 5; i++) {
+                if (i !== slotIdx && player.equippedBags[i]) candidates.push('bag_' + i);
+            }
+            if (gameState === "storage") candidates.push('storage');
+
+            let placedContainer = null;
+            let freePos = null;
+
+            for (let cId of candidates) {
+                const cMap = getContainerMap(cId);
+                if (cMap) {
+                    const pos = findFreeSpace(bagItem, cMap);
+                    if (pos) {
+                        placedContainer = cId;
+                        freePos = pos;
+                        break;
+                    }
+                }
+            }
+
+            if (!freePos) {
+                if (typeof addFloatingText === "function") {
+                    addFloatingText(player.x, player.y - 30, "가방을 넣을 빈 공간 부족!", "#ff4444");
+                } else {
+                    alert("가방을 보관할 인벤토리 빈 공간이 부족합니다!");
+                }
+                return false;
+            }
+
+            player.equippedBags[slotIdx] = null;
+            containerMaps['bag_' + slotIdx] = null;
+
+            bagItem.container = placedContainer;
+            bagItem.gridX = freePos.x;
+            bagItem.gridY = freePos.y;
+
+            if (placedContainer === "storage") {
+                personalStorage.push(bagItem);
+            } else {
+                myInventoryItems.push(bagItem);
+            }
+
+            const baseBag = ITEM_DB[bagItem.baseId];
+            if (typeof addFloatingText === "function") {
+                addFloatingText(player.x, player.y - 30, "🎒 " + (baseBag ? baseBag.name : "가방") + " 해제", "gray");
+            }
+
+            renderGridInventory();
+            return true;
+        }
+
+        // [가방 슬롯에서 드래그 시작]
+        function startDragFromBagSlot(e, slotIdx, bagItem) {
+            const insideItems = myInventoryItems.filter(it => it.container === 'bag_' + slotIdx);
+            if (insideItems.length > 0) {
+                if (typeof addFloatingText === "function") {
+                    addFloatingText(player.x, player.y - 30, "가방에 아이템이 있어 이동 불가!", "#ff4444");
+                }
+                return;
+            }
+
+            dragItemState.active = true;
+            dragItemState.itemRef = bagItem;
+            dragItemState.origX = -1;
+            dragItemState.origY = -1;
+            dragItemState.source = "bagSlot";
+            dragItemState.sourceBagSlotIdx = slotIdx;
+            dragItemState.hoveredEquipSlot = null;
+            dragItemState.hoveredBagSlot = null;
+
+            player.equippedBags[slotIdx] = null;
+            containerMaps['bag_' + slotIdx] = null;
+            renderBagSlotsUI();
+
+            let clientX = e.type.includes("touch") ? e.touches[0].clientX : e.clientX;
+            let clientY = e.type.includes("touch") ? e.touches[0].clientY : e.clientY;
+
+            const board = document.getElementById("inventoryBoard_main") || document.body;
+            dragItemState.offsetX = GRID_CELL_SIZE / 2;
+            dragItemState.offsetY = GRID_CELL_SIZE / 2;
+            dragItemState.lastClientX = clientX;
+            dragItemState.lastClientY = clientY;
+
+            let ghost = createGhostDOMForItem(bagItem);
+            ghost.className = "grid-item-wrapper dragging";
+            board.appendChild(ghost);
+            dragItemState.ghostEl = ghost;
+
+            document.addEventListener("mousemove", onDragMove);
+            document.addEventListener("mouseup", onDragEnd);
+            document.addEventListener("touchmove", onDragMove, { passive: false });
+            document.addEventListener("touchend", onDragEnd);
+
+            updateDragGhost();
+        }
 
         // --- 드래그 로직 ---
         function startDrag(e, itemObj, htmlEl, sourceName) {
@@ -969,32 +1261,34 @@ function showTooltip(e, itemObj) {
             dragItemState.origX = itemObj.gridX;
             dragItemState.origY = itemObj.gridY;
             dragItemState.source = sourceName;
+            dragItemState.sourceContainer = itemObj.container || (sourceName === "storage" ? "storage" : "main");
             dragItemState.hoveredEquipSlot = null; 
+            dragItemState.hoveredBagSlot = null;
 
             let clientX = e.type.includes("touch") ? e.touches[0].clientX : e.clientX;
             let clientY = e.type.includes("touch") ? e.touches[0].clientY : e.clientY;
 
-            const boardId = sourceName === "storage" ? "storageBoard" : "inventoryBoard";
-            const board = document.getElementById(boardId);
-            const boardRect = board.getBoundingClientRect();
-            const currentScale = boardRect.width / (INV_COLS * GRID_CELL_SIZE);
-
+            let currentScale = 1;
             const elRect = htmlEl.getBoundingClientRect();
-            dragItemState.offsetX = (clientX - elRect.left) / currentScale;
-            dragItemState.offsetY = (clientY - elRect.top) / currentScale;
+            dragItemState.offsetX = (clientX - elRect.left);
+            dragItemState.offsetY = (clientY - elRect.top);
             dragItemState.lastClientX = clientX;
             dragItemState.lastClientY = clientY;
 
             const baseItem = ITEM_DB[itemObj.baseId];
-            const shape = getRotatedShape(baseItem.shape, itemObj.rot);
+            const shape = getRotatedShape(baseItem.shape, itemObj.rot || 0);
             const h = shape.length, w = shape[0].length;
-            let targetMap = sourceName === "storage" ? storageMap : gridMap;
+            let targetMap = getContainerMap(dragItemState.sourceContainer);
             
-            for(let r = 0; r < h; r++) {
-                for(let c = 0; c < w; c++) {
-                    if(shape[r][c] === 1) {
-                        let gy = itemObj.gridY + r, gx = itemObj.gridX + c;
-                        if(gy >= 0 && gy < INV_ROWS && gx >= 0 && gx < INV_COLS) targetMap[gy][gx] = null;
+            if (targetMap) {
+                const maxRows = targetMap.length;
+                const maxCols = targetMap[0].length;
+                for(let r = 0; r < h; r++) {
+                    for(let c = 0; c < w; c++) {
+                        if(shape[r][c] === 1) {
+                            let gy = itemObj.gridY + r, gx = itemObj.gridX + c;
+                            if(gy >= 0 && gy < maxRows && gx >= 0 && gx < maxCols) targetMap[gy][gx] = null;
+                        }
                     }
                 }
             }
@@ -1005,7 +1299,7 @@ function showTooltip(e, itemObj) {
             ghost.style.height = htmlEl.style.height;
             ghost.innerHTML = htmlEl.innerHTML; 
             
-            board.appendChild(ghost);
+            document.body.appendChild(ghost);
             dragItemState.ghostEl = ghost;
             dragItemState.originalEl = htmlEl;
 
@@ -1027,6 +1321,7 @@ function showTooltip(e, itemObj) {
             dragItemState.source = "equipment"; 
             dragItemState.sourceSlot = slotName;
             dragItemState.hoveredEquipSlot = null; 
+            dragItemState.hoveredBagSlot = null;
 
             let clientX = e.type.includes("touch") ? e.touches[0].clientX : e.clientX;
             let clientY = e.type.includes("touch") ? e.touches[0].clientY : e.clientY;
@@ -1036,10 +1331,6 @@ function showTooltip(e, itemObj) {
             updatePlayerTotalStats();
             renderEquipSlotsUI();
 
-            const board = document.getElementById("inventoryBoard");
-            const boardRect = board.getBoundingClientRect();
-            const currentScale = boardRect.width > 0 ? boardRect.width / (INV_COLS * GRID_CELL_SIZE) : 1;
-
             dragItemState.offsetX = GRID_CELL_SIZE / 2; 
             dragItemState.offsetY = GRID_CELL_SIZE / 2;
             dragItemState.lastClientX = clientX;
@@ -1048,7 +1339,7 @@ function showTooltip(e, itemObj) {
             let ghost = createGhostDOMForItem(itemObj);
             ghost.className = "grid-item-wrapper dragging"; 
             
-            board.appendChild(ghost);
+            document.body.appendChild(ghost);
             dragItemState.ghostEl = ghost;
 
             document.addEventListener("mousemove", onDragMove);
@@ -1061,7 +1352,7 @@ function showTooltip(e, itemObj) {
 
         function createGhostDOMForItem(itemObj) {
             const baseItem = ITEM_DB[itemObj.baseId];
-            const shape = getRotatedShape(baseItem.shape, itemObj.rot);
+            const shape = getRotatedShape(baseItem.shape, itemObj.rot || 0);
             const h = shape.length, w = shape[0].length;
             
             let ghost = document.createElement("div");
@@ -1100,7 +1391,6 @@ function showTooltip(e, itemObj) {
         function onDragMove(e) {
             if (!dragItemState.active) return;
             
-            // ★ 수정: 드래그가 실제로 시작(이동)되었을 때 원본을 숨김
             if (dragItemState.originalEl) {
                 dragItemState.originalEl.style.display = "none";
                 dragItemState.originalEl = null;
@@ -1118,32 +1408,35 @@ function showTooltip(e, itemObj) {
 
         function updateDragGhost() {
             if(!dragItemState.ghostEl) return;
-            const invBoard = document.getElementById("inventoryBoard");
-            const stoBoard = document.getElementById("storageBoard");
-            
-            const invRect = invBoard.getBoundingClientRect();
-            const stoRect = stoBoard && gameState === "storage" ? stoBoard.getBoundingClientRect() : {left:-999, right:-999, top:-999, bottom:-999, width:0};
-            
-            let referenceWidth = invRect.width > 0 ? invRect.width : (stoRect.width > 0 ? stoRect.width : 320);
-            const currentScale = referenceWidth / (INV_COLS * GRID_CELL_SIZE); 
 
-            let targetBoardName = null;
-            let targetRect = null;
+            // 마우스 아래에 위치한 .inventory-board 요소 찾기
+            const allBoards = document.querySelectorAll('.inventory-board');
+            let targetBoardDOM = null;
+            let targetContainerName = null;
             let targetMap = null;
+            let targetRect = null;
 
-            if (gameState === "storage" && dragItemState.lastClientX >= stoRect.left && dragItemState.lastClientX <= stoRect.right && dragItemState.lastClientY >= stoRect.top && dragItemState.lastClientY <= stoRect.bottom) {
-                targetBoardName = "storage"; targetRect = stoRect; targetMap = storageMap;
-            } else if (invRect.width > 0 && dragItemState.lastClientX >= invRect.left && dragItemState.lastClientX <= invRect.right && dragItemState.lastClientY >= invRect.top && dragItemState.lastClientY <= invRect.bottom) {
-                targetBoardName = "inventory"; targetRect = invRect; targetMap = gridMap;
+            for (let bEl of allBoards) {
+                if (bEl.offsetParent === null) continue;
+                const r = bEl.getBoundingClientRect();
+                if (dragItemState.lastClientX >= r.left && dragItemState.lastClientX <= r.right &&
+                    dragItemState.lastClientY >= r.top && dragItemState.lastClientY <= r.bottom) {
+                    targetBoardDOM = bEl;
+                    targetContainerName = bEl.getAttribute("data-container") || "main";
+                    targetMap = getContainerMap(targetContainerName);
+                    targetRect = r;
+                    break;
+                }
             }
 
-            dragItemState.targetBoard = targetBoardName;
+            dragItemState.targetBoard = targetBoardDOM ? (targetContainerName === "storage" ? "storage" : "inventory") : null;
+            dragItemState.targetContainer = targetContainerName;
             let isInsideBoard = false;
             let rawGridX = 0, rawGridY = 0;
 
-            if (targetBoardName) {
-                let localX = (dragItemState.lastClientX - targetRect.left) / currentScale - dragItemState.offsetX;
-                let localY = (dragItemState.lastClientY - targetRect.top) / currentScale - dragItemState.offsetY;
+            if (targetBoardDOM && targetMap) {
+                let localX = dragItemState.lastClientX - targetRect.left - dragItemState.offsetX;
+                let localY = dragItemState.lastClientY - targetRect.top - dragItemState.offsetY;
 
                 rawGridX = Math.round(localX / GRID_CELL_SIZE);
                 rawGridY = Math.round(localY / GRID_CELL_SIZE);
@@ -1154,22 +1447,23 @@ function showTooltip(e, itemObj) {
                 isInsideBoard = true;
 
                 const baseItem = ITEM_DB[dragItemState.itemRef.baseId];
-                const shape = getRotatedShape(baseItem.shape, dragItemState.itemRef.rot);
+                const shape = getRotatedShape(baseItem.shape, dragItemState.itemRef.rot || 0);
                 const h = shape.length, w = shape[0].length;
+                const maxRows = targetMap.length;
+                const maxCols = targetMap[0].length;
 
                 for(let r = 0; r < h; r++) {
                     for(let c = 0; c < w; c++) {
                         if(shape[r][c] === 1) {
                             let gy = rawGridY + r, gx = rawGridX + c;
-                            if (gy < 0 || gy >= INV_ROWS || gx < 0 || gx >= INV_COLS) { dragItemState.isValid = false; isInsideBoard = false; break; }
+                            if (gy < 0 || gy >= maxRows || gx < 0 || gx >= maxCols) { dragItemState.isValid = false; isInsideBoard = false; break; }
                             if (targetMap[gy][gx] !== null) { dragItemState.isValid = false; }
                         }
                     }
                 }
 
-                let activeBoardDOM = targetBoardName === "storage" ? stoBoard : invBoard;
-                if (dragItemState.ghostEl.parentElement !== activeBoardDOM) {
-                    activeBoardDOM.appendChild(dragItemState.ghostEl);
+                if (dragItemState.ghostEl.parentElement !== targetBoardDOM) {
+                    targetBoardDOM.appendChild(dragItemState.ghostEl);
                 }
                 
                 if (isInsideBoard) {
@@ -1181,17 +1475,37 @@ function showTooltip(e, itemObj) {
                 }
             } else {
                 dragItemState.isValid = false;
-                let activeBoardDOM = dragItemState.ghostEl.parentElement;
-                let activeRect = activeBoardDOM.getBoundingClientRect();
-                let localX = (dragItemState.lastClientX - activeRect.left) / currentScale - dragItemState.offsetX;
-                let localY = (dragItemState.lastClientY - activeRect.top) / currentScale - dragItemState.offsetY;
-                dragItemState.ghostEl.style.left = localX + "px";
-                dragItemState.ghostEl.style.top = localY + "px";
+                if (dragItemState.ghostEl.parentElement !== document.body) {
+                    document.body.appendChild(dragItemState.ghostEl);
+                }
+                dragItemState.ghostEl.style.left = (dragItemState.lastClientX - dragItemState.offsetX) + "px";
+                dragItemState.ghostEl.style.top = (dragItemState.lastClientY - dragItemState.offsetY) + "px";
             }
 
+            // [가방 슬롯 호버 검사]
+            dragItemState.hoveredBagSlot = null;
+            const baseItem = ITEM_DB[dragItemState.itemRef.baseId];
+            if (baseItem && baseItem.type === "bag") {
+                document.querySelectorAll('.bag-slot').forEach(slot => {
+                    const slotRect = slot.getBoundingClientRect();
+                    const isOver = dragItemState.lastClientX >= slotRect.left && dragItemState.lastClientX <= slotRect.right &&
+                                   dragItemState.lastClientY >= slotRect.top && dragItemState.lastClientY <= slotRect.bottom;
+                    if (isOver) {
+                        slot.style.boxShadow = "0 0 15px gold";
+                        slot.style.borderColor = "gold";
+                        slot.style.transform = "scale(1.08)";
+                        dragItemState.hoveredBagSlot = slot;
+                    } else {
+                        slot.style.boxShadow = "";
+                        slot.style.borderColor = "";
+                        slot.style.transform = "scale(1.0)";
+                    }
+                });
+            }
+
+            // [장비 슬롯 호버 검사]
             dragItemState.hoveredEquipSlot = null; 
             const ghostRect = dragItemState.ghostEl.getBoundingClientRect();
-            const baseItem = ITEM_DB[dragItemState.itemRef.baseId];
             
             document.querySelectorAll('.equip-slot').forEach(slot => {
                 const slotRect = slot.getBoundingClientRect();
@@ -1209,7 +1523,7 @@ function showTooltip(e, itemObj) {
                 }
             });
 
-            const isAcceptable = dragItemState.isValid || (dragItemState.hoveredEquipSlot !== null);
+            const isAcceptable = dragItemState.isValid || (dragItemState.hoveredEquipSlot !== null) || (dragItemState.hoveredBagSlot !== null);
             let blocks = dragItemState.ghostEl.querySelectorAll('.grid-item-block');
             blocks.forEach(b => {
                 b.style.backgroundColor = isAcceptable ? "rgba(0, 255, 0, 0.5)" : "rgba(255, 0, 0, 0.5)";
@@ -1224,12 +1538,17 @@ function showTooltip(e, itemObj) {
             document.removeEventListener("touchmove", onDragMove);
             document.removeEventListener("touchend", onDragEnd);
 
-            hideDragStatsPanel(); // ★ 드래그가 끝나면 스탯 패널 즉시 숨김
+            hideDragStatsPanel();
 
-            let isEquipped = false;
             let sourceArray = dragItemState.source === "storage" ? personalStorage : myInventoryItems;
 
-            if (dragItemState.hoveredEquipSlot) {
+            // 1. 가방 슬롯에 장착
+            if (dragItemState.hoveredBagSlot) {
+                const targetSlotIdx = parseInt(dragItemState.hoveredBagSlot.dataset.slotIndex);
+                equipBag(dragItemState.itemRef, targetSlotIdx, dragItemState.source === "bagSlot" ? null : sourceArray);
+            }
+            // 2. 일반 장비 슬롯에 장착
+            else if (dragItemState.hoveredEquipSlot) {
                 let targetSlotName = dragItemState.hoveredEquipSlot.getAttribute('data-slot');
                 let baseItem = ITEM_DB[dragItemState.itemRef.baseId];
                 
@@ -1238,7 +1557,7 @@ function showTooltip(e, itemObj) {
                     let canSwap = true;
 
                     if (oldItem) {
-                        let targetMap = dragItemState.source === "storage" ? storageMap : gridMap;
+                        let targetMap = getContainerMap(dragItemState.sourceContainer || "main");
                         let targetArr = dragItemState.source === "storage" ? personalStorage : myInventoryItems;
                         
                         if (dragItemState.source === "equipment") {
@@ -1246,100 +1565,74 @@ function showTooltip(e, itemObj) {
                         } else if (canPlaceItem(oldItem, dragItemState.origX, dragItemState.origY, targetMap)) {
                             oldItem.gridX = dragItemState.origX;
                             oldItem.gridY = dragItemState.origY;
+                            oldItem.container = dragItemState.sourceContainer || "main";
                             targetArr.push(oldItem);
                         } else {
                             let freePos = findFreeSpace(oldItem, targetMap);
                             if (freePos) {
                                 oldItem.gridX = freePos.x;
                                 oldItem.gridY = freePos.y;
+                                oldItem.container = dragItemState.sourceContainer || "main";
                                 targetArr.push(oldItem);
                             } else {
-                                alert("인벤토리에 기존 장비를 해제할 빈 공간이 부족하여 교체할 수 없습니다!");
+                                alert("기존 장비를 해제할 빈 공간이 부족합니다!");
                                 canSwap = false;
                             }
                         }
                     }
 
                     if (canSwap) {
-                        isEquipped = true;
-                        if (dragItemState.source !== "equipment") {
+                        if (dragItemState.source !== "equipment" && dragItemState.source !== "bagSlot") {
                             let idx = sourceArray.findIndex(i => (i.id || i.uid) === (dragItemState.itemRef.id || dragItemState.itemRef.uid));
                             if(idx > -1) sourceArray.splice(idx, 1);
                         }
-                        if(!dragItemState.itemRef.sockets) dragItemState.itemRef.sockets = Array(baseItem.maxSockets).fill(null);
+                        if(!dragItemState.itemRef.sockets) dragItemState.itemRef.sockets = Array(baseItem.maxSockets || 0).fill(null);
                         
                         player.equipment[targetSlotName] = dragItemState.itemRef;
-                        
-                        if (typeof updatePlayerTotalStats === "function") updatePlayerTotalStats();
-                        if (typeof renderEquipSlotsUI === "function") renderEquipSlotsUI();
+                        updatePlayerTotalStats();
+                        renderEquipSlotsUI();
+                        if (currentRightView === 'enchant') selectEquipSlotForEnchant(SLOT_HINTS[targetSlotName], targetSlotName);
                     }
                 }
-            }
+            } 
+            // 3. 보드에 적치
+            else if (dragItemState.isValid && dragItemState.targetContainer) {
+                const targetCId = dragItemState.targetContainer;
+                const targetArr = targetCId === "storage" ? personalStorage : myInventoryItems;
 
-            document.querySelectorAll('.equip-slot').forEach(s => {
-                s.style.boxShadow = ""; s.style.borderColor = ""; s.style.transform = "scale(1.0)";
-            });
+                dragItemState.itemRef.container = targetCId;
+                dragItemState.itemRef.gridX = dragItemState.currentGridX;
+                dragItemState.itemRef.gridY = dragItemState.currentGridY;
 
-            if (!isEquipped) {
-                if (dragItemState.isValid && dragItemState.targetBoard) {
-                    let targetArray = dragItemState.targetBoard === "storage" ? personalStorage : myInventoryItems;
-                    
-                    if (dragItemState.source === "equipment") {
-                        targetArray.push(dragItemState.itemRef);
-                    } else if (dragItemState.source !== dragItemState.targetBoard) {
-                        let idx = sourceArray.findIndex(i => (i.id || i.uid) === (dragItemState.itemRef.id || dragItemState.itemRef.uid));
-                        if(idx > -1) sourceArray.splice(idx, 1);
-                        targetArray.push(dragItemState.itemRef);
-                    }
-                    dragItemState.itemRef.gridX = dragItemState.currentGridX;
-                    dragItemState.itemRef.gridY = dragItemState.currentGridY;
+                if (dragItemState.source === "equipment") {
+                    targetArr.push(dragItemState.itemRef);
+                    updatePlayerTotalStats();
+                    renderEquipSlotsUI();
+                } else if (dragItemState.source === "bagSlot") {
+                    targetArr.push(dragItemState.itemRef);
+                } else if (dragItemState.source === "storage" && targetCId !== "storage") {
+                    let idx = personalStorage.findIndex(i => (i.id || i.uid) === (dragItemState.itemRef.id || dragItemState.itemRef.uid));
+                    if (idx > -1) personalStorage.splice(idx, 1);
+                    myInventoryItems.push(dragItemState.itemRef);
+                } else if (dragItemState.source !== "storage" && targetCId === "storage") {
+                    let idx = myInventoryItems.findIndex(i => (i.id || i.uid) === (dragItemState.itemRef.id || dragItemState.itemRef.uid));
+                    if (idx > -1) myInventoryItems.splice(idx, 1);
+                    personalStorage.push(dragItemState.itemRef);
+                }
+            } 
+            // 4. 유효하지 않은 곳 -> 원복
+            else {
+                if (dragItemState.source === "equipment") {
+                    player.equipment[dragItemState.sourceSlot] = dragItemState.itemRef;
+                    updatePlayerTotalStats();
+                    renderEquipSlotsUI();
+                } else if (dragItemState.source === "bagSlot") {
+                    player.equippedBags[dragItemState.sourceBagSlotIdx] = dragItemState.itemRef;
+                    containerMaps['bag_' + dragItemState.sourceBagSlotIdx] = Array.from({ length: ITEM_DB[dragItemState.itemRef.baseId].bagRows }, () => Array(INV_COLS).fill(null));
                 } else {
-                    const invContainer = document.getElementById("invMainContainer");
-                    const invRect = invContainer ? invContainer.getBoundingClientRect() : null;
-                    const isOutsideUI = invRect && (
-                        dragItemState.lastClientX < invRect.left ||
-                        dragItemState.lastClientX > invRect.right ||
-                        dragItemState.lastClientY < invRect.top ||
-                        dragItemState.lastClientY > invRect.bottom
-                    );
-
-                    if (isOutsideUI) {
-                        const dropDist = 35;
-                        const dropAngle = Math.random() * Math.PI * 2;
-                        let dropX = Math.max(50, Math.min(WORLD_WIDTH - 50, player.x + Math.cos(dropAngle) * dropDist));
-                        let dropY = Math.max(50, Math.min(WORLD_HEIGHT - 50, player.y + Math.sin(dropAngle) * dropDist));
-
-                        fieldItems.push({
-                            id: dragItemState.itemRef.id || ("field_" + Date.now()),
-                            baseId: dragItemState.itemRef.baseId,
-                            rot: dragItemState.itemRef.rot || 0,
-                            sockets: dragItemState.itemRef.sockets ? [...dragItemState.itemRef.sockets] : null,
-                            x: dropX,
-                            y: dropY,
-                            pickupDelay: 60, 
-                            errorFlashTimer: 0
-                        });
-
-                        if (dragItemState.source === "inventory") {
-                            let idx = myInventoryItems.findIndex(i => (i.id || i.uid) === (dragItemState.itemRef.id || dragItemState.itemRef.uid));
-                            if (idx > -1) myInventoryItems.splice(idx, 1);
-                        } else if (dragItemState.source === "storage") {
-                            let idx = personalStorage.findIndex(i => (i.id || i.uid) === (dragItemState.itemRef.id || dragItemState.itemRef.uid));
-                            if (idx > -1) personalStorage.splice(idx, 1);
-                        } else if (dragItemState.source === "equipment") {
-                            updatePlayerTotalStats();
-                            renderEquipSlotsUI();
-                        }
-                    } else {
-                        if (dragItemState.source === "equipment") {
-                            player.equipment[dragItemState.sourceSlot] = dragItemState.itemRef;
-                            updatePlayerTotalStats();
-                            renderEquipSlotsUI();
-                        } else {
-                            dragItemState.itemRef.gridX = dragItemState.origX;
-                            dragItemState.itemRef.gridY = dragItemState.origY;
-                        }
-                    }
+                    dragItemState.itemRef.gridX = dragItemState.origX;
+                    dragItemState.itemRef.gridY = dragItemState.origY;
+                    dragItemState.itemRef.container = dragItemState.sourceContainer || "main";
                 }
             }
 
@@ -1352,17 +1645,21 @@ function showTooltip(e, itemObj) {
         }
         // [MOD-020-7-END]
 
-// [격자 적치 판정 및 빈 공간 탐색 유틸리티]
+        // [격자 적치 판정 및 빈 공간 탐색 유틸리티]
         function canPlaceItem(itemObj, gridX, gridY, map) {
+            if (!map || !map.length) return false;
+            const maxRows = map.length;
+            const maxCols = map[0].length;
             const baseItem = ITEM_DB[itemObj.baseId];
-            const shape = getRotatedShape(baseItem.shape, itemObj.rot);
+            if (!baseItem) return false;
+            const shape = getRotatedShape(baseItem.shape, itemObj.rot || 0);
             const h = shape.length, w = shape[0].length;
             for(let r=0; r<h; r++){
                 for(let c=0; c<w; c++){
                     if(shape[r][c] === 1){
                         let gy = gridY + r, gx = gridX + c;
-                        if(gy < 0 || gy >= INV_ROWS || gx < 0 || gx >= INV_COLS) return false;
-                        if(map[gy][gx] !== null) return false;
+                        if(gy < 0 || gy >= maxRows || gx < 0 || gx >= maxCols) return false;
+                        if(map[gy][gx] !== null && map[gy][gx] !== (itemObj.id || itemObj.uid)) return false;
                     }
                 }
             }
@@ -1370,12 +1667,97 @@ function showTooltip(e, itemObj) {
         }
 
         function findFreeSpace(itemObj, map) {
-            for(let y=0; y<INV_ROWS; y++){
-                for(let x=0; x<INV_COLS; x++){
+            if (!map || !map.length) return null;
+            const maxRows = map.length;
+            const maxCols = map[0].length;
+            for(let y=0; y<maxRows; y++){
+                for(let x=0; x<maxCols; x++){
                     if(canPlaceItem(itemObj, x, y, map)) return {x, y};
                 }
             }
             return null;
+        }
+
+        // [바닥 아이템 습득 시스템]
+        let lastPickupTime = 0;
+        function pickupFieldItem(fItem) {
+            if (!fItem) return;
+            if (typeof player === "undefined") return;
+
+            // 1. 거리 검사 (80px 이내)
+            const dist = Math.hypot(fItem.x - player.x, fItem.y - player.y);
+            if (dist > 80) {
+                if (typeof addFloatingText === "function") {
+                    addFloatingText(fItem.x, fItem.y - 20, "너무 멉니다", "orange");
+                }
+                return;
+            }
+
+            // 2. 줍기 딜레이 (0.25초)
+            const now = Date.now();
+            if (now - lastPickupTime < 250) return;
+            lastPickupTime = now;
+
+            const baseItem = ITEM_DB[fItem.baseId];
+            if (!baseItem) return;
+
+            // 3. 적치 가능한 컨테이너 순회 탐색 (1순위: main 8x3, 2순위: 1번~5번 가방)
+            const candidates = ['main'];
+            if (player.equippedBags) {
+                for (let i = 0; i < 5; i++) {
+                    if (player.equippedBags[i]) candidates.push('bag_' + i);
+                }
+            }
+
+            let placedContainer = null;
+            let freePos = null;
+
+            for (let cId of candidates) {
+                const cMap = getContainerMap(cId);
+                if (cMap) {
+                    const pos = findFreeSpace({ baseId: fItem.baseId, rot: fItem.rot || 0 }, cMap);
+                    if (pos) {
+                        placedContainer = cId;
+                        freePos = pos;
+                        break;
+                    }
+                }
+            }
+
+            // 4. 공간 부족
+            if (!freePos) {
+                fItem.errorFlashTimer = 30;
+                if (typeof addFloatingText === "function") {
+                    addFloatingText(player.x, player.y - 30, "인벤토리 공간 부족!", "#ff3333");
+                }
+                return;
+            }
+
+            // 5. 습득 성공
+            if (typeof fieldItems !== "undefined") {
+                const idx = fieldItems.indexOf(fItem);
+                if (idx > -1) fieldItems.splice(idx, 1);
+            }
+            if (typeof targetedFieldItem !== "undefined" && targetedFieldItem === fItem) {
+                targetedFieldItem = null;
+            }
+
+            const newItem = {
+                id: fItem.id || ("item_" + Date.now() + "_" + Math.floor(Math.random() * 1000)),
+                baseId: fItem.baseId,
+                rot: fItem.rot || 0,
+                container: placedContainer,
+                gridX: freePos.x,
+                gridY: freePos.y,
+                sockets: fItem.sockets || Array(baseItem.maxSockets || 0).fill(null)
+            };
+
+            myInventoryItems.push(newItem);
+            renderGridInventory();
+
+            if (typeof addFloatingText === "function") {
+                addFloatingText(player.x, player.y - 30, "+ " + baseItem.name, "#00ff88");
+            }
         }
 
 // [개인 창고 오픈 인터페이스]
