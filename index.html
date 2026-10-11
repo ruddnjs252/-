@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>UTU v0.2.5.1011.2</title>
+    <title>UTU v0.2.5.1011.5</title>
     
     <style>
         /* [MOD-001: 기본 화면 및 컨테이너 스타일] */
@@ -156,6 +156,36 @@
         }
         /* [MOD-002-7-END] */
 
+        /* [MOD-002-7-1: 스킬창 드래그 스틱 (스크롤바) 스타일] */
+        #skillListContainer {
+            scrollbar-width: thin;
+            scrollbar-color: #888 #111;
+        }
+        #skillListContainer::-webkit-scrollbar {
+            width: 10px !important;
+            display: block !important;
+        }
+        #skillListContainer::-webkit-scrollbar-track {
+            background: #151515 !important;
+            border-radius: 5px;
+            border: 1px solid #333;
+        }
+        #skillListContainer::-webkit-scrollbar-thumb {
+            background: #666 !important;
+            border-radius: 5px;
+            border: 1px solid #aaa !important;
+            min-height: 25px;
+            cursor: grab;
+        }
+        #skillListContainer::-webkit-scrollbar-thumb:hover {
+            background: gold !important;
+            border-color: #fff !important;
+        }
+        #skillListContainer::-webkit-scrollbar-thumb:active {
+            background: #ffaa00 !important;
+            cursor: grabbing;
+        }
+
         /* [MOD-002-8: 아이템 정보 툴팁 창] */
         .item-tooltip {
             position: fixed; display: none; background: rgba(10, 10, 15, 0.95);
@@ -287,11 +317,6 @@
             transform: translate(-50%, -50%); box-shadow: 0 10px 20px rgba(0,0,0,0.8);
         }
 
-        /* ★ 세로 스크롤바 커스텀 디자인 */
-        #skillListContainer::-webkit-scrollbar { width: 6px; }
-        #skillListContainer::-webkit-scrollbar-track { background: #222; border-radius: 3px; }
-        #skillListContainer::-webkit-scrollbar-thumb { background: #555; border-radius: 3px; }
-        #skillListContainer::-webkit-scrollbar-thumb:hover { background: #777; }
         /* [MOD-024-END] */
         
     </style>
@@ -402,14 +427,13 @@
                     <div id="viewEnchant" style="padding: 0; display: none; width: 320px; height: 400px; background-color: #1a1a1a; border: 2px solid #555; flex-direction: column; box-sizing: border-box; position: relative;">
                         
                         <!-- 1. 장비 인챈트 구역 (상단 140px) -->
-                        <div style="height: 140px; border-bottom: 2px solid #333; display: flex; flex-direction: row; padding: 15px 0; box-sizing: border-box;">
-                            <div style="width: 80px; display: flex; justify-content: center; align-items: flex-start; border-right: 2px solid #333; padding-top: 5px;">
+                        <div style="height: 140px; border-bottom: 2px solid #333; display: flex; flex-direction: row; padding: 10px 0; box-sizing: border-box;">
+                            <div style="width: 80px; display: flex; justify-content: center; align-items: center; border-right: 2px solid #333;">
                                 <div id="enchantTargetSlot" class="enchant-target-slot">
                                     <span class="enchant-target-hint" id="enchantTargetHint">장비<br>등록</span>
                                 </div>
                             </div>
-                            <div style="flex: 1; display: flex; flex-direction: column; padding: 0 15px;">
-                                <h3 style="margin: 0 0 10px 0; color: gold; font-size: 14px; text-align: center;">장비 인챈트</h3>
+                            <div style="flex: 1; display: flex; flex-direction: column; padding: 0 10px; justify-content: center;">
                                 <div id="enchantContent" style="flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; color: gray; font-size: 11px; text-align: center;">
                                     좌측 장비창에서 장비를<br>클릭하여 올려주세요.
                                 </div>
@@ -417,14 +441,14 @@
                         </div>
 
                         <!-- 2. 스킬 덱 빌딩 구역 (하단 나머지) -->
-                        <div style="flex: 1; display: flex; flex-direction: column; padding: 10px; box-sizing: border-box;">
-                            <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #444; padding-bottom: 5px; margin-bottom: 10px;">
-                                <h3 style="margin: 0; color: #00ffcc; font-size: 14px;">보유 스킬</h3>
-                                <span style="font-size: 10px; color: gray;">드래그하여 장착</span>
+                        <div style="flex: 1; display: flex; flex-direction: column; padding: 8px 10px; box-sizing: border-box; overflow: hidden;">
+                            <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #444; padding-bottom: 3px; margin-bottom: 6px;">
+                                <span style="margin: 0; color: #00ffcc; font-size: 11px; font-weight: bold;">보유 스킬</span>
+                                <span style="font-size: 9px; color: gray;">드래그하여 장착</span>
                             </div>
                             
                             <!-- ★ 스킬 인벤토리: 가로 스크롤 제거, 한 줄 5칸, 세로 스크롤 활성화 -->
-                            <div id="skillListContainer" style="display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; overflow-y: auto; overflow-x: hidden; flex: 1; align-content: start; padding-right: 5px;">
+                            <div id="skillListContainer" style="display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; overflow-y: scroll; overflow-x: hidden; flex: 1; min-height: 0; align-content: start; padding-right: 6px;">
                                 <!-- 스킬 아이콘들이 JS로 생성됨 -->
                             </div>
                             
@@ -1792,18 +1816,17 @@
             let confirmUI = '';
             if (pendingEnchant && pendingEnchant.slotKey === slotKey) {
                 confirmUI = `
-                    <div style="display:flex; gap:10px; justify-content:center; margin-top: 10px;">
-                        <button style="padding:8px 20px; background:limegreen; border:2px solid white; color:white; font-weight:bold; border-radius:4px; cursor:pointer;" onclick="confirmPendingEnchant()">확정</button>
-                        <button style="padding:8px 20px; background:gray; border:2px solid white; color:white; font-weight:bold; border-radius:4px; cursor:pointer;" onclick="cancelPendingEnchant('${slotNameKOR}', '${slotKey}')">취소</button>
+                    <div style="display:flex; gap:10px; justify-content:center; margin-top: 6px; position:relative; z-index:10;">
+                        <button style="padding:7px 20px; background:limegreen; border:2px solid white; color:white; font-weight:bold; border-radius:4px; cursor:pointer;" onclick="confirmPendingEnchant()">확정</button>
+                        <button style="padding:7px 20px; background:gray; border:2px solid white; color:white; font-weight:bold; border-radius:4px; cursor:pointer;" onclick="cancelPendingEnchant('${slotNameKOR}', '${slotKey}')">취소</button>
                     </div>
                 `;
             } else {
-                confirmUI = `<div style="font-size: 11px; color: #888;">빈 소켓을 클릭하면<br>인챈트 북 목록이 표시됩니다.</div>`;
+                confirmUI = `<div style="font-size: 11px; color: #888; text-align: center;">빈 소켓을 클릭하면<br>인챈트 북 목록이 표시됩니다.</div>`;
             }
 
             content.innerHTML = `
-                <div style="color: white; font-weight: bold; margin-bottom: 20px; font-size: 13px;">[${slotNameKOR}] 소켓 정보</div>
-                <div style="display: flex; gap: 15px; justify-content: center; margin-bottom: 20px;">
+                <div style="display: flex; gap: 14px; justify-content: center; align-items: center; margin-bottom: 12px;">
                     ${socketsHtml}
                 </div>
                 ${confirmUI}
@@ -2521,10 +2544,24 @@
           border-radius:6px;
       `;
 
+      let itemDetailOpenedTime = 0;
+
       function closeItemDetail() {
           itemDetailPanel.style.display = "none";
           itemDetailTarget = null;
       }
+
+      // [MOD-020-4-1: 바깥 영역 터치/클릭 시 상세창 닫기]
+      document.addEventListener("pointerdown", (e) => {
+          if (itemDetailPanel.style.display !== "none" && itemDetailPanel.style.display !== "") {
+              // 방금 열린 직후(120ms 이내)의 이벤트는 무시 (클릭으로 열리자마자 바로 닫히는 현상 방지)
+              if (Date.now() - itemDetailOpenedTime < 120) return;
+              // 상세창 내부를 클릭/터치한 경우 닫지 않음
+              if (itemDetailPanel.contains(e.target)) return;
+              // 그 외 바깥 영역 터치 시 상세창 닫기
+              closeItemDetail();
+          }
+      }, true);
 
       function openItemDetail(itemObj, sourceName) {
           const baseItem = ITEM_DB[itemObj.baseId];
@@ -2599,6 +2636,7 @@
 
           statSection.appendChild(itemDetailPanel);
           itemDetailPanel.style.display = "flex";
+          itemDetailOpenedTime = Date.now();
 
           document.getElementById("itemDetailCloseBtn")
               .addEventListener("click", closeItemDetail);
@@ -2988,81 +3026,9 @@
         }
         // [MOD-020-6-END]
 
-       // [MOD-020-7: 드래그 앤 드롭 및 스마트 스탯 패널(좌측 고정) 지원]
-
-        // ★ [신규] 드래그 중 표시될 스탯 패널 DOM 요소 생성 및 스타일링
-        const dragStatsPanel = document.createElement("div");
-        dragStatsPanel.id = "dragStatsPanel";
-        dragStatsPanel.style.position = "absolute";
-        dragStatsPanel.style.display = "none";
-        dragStatsPanel.style.backgroundColor = "rgba(10, 10, 15, 0.95)";
-        dragStatsPanel.style.border = "2px solid #555";
-        dragStatsPanel.style.borderRadius = "6px";
-        dragStatsPanel.style.padding = "10px";
-        dragStatsPanel.style.boxSizing = "border-box";
-        dragStatsPanel.style.color = "white";
-        dragStatsPanel.style.zIndex = "50";
-        dragStatsPanel.style.pointerEvents = "none"; // 터치/마우스 방해 금지
-        dragStatsPanel.style.boxShadow = "0 5px 20px rgba(0,0,0,0.8)";
-        dragStatsPanel.style.flexDirection = "column";
-        dragStatsPanel.style.justifyContent = "flex-start";
-
-        // 스탯 패널 정보 업데이트 및 화면 출력 함수
-        function showDragStatsPanel(itemObj, source) {
-            const baseItem = ITEM_DB[itemObj.baseId];
-            if (!baseItem) return;
-
-            let titleHtml = baseItem.name;
-            let typeKor = baseItem.type === "equip" ? `[장비 - ${SLOT_HINTS[baseItem.equipSlot] || baseItem.equipSlot}]` : (baseItem.type === "enchant" ? "[인챈트 두루마리]" : `[${baseItem.type}]`);
-            
-            let statHtml = "";
-            if(baseItem.stats) {
-                for(let k in baseItem.stats) statHtml += `<div>${k.toUpperCase()}: +${baseItem.stats[k]}</div>`;
-            } else {
-                statHtml = `<div style="color:gray; font-weight:normal; font-size: 11px;">능력치 없음</div>`;
-            }
-
-            let enchantHtml = "";
-            if (itemObj.sockets) {
-                let enchants = itemObj.sockets.filter(s => s !== null);
-                if (enchants.length > 0) {
-                    enchants.forEach(sId => {
-                        enchantHtml += `<div style="color:#ff4444; font-size:11px;">- ${ITEM_DB[sId].enchantEffect.name}</div>`;
-                    });
-                } else {
-                    enchantHtml = `<div style="color:gray; font-size:10px;">빈 소켓 ${itemObj.sockets.length}개</div>`;
-                }
-            }
-
-            dragStatsPanel.innerHTML = `
-                <div style="font-weight: bold; font-size: 14px; color: gold; margin-bottom: 5px; text-align: center;">${titleHtml}</div>
-                <div style="color: #888; font-size: 11px; margin-bottom: 8px; text-align: center; border-bottom: 1px solid #333; padding-bottom: 5px;">${typeKor}</div>
-                <div style="color: #00ffcc; font-weight: bold; font-size: 12px; margin-bottom: 5px; text-align: center; line-height: 1.4;">${statHtml}</div>
-                ${itemObj.sockets ? `<div style="margin-top: auto; border-top: 1px dashed #555; padding-top: 5px; text-align: center;">
-                    <div style="color: #ff8800; font-weight: bold; font-size: 11px; margin-bottom: 3px;">[인챈트]</div>
-                    ${enchantHtml}
-                </div>` : ''}
-            `;
-
-            // [핵심 수정] 출처(가방/창고/장비창)에 상관없이 무조건 좌측 하단 스탯 섹션에 고정!
-            const statSection = document.getElementById("statSection");
-            if(statSection) {
-                dragStatsPanel.style.width = "100%";
-                dragStatsPanel.style.height = "100%";
-                dragStatsPanel.style.top = "0";
-                dragStatsPanel.style.left = "0";
-                dragStatsPanel.style.transform = "none";
-                statSection.appendChild(dragStatsPanel);
-            }
-            dragStatsPanel.style.display = "flex";
-        }
-
-        function hideDragStatsPanel() {
-            dragStatsPanel.style.display = "none";
-            if (dragStatsPanel.parentElement) {
-                dragStatsPanel.parentElement.removeChild(dragStatsPanel);
-            }
-        }
+        // [MOD-020-7: 기존 드래그 상세창 완전 제거 - 클릭 상세창으로 단일화]
+        function showDragStatsPanel(itemObj, source) {}
+        function hideDragStatsPanel() {}
 
         // --- 드래그 로직 ---
         function startDrag(e, itemObj, htmlEl, sourceName) {
@@ -3118,8 +3084,7 @@
             document.addEventListener("touchmove", onDragMove, { passive: false });
             document.addEventListener("touchend", onDragEnd);
             
-            updateDragGhost(); 
-            showDragStatsPanel(itemObj, sourceName); // ★ 패널 호출
+            updateDragGhost();
         }
 
         function startDragFromEquip(e, slotName, itemObj) {
@@ -3161,8 +3126,7 @@
             document.addEventListener("touchmove", onDragMove, { passive: false });
             document.addEventListener("touchend", onDragEnd);
             
-            updateDragGhost(); 
-            showDragStatsPanel(itemObj, "equipment"); // ★ 패널 호출
+            updateDragGhost();
         }
 
         function createGhostDOMForItem(itemObj) {
