@@ -1,3 +1,87 @@
+
+// [MOD-021: 유틸리티 및 툴팁 시스템]
+let tooltipTimer = null;
+let tooltipVisible = false;
+let tooltipEl = typeof document !== 'undefined' ? document.querySelector(".item-tooltip") : null;
+
+if (typeof document !== 'undefined') {
+    if (!tooltipEl && document.body) {
+        tooltipEl = document.createElement("div");
+        tooltipEl.className = "item-tooltip";
+        document.body.appendChild(tooltipEl);
+    }
+    document.addEventListener("touchstart", (e) => {
+        if (tooltipVisible && tooltipEl && !tooltipEl.contains(e.target)) {
+            handleItemMouseLeave();
+        }
+    });
+}
+
+function handleItemMouseEnter(e, itemObj) {
+    if (typeof dragItemState !== "undefined" && dragItemState.active) return;
+    clearTimeout(tooltipTimer);
+    tooltipTimer = setTimeout(() => showTooltip(e, itemObj), 1000); 
+}
+
+function handleItemMouseLeave() {
+    clearTimeout(tooltipTimer);
+    if (tooltipEl) tooltipEl.style.display = "none";
+    tooltipVisible = false;
+}
+
+function handleItemMouseMove(e) {
+    if (!tooltipVisible || !tooltipEl) return;
+    let x = e.type.includes("touch") ? e.touches[0].clientX : e.clientX;
+    let y = e.type.includes("touch") ? e.touches[0].clientY : e.clientY;
+    
+    if (x + 180 > window.innerWidth) x -= 180; 
+    if (y + 150 > window.innerHeight) y -= 150; 
+    
+    tooltipEl.style.left = (x + 15) + "px";
+    tooltipEl.style.top = (y + 15) + "px";
+}
+
+function showTooltip(e, itemObj) {
+    if (typeof dragItemState !== "undefined" && dragItemState.active) return;
+    const baseItem = ITEM_DB[itemObj.baseId];
+    if (!baseItem || !tooltipEl) return;
+
+    let titleHtml = baseItem.name;
+    let typeKor = baseItem.type === "equip" ? `[장비 - ${SLOT_HINTS[baseItem.equipSlot] || baseItem.equipSlot}]` : (baseItem.type === "enchant" ? "[인챈트 두루마리]" : `[${baseItem.type}]`);
+    
+    let statHtml = "";
+    if(baseItem.stats) {
+        for(let k in baseItem.stats) statHtml += `<div>${k}: +${baseItem.stats[k]}</div>`;
+    }
+
+    let enchantHtml = "";
+    if (itemObj.sockets) {
+        let enchants = itemObj.sockets.filter(s => s !== null);
+        if (enchants.length > 0) {
+            enchantHtml = "<div class='item-tooltip-enchant-title'>[인챈트 목록]</div>";
+            enchants.forEach(sId => {
+                if (ITEM_DB[sId] && ITEM_DB[sId].enchantEffect) {
+                    enchantHtml += `<div class='item-tooltip-enchant-item'>- ${ITEM_DB[sId].enchantEffect.name}</div>`;
+                }
+            });
+        }
+    }
+
+    let descHtml = baseItem.desc || "테스트용 아이템이다.";
+
+    tooltipEl.innerHTML = `
+        <div class="item-tooltip-title">${titleHtml}</div>
+        <div class="item-tooltip-type">${typeKor}</div>
+        <div class="item-tooltip-stat">${statHtml}</div>
+        ${enchantHtml}
+        <div class="item-tooltip-desc">${descHtml}</div>
+    `;
+
+    tooltipEl.style.display = "block";
+    tooltipVisible = true;
+    handleItemMouseMove(e);
+}
+
 // [INVENTORY: 그리드 인벤토리, 장비 슬롯, 테트리스 회전, 드래그앤드롭, 인챈트 및 창고 시스템]
 
 // [인챈트 작업 전역 상태 및 슬롯 힌트]
@@ -51,24 +135,75 @@
                     el.style.backgroundColor = baseItem.color;
                     el.innerHTML = `<span style="color:white; font-size:9px; font-weight:bold; pointer-events:none; text-align:center;">${baseItem.name}</span>`;
                     
-                    // 더블 터치 및 기존 호버 로직 제거. 클릭/터치 시 즉시 드래그 및 패널 호출로 일원화
-                    el.onmousedown = (e) => { 
-                        if (currentRightView !== 'enchant') startDragFromEquip(e, slot, item); 
-                    };
-                    
-                    el.ontouchstart = (e) => { 
-                        if (currentRightView !== 'enchant') {
-                            e.preventDefault(); 
-                            startDragFromEquip(e, slot, item); 
-                        }
-                    };
+                    // [개선] 단순 클릭 시 상세창 팝업, 드래그(이동) 시 드래그 모드 분기
+                    bindEquipSlotInput(el, slot, item);
                 } else {
                     el.style.backgroundColor = "#2a2a2a";
                     let hintText = SLOT_HINTS[slot] || "";
                     el.innerHTML = hintText ? `<span class="slot-hint">${hintText}</span>` : "";
                 }
             }
-            setTimeout(updateNotiBadges, 10);
+            if (typeof updateNotiBadges === "function") {
+                setTimeout(updateNotiBadges, 10);
+            }
+        }
+
+        // [장비 슬롯 인터랙션: 클릭 시 상세창 팝업 / 이동 시 드래그 앤 드롭]
+        function bindEquipSlotInput(el, slot, item) {
+            let startX = 0, startY = 0;
+            let isPressing = false;
+            let isDragging = false;
+
+            const onDown = (e) => {
+                if (e.type === "mousedown" && e.button !== 0) return;
+                if (typeof currentRightView !== "undefined" && currentRightView === 'enchant') return;
+
+                const pt = e.touches ? e.touches[0] : e;
+                startX = pt.clientX;
+                startY = pt.clientY;
+                isPressing = true;
+                isDragging = false;
+
+                const onMove = (ev) => {
+                    if (!isPressing) return;
+                    const mpt = ev.touches ? ev.touches[0] : ev;
+                    const dist = Math.hypot(mpt.clientX - startX, mpt.clientY - startY);
+                    if (dist > 5 && !isDragging) {
+                        isDragging = true;
+                        cleanup();
+                        startDragFromEquip(ev, slot, item);
+                    }
+                };
+
+                const onUp = (ev) => {
+                    if (!isPressing) return;
+                    cleanup();
+                    if (!isDragging) {
+                        openItemDetail(item, "equipment", slot);
+                    }
+                };
+
+                const cleanup = () => {
+                    isPressing = false;
+                    document.removeEventListener("mousemove", onMove);
+                    document.removeEventListener("mouseup", onUp);
+                    document.removeEventListener("touchmove", onMove);
+                    document.removeEventListener("touchend", onUp);
+                };
+
+                document.addEventListener("mousemove", onMove);
+                document.addEventListener("mouseup", onUp);
+                document.addEventListener("touchmove", onMove, { passive: false });
+                document.addEventListener("touchend", onUp);
+            };
+
+            el.onmousedown = onDown;
+            el.ontouchstart = (e) => {
+                if (typeof currentRightView !== "undefined" && currentRightView !== 'enchant') {
+                    e.preventDefault();
+                    onDown(e);
+                }
+            };
         }
 
 
@@ -333,11 +468,12 @@
           }
       }, true);
 
-      function openItemDetail(itemObj, sourceName) {
+      function openItemDetail(itemObj, sourceName, slotKey) {
+          itemDetailTarget = { itemObj, sourceName, slotKey };
           const baseItem = ITEM_DB[itemObj.baseId];
           if (!baseItem) return;
 
-          itemDetailTarget = { itemObj, sourceName };
+          
 
           const typeKor = baseItem.type === "equip"
               ? `[장비 - ${SLOT_HINTS[baseItem.equipSlot] || baseItem.equipSlot}]`
@@ -387,6 +523,9 @@
                   ${baseItem.desc || "설명이 없는 아이템입니다."}
               </div>
               <div style="display:flex;gap:8px;margin-top:auto">
+                  ${sourceName === "equipment" ? `
+                      <button id="itemDetailUnequipBtn" class="btn" style="background:#444;border-color:#888;">해제</button>
+                  ` : ""}
                   ${canUse ? `
                       <button id="itemDetailUseBtn" class="btn">사용</button>
                   ` : ""}
@@ -410,6 +549,30 @@
 
           document.getElementById("itemDetailCloseBtn")
               .addEventListener("click", closeItemDetail);
+
+          const unequipBtn = document.getElementById("itemDetailUnequipBtn");
+          if (unequipBtn) {
+              unequipBtn.addEventListener("click", () => {
+                  const target = itemDetailTarget;
+                  if (!target || !target.slotKey) return;
+                  const currentSlot = target.slotKey;
+                  let freePos = findFreeSpace(target.itemObj, gridMap);
+                  if (freePos) {
+                      player.equipment[currentSlot] = null;
+                      target.itemObj.gridX = freePos.x;
+                      target.itemObj.gridY = freePos.y;
+                      myInventoryItems.push(target.itemObj);
+                      if (typeof updatePlayerTotalStats === "function") updatePlayerTotalStats();
+                      renderGridInventory();
+                      closeItemDetail();
+                      if (typeof addFloatingText === "function") {
+                          addFloatingText(player.x, player.y - 20, "장착 해제됨", "gray");
+                      }
+                  } else {
+                      alert("가방에 빈 공간이 부족하여 장착을 해제할 수 없습니다!");
+                  }
+              });
+          }
 
           const useButton = document.getElementById("itemDetailUseBtn");
           if (useButton) {

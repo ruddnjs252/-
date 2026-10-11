@@ -315,10 +315,15 @@ function updateNotiBadges() {
         window.addEventListener('resize', autoScaleInventory);
 
         function switchTab(tabId) {
-            renderEquipSlotsUI(); 
-            if (typeof renderGridInventory === "function") renderGridInventory();
-            updatePlayerTotalStats(); 
-            autoScaleInventory(); 
+            try {
+                if (typeof renderEquipSlotsUI === "function") renderEquipSlotsUI(); 
+                if (typeof renderGridInventory === "function") renderGridInventory();
+                if (typeof updatePlayerTotalStats === "function") updatePlayerTotalStats(); 
+            } catch (err) {
+                console.error("switchTab render error:", err);
+            } finally {
+                if (typeof autoScaleInventory === "function") autoScaleInventory(); 
+            }
         }
         // [MOD-017-1-END]
         

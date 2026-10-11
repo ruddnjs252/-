@@ -29,7 +29,7 @@
                 if (targetedFieldItem) pickupFieldItem(targetedFieldItem);
             }
 
-            if (e.key.toLowerCase() === 'e' && gameState !== "dead" && gameState !== "knockback") {
+            if ((e.key.toLowerCase() === 'e' || e.key.toLowerCase() === 'i') && gameState !== "dead" && gameState !== "knockback") {
                 if (gameState === "playing") {
                     gameState = "inventory";
                     document.getElementById("inventoryUI").style.display = "flex";
