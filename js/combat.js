@@ -22,14 +22,21 @@ const MOCK_SKILLS = {
 };
 
 if (!player.quickSlots) {
-    player.quickSlots = [ null, null, null, null, null ];
+    // [기본 해금 스킬 5종을 사다리 퀵슬롯에 기본 배치하여 시작부터 스킬 사용 가능]
+    player.quickSlots = [
+        MOCK_SKILLS["leap"] || null,
+        MOCK_SKILLS["charge"] || null,
+        MOCK_SKILLS["slam"] || null,
+        MOCK_SKILLS["slash"] || null,
+        MOCK_SKILLS["heal"] || null
+    ];
     player.currentQuickSlotIdx = 0;
     player.lockedTarget = null;
 }
 
 // ★ 습득 스킬 및 알림 뱃지 관리 변수
 if (!player.unlockedSkills) {
-    player.unlockedSkills = ["leap", "charge", "slam", "slash", "heal"];
+    player.unlockedSkills = ["leap", "charge", "slam", "slash", "heal", "fire", "ice", "wind"];
 }
 if (!player.newlyAcquiredSkills) {
     player.newlyAcquiredSkills = [];

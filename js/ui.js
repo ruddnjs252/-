@@ -192,15 +192,11 @@
             // 무기 쥐어주기 (이것이 곧 스탯이자 직업!)
             player.equipment.mainWeapon = startWpn;
             
-            // [버그 수정 3] 포션 ID도 최신 규격(potion_hp)으로 수정
-            let freePos1 = findFreeSpace({baseId: "potion_hp", rot:0}, gridMap);
-            if(freePos1) myInventoryItems.push({ id: "start_pot_1", baseId: "potion_hp", gridX: freePos1.x, gridY: freePos1.y, rot: 0, sockets: null });
+            // [사용자 요청: 모든 아이템은 창고로 이동, 가방에는 겹치는 포션 추가하지 않음]
             
-            let freePos2 = findFreeSpace({baseId: "potion_hp", rot:0}, gridMap);
-            if(freePos2) myInventoryItems.push({ id: "start_pot_2", baseId: "potion_hp", gridX: freePos2.x, gridY: freePos2.y, rot: 0, sockets: null });
-
             // UI 및 스탯 최종 갱신
             updatePlayerTotalStats();
+            if (typeof updateQuickSlotUI === "function") updateQuickSlotUI();
             
             // 장비가 올려준 스탯(최대 체력/마나 등)에 맞게 현재 풀피로 꽉 채워줌
             player.currentHp = player.maxHp;
@@ -269,6 +265,7 @@ function updateNotiBadges() {
                 currentRightView = 'enchant';
                 viewInv.style.display = 'none'; viewEnc.style.display = 'flex';
                 btn.innerHTML = '&laquo;'; 
+                if (typeof renderSkillUI === 'function') renderSkillUI();
             } else {
                 currentRightView = 'inventory';
                 viewInv.style.display = 'block'; viewEnc.style.display = 'none';

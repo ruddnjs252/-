@@ -376,23 +376,20 @@ function showTooltip(e, itemObj) {
 
         // 아이템 기본 정보 데이터베이스 (ITEM_DB)는 data/items.js로 분리되었습니다.
 
-        let myInventoryItems = [
-            { id: "item_1", baseId: "sword_basic", gridX: 0, gridY: 0, rot: 0 },
-            { id: "item_2", baseId: "armor_iron",  gridX: 2, gridY: 0, rot: 0 },
-            { id: "item_3", baseId: "potion_hp",   gridX: 4, gridY: 0, rot: 0 },
-            { id: "item_4", baseId: "sword_basic", gridX: 0, gridY: 4, rot: 1 }, 
-            { id: "item_5", baseId: "axe_battle",  gridX: 5, gridY: 5, rot: 0 }  
-        ];
+        let myInventoryItems = []; // [사용자 요청: 인벤토리 개편 대비 가방 비움]
 
-        // 창고 지급 로직
+        // [모든 기본 아이템 창고(personalStorage) 배치 - 8x10 그리드에 겹침 없이 정갈하게 배치]
         if (typeof personalStorage !== "undefined") {
             if (personalStorage.length === 0) {
-                personalStorage.push({ id: "scroll_1", baseId: "scroll_smite", gridX: 6, gridY: 8, rot: 0 });
-            }
-            // ★ 순간이동 스킬북 창고에 자동 지급 (배우지 않았다면)
-            let hasTeleportBook = personalStorage.some(i => i.baseId === "book_teleport");
-            if (!hasTeleportBook && (!player.unlockedSkills || !player.unlockedSkills.includes("teleport"))) {
-                personalStorage.push({ id: "book_teleport_1", baseId: "book_teleport", gridX: 4, gridY: 8, rot: 0 });
+                personalStorage.push(
+                    { id: "item_sword_1", baseId: "sword_basic", gridX: 0, gridY: 0, rot: 0 }, // 1x3 (0,0 ~ 0,2)
+                    { id: "item_armor_1", baseId: "armor_iron",  gridX: 2, gridY: 0, rot: 0 }, // 2x3 (2,0 ~ 3,2)
+                    { id: "item_pot_1",   baseId: "potion_hp",   gridX: 5, gridY: 0, rot: 0 }, // 1x1 (5,0)
+                    { id: "item_pot_2",   baseId: "potion_hp",   gridX: 6, gridY: 0, rot: 0 }, // 1x1 (6,0)
+                    { id: "item_axe_1",   baseId: "axe_battle",  gridX: 0, gridY: 4, rot: 0 }, // 2x3 (0,4 ~ 1,6)
+                    { id: "scroll_1",     baseId: "scroll_smite", gridX: 3, gridY: 4, rot: 0 }, // 1x2 (3,4 ~ 3,5)
+                    { id: "book_teleport_1", baseId: "book_teleport", gridX: 5, gridY: 4, rot: 0 } // 2x2 (5,4 ~ 6,5)
+                );
             }
         }
         // [MOD-020-1-END]
