@@ -1331,10 +1331,8 @@ function showTooltip(e, itemObj) {
                 return false;
             }
 
+            // [가방 중첩 방지]: 가방 아이템은 다른 확장 가방(bag_0 등)에 보관 불가. 메인 가방 또는 창고에만 보관 가능
             const candidates = ['main'];
-            for (let i = 0; i < 5; i++) {
-                if (i !== slotIdx && player.equippedBags[i]) candidates.push('bag_' + i);
-            }
             if (gameState === "storage") candidates.push('storage');
 
             let placedContainer = null;
@@ -1416,6 +1414,7 @@ function showTooltip(e, itemObj) {
             player.equippedBags[slotIdx] = null;
             containerMaps['bag_' + slotIdx] = null;
             renderBagSlotsUI();
+            renderGridInventory(); // 가방 해제 즉시 해당 확장 가방 격자판도 화면에서 숨김 처리
 
             let clientX = e.type.includes("touch") ? e.touches[0].clientX : e.clientX;
             let clientY = e.type.includes("touch") ? e.touches[0].clientY : e.clientY;
@@ -1668,6 +1667,15 @@ function showTooltip(e, itemObj) {
                 const maxRows = targetMap.length;
                 const maxCols = targetMap[0].length;
 
+                // [가방 중첩 및 자기 주머니 보관 차단]: 가방 아이템은 확장 가방(bag_0 ~ bag_4)에 보관 불가
+                if (baseItem.type === "bag" && targetContainerName && targetContainerName.startsWith("bag_")) {
+                    dragItemState.isValid = false;
+                }
+                // 가방 슬롯에서 드래그 중인 가방은 원래 자신이 제공하던 가방 주머니에 절대 드롭 불가
+                if (dragItemState.source === "bagSlot" && targetContainerName === ('bag_' + dragItemState.sourceBagSlotIdx)) {
+                    dragItemState.isValid = false;
+                }
+
                 for(let r = 0; r < h; r++) {
                     for(let c = 0; c < w; c++) {
                         if(shape[r][c] === 1) {
@@ -1797,26 +1805,43 @@ function showTooltip(e, itemObj) {
             // 3. 보드에 적치
             else if (dragItemState.isValid && dragItemState.targetContainer) {
                 const targetCId = dragItemState.targetContainer;
-                const targetArr = targetCId === "storage" ? personalStorage : myInventoryItems;
+                const baseItem = ITEM_DB[dragItemState.itemRef.baseId];
 
-                dragItemState.itemRef.container = targetCId;
-                dragItemState.itemRef.gridX = dragItemState.currentGridX;
-                dragItemState.itemRef.gridY = dragItemState.currentGridY;
+                // [최종 안전 방어]: 가방 아이템이 확장 가방(bag_)으로 적치되는 것을 원천 차단
+                if (baseItem && baseItem.type === "bag" && targetCId.startsWith("bag_")) {
+                    if (dragItemState.source === "bagSlot") {
+                        player.equippedBags[dragItemState.sourceBagSlotIdx] = dragItemState.itemRef;
+                        containerMaps['bag_' + dragItemState.sourceBagSlotIdx] = Array.from({ length: baseItem.bagRows }, () => Array(INV_COLS).fill(null));
+                    } else {
+                        dragItemState.itemRef.gridX = dragItemState.origX;
+                        dragItemState.itemRef.gridY = dragItemState.origY;
+                        dragItemState.itemRef.container = dragItemState.sourceContainer || "main";
+                    }
+                    if (typeof addFloatingText === "function") {
+                        addFloatingText(player.x, player.y - 30, "가방은 확장 가방에 보관할 수 없습니다!", "#ff4444");
+                    }
+                } else {
+                    const targetArr = targetCId === "storage" ? personalStorage : myInventoryItems;
 
-                if (dragItemState.source === "equipment") {
-                    targetArr.push(dragItemState.itemRef);
-                    updatePlayerTotalStats();
-                    renderEquipSlotsUI();
-                } else if (dragItemState.source === "bagSlot") {
-                    targetArr.push(dragItemState.itemRef);
-                } else if (dragItemState.source === "storage" && targetCId !== "storage") {
-                    let idx = personalStorage.findIndex(i => (i.id || i.uid) === (dragItemState.itemRef.id || dragItemState.itemRef.uid));
-                    if (idx > -1) personalStorage.splice(idx, 1);
-                    myInventoryItems.push(dragItemState.itemRef);
-                } else if (dragItemState.source !== "storage" && targetCId === "storage") {
-                    let idx = myInventoryItems.findIndex(i => (i.id || i.uid) === (dragItemState.itemRef.id || dragItemState.itemRef.uid));
-                    if (idx > -1) myInventoryItems.splice(idx, 1);
-                    personalStorage.push(dragItemState.itemRef);
+                    dragItemState.itemRef.container = targetCId;
+                    dragItemState.itemRef.gridX = dragItemState.currentGridX;
+                    dragItemState.itemRef.gridY = dragItemState.currentGridY;
+
+                    if (dragItemState.source === "equipment") {
+                        targetArr.push(dragItemState.itemRef);
+                        updatePlayerTotalStats();
+                        renderEquipSlotsUI();
+                    } else if (dragItemState.source === "bagSlot") {
+                        targetArr.push(dragItemState.itemRef);
+                    } else if (dragItemState.source === "storage" && targetCId !== "storage") {
+                        let idx = personalStorage.findIndex(i => (i.id || i.uid) === (dragItemState.itemRef.id || dragItemState.itemRef.uid));
+                        if (idx > -1) personalStorage.splice(idx, 1);
+                        myInventoryItems.push(dragItemState.itemRef);
+                    } else if (dragItemState.source !== "storage" && targetCId === "storage") {
+                        let idx = myInventoryItems.findIndex(i => (i.id || i.uid) === (dragItemState.itemRef.id || dragItemState.itemRef.uid));
+                        if (idx > -1) myInventoryItems.splice(idx, 1);
+                        personalStorage.push(dragItemState.itemRef);
+                    }
                 }
             } 
             // 4. 인벤토리/창고 UI 바깥으로 드래그하여 놓았을 때 -> 바닥에 버리기!
@@ -1949,8 +1974,9 @@ function showTooltip(e, itemObj) {
             if (!baseItem) return;
 
             // 3. 적치 가능한 컨테이너 순회 탐색 (1순위: main 8x3, 2순위: 1번~5번 가방)
+            // [가방 중첩 방지]: 가방 아이템은 주울 때도 확장 가방에 들어가지 않고 메인에만 적치
             const candidates = ['main'];
-            if (player.equippedBags) {
+            if (player.equippedBags && baseItem.type !== "bag") {
                 for (let i = 0; i < 5; i++) {
                     if (player.equippedBags[i]) candidates.push('bag_' + i);
                 }
