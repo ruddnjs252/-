@@ -1262,7 +1262,7 @@ function showTooltip(e, itemObj) {
         function hideDragStatsPanel() {}
 
         // [가방 착용 로직]
-        function equipBag(bagItem, targetSlotIdx, sourceArray) {
+        function equipBag(bagItem, targetSlotIdx, sourceArray, origX, origY, origContainer) {
             if (!bagItem || targetSlotIdx < 0 || targetSlotIdx >= 5) return false;
             const baseBag = ITEM_DB[bagItem.baseId];
             if (!baseBag || baseBag.type !== "bag") return false;
@@ -1292,17 +1292,29 @@ function showTooltip(e, itemObj) {
             player.equippedBags[targetSlotIdx] = bagItem;
             containerMaps['bag_' + targetSlotIdx] = Array.from({ length: baseBag.bagRows }, () => Array(INV_COLS).fill(null));
 
-            // 기존 가방이 있었으면 복귀
+            // 기존 가방이 있었으면, 새 가방이 있던 자리(origX, origY) 또는 빈 공간으로 1:1 맞교체
             if (oldBag && sourceArray) {
-                let targetMap = getContainerMap(sourceArray === personalStorage ? "storage" : "main");
-                let freePos = findFreeSpace(oldBag, targetMap);
-                if (freePos) {
-                    oldBag.gridX = freePos.x;
-                    oldBag.gridY = freePos.y;
-                    oldBag.container = sourceArray === personalStorage ? "storage" : "main";
+                const destContainer = origContainer || (sourceArray === personalStorage ? "storage" : "main");
+                const targetMap = getContainerMap(destContainer);
+                
+                if (origX !== undefined && origY !== undefined && targetMap && canPlaceItem(oldBag, origX, origY, targetMap)) {
+                    oldBag.gridX = origX;
+                    oldBag.gridY = origY;
+                    oldBag.container = destContainer;
                     sourceArray.push(oldBag);
                 } else {
-                    myInventoryItems.push(oldBag);
+                    let freePos = findFreeSpace(oldBag, targetMap);
+                    if (freePos) {
+                        oldBag.gridX = freePos.x;
+                        oldBag.gridY = freePos.y;
+                        oldBag.container = destContainer;
+                        sourceArray.push(oldBag);
+                    } else {
+                        oldBag.container = "main";
+                        oldBag.gridX = 0;
+                        oldBag.gridY = 0;
+                        myInventoryItems.push(oldBag);
+                    }
                 }
             }
 
@@ -1749,10 +1761,73 @@ function showTooltip(e, itemObj) {
 
             let sourceArray = dragItemState.source === "storage" ? personalStorage : myInventoryItems;
 
-            // 1. 가방 슬롯에 장착
+            // 1. 가방 슬롯에 장착 / 가방 슬롯 간 이동 및 맞바꾸기(SWAP)
             if (dragItemState.hoveredBagSlot) {
                 const targetSlotIdx = parseInt(dragItemState.hoveredBagSlot.dataset.slotIndex);
-                equipBag(dragItemState.itemRef, targetSlotIdx, dragItemState.source === "bagSlot" ? null : sourceArray);
+
+                // [케이스 1]: 가방 슬롯에서 드래그하여 다른 가방 슬롯으로 놓은 경우 (슬롯 간 이동 / 맞바꾸기)
+                if (dragItemState.source === "bagSlot") {
+                    const fromSlotIdx = dragItemState.sourceBagSlotIdx;
+                    const fromBag = dragItemState.itemRef;
+                    const targetOldBag = player.equippedBags[targetSlotIdx];
+
+                    if (fromSlotIdx === targetSlotIdx) {
+                        // 같은 슬롯 제자리 드롭: 원래 자리로 복원
+                        player.equippedBags[fromSlotIdx] = fromBag;
+                        containerMaps['bag_' + fromSlotIdx] = Array.from({ length: ITEM_DB[fromBag.baseId].bagRows }, () => Array(INV_COLS).fill(null));
+                    } else if (!targetOldBag) {
+                        // 대상 슬롯이 빈 슬롯인 경우: 슬롯 이동 및 내부 아이템 컨테이너 ID 변경
+                        myInventoryItems.forEach(it => {
+                            if (it.container === 'bag_' + fromSlotIdx) {
+                                it.container = 'bag_' + targetSlotIdx;
+                            }
+                        });
+                        player.equippedBags[targetSlotIdx] = fromBag;
+                        containerMaps['bag_' + targetSlotIdx] = Array.from({ length: ITEM_DB[fromBag.baseId].bagRows }, () => Array(INV_COLS).fill(null));
+                        player.equippedBags[fromSlotIdx] = null;
+                        containerMaps['bag_' + fromSlotIdx] = null;
+                        if (typeof addFloatingText === "function") {
+                            addFloatingText(player.x, player.y - 30, "🎒 가방 슬롯 이동 완료!", "#ffd700");
+                        }
+                    } else {
+                        // 대상 슬롯에 이미 가방이 있는 경우: 위치 맞바꾸기 (SWAP)
+                        const fromInside = myInventoryItems.filter(it => it.container === 'bag_' + fromSlotIdx);
+                        const targetInside = myInventoryItems.filter(it => it.container === 'bag_' + targetSlotIdx);
+
+                        if (fromInside.length > 0 || targetInside.length > 0) {
+                            // 크기 차이로 인한 아이템 유실을 방지하기 위해 둘 중 하나라도 차있으면 스왑 금지 후 안전 복귀
+                            player.equippedBags[fromSlotIdx] = fromBag;
+                            containerMaps['bag_' + fromSlotIdx] = Array.from({ length: ITEM_DB[fromBag.baseId].bagRows }, () => Array(INV_COLS).fill(null));
+                            if (typeof addFloatingText === "function") {
+                                addFloatingText(player.x, player.y - 30, "가방에 아이템이 있어 맞바꿀 수 없습니다!", "#ff4444");
+                            } else {
+                                alert("가방에 아이템이 보관되어 있어 위치를 맞바꿀 수 없습니다! 가방을 비운 후 교체해주세요.");
+                            }
+                        } else {
+                            // 둘 다 비어있으므로 안전하게 위치 맞바꾸기 (SWAP)
+                            player.equippedBags[targetSlotIdx] = fromBag;
+                            player.equippedBags[fromSlotIdx] = targetOldBag;
+                            containerMaps['bag_' + targetSlotIdx] = Array.from({ length: ITEM_DB[fromBag.baseId].bagRows }, () => Array(INV_COLS).fill(null));
+                            containerMaps['bag_' + fromSlotIdx] = Array.from({ length: ITEM_DB[targetOldBag.baseId].bagRows }, () => Array(INV_COLS).fill(null));
+                            if (typeof addFloatingText === "function") {
+                                addFloatingText(player.x, player.y - 30, "🎒 가방 위치 맞교환 완료!", "#ffd700");
+                            }
+                        }
+                    }
+                    renderBagSlotsUI();
+                    renderGridInventory();
+                } 
+                // [케이스 2]: 인벤토리나 창고에서 가방 슬롯으로 드래그하여 장착하는 경우
+                else {
+                    const success = equipBag(dragItemState.itemRef, targetSlotIdx, sourceArray, dragItemState.origX, dragItemState.origY, dragItemState.sourceContainer);
+                    if (!success) {
+                        // 실패 시 (기존 가방에 아이템이 있어서 교체 불가 등): 원래 인벤토리/창고 자리로 안전 복구
+                        dragItemState.itemRef.gridX = dragItemState.origX;
+                        dragItemState.itemRef.gridY = dragItemState.origY;
+                        dragItemState.itemRef.container = dragItemState.sourceContainer || "main";
+                        renderGridInventory();
+                    }
+                }
             }
             // 2. 일반 장비 슬롯에 장착
             else if (dragItemState.hoveredEquipSlot) {
