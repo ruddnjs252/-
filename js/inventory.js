@@ -101,6 +101,7 @@ function showTooltip(e, itemObj) {
             if (!currentEnchantTargetSlot) return; 
             currentEnchantTargetSlot = null;
             pendingEnchant = null; 
+            window.pendingEnchant = null; 
             
             const content = document.getElementById("enchantContent");
             const targetSlotHint = document.getElementById("enchantTargetHint");
@@ -211,6 +212,16 @@ function showTooltip(e, itemObj) {
         }
 
 
+// [사용 가능한 인챈트 두루마리 목록 조회: 인벤토리 기본 + 창고가 열려있을 때만 창고 포함]
+        function getAvailableEnchantScrolls() {
+            let scrolls = (typeof myInventoryItems !== "undefined" && Array.isArray(myInventoryItems)) ? [...myInventoryItems] : [];
+            if (typeof gameState !== "undefined" && gameState === "storage" && typeof personalStorage !== "undefined" && Array.isArray(personalStorage)) {
+                scrolls = scrolls.concat(personalStorage);
+            }
+            return scrolls;
+        }
+        window.getAvailableEnchantScrolls = getAvailableEnchantScrolls;
+
 // [인챈트 상호작용 및 주문서 적용 함수군]
         function selectEquipSlotForEnchant(slotNameKOR, slotKey) {
             if (currentRightView !== 'enchant') return;
@@ -234,7 +245,7 @@ function showTooltip(e, itemObj) {
             targetSlotHint.innerHTML = `<span style="color: white; font-weight: bold; font-size: 11px;">${baseItem.name}</span>`;
             targetSlot.style.borderColor = "gold"; targetSlot.style.backgroundColor = baseItem.color;
 
-            let allScrolls = [...myInventoryItems, ...personalStorage];
+            let allScrolls = getAvailableEnchantScrolls();
             let equippedEnchants = item.sockets.filter(s => s !== null).map(s => typeof s === "string" ? s : s.baseId);
             let hasNewScroll = allScrolls.some(i => ITEM_DB[i.baseId] && ITEM_DB[i.baseId].type === "enchant" && !equippedEnchants.includes(i.baseId));
             
@@ -262,14 +273,18 @@ function showTooltip(e, itemObj) {
                     let effect = ITEM_DB[baseId] ? ITEM_DB[baseId].enchantEffect : { stat: "str", value: 5, name: "강타" };
                     let totalVal = effect.value * level;
 
-                    // 가방 또는 창고에 동일한 인챈트 두루마리가 있을 경우 중복 강화 알림 '!' 뱃지 표시
+                    // 가방 또는 열린 창고에 동일한 인챈트 두루마리가 있을 경우 중복 강화 알림 '!' 뱃지 표시
                     let hasDupeScroll = allScrolls.some(s => s.baseId === baseId);
                     let badgeHtml = "";
                     let clickAction = "";
 
                     if (hasDupeScroll && !pendingEnchant) {
                         badgeHtml = `<div class="noti-badge socket-badge">!</div>`;
-                        clickAction = `onclick="stageUpgradeEnchant('${slotKey}', ${i}, '${baseId}')" style="cursor:pointer;"`;
+                    }
+
+                    // [강타1] 등의 소켓을 누르면 강화 재료 선택 팝업을 열어 유저가 원하는 두루마리를 선택하도록 유도
+                    if (!pendingEnchant) {
+                        clickAction = `onclick="openUpgradeEnchantPopup('${slotKey}', ${i}, '${baseId}')" style="cursor:pointer;"`;
                     }
 
                     socketsHtml += `<div class="socket-slot socket-animated" style="background:#ff4444; border-color:white; position:relative;" ${clickAction}>
@@ -310,30 +325,94 @@ function showTooltip(e, itemObj) {
             setTimeout(updateNotiBadges, 10); 
         }
 
-        // [중복 강화 스테이징: 기존 소켓에 한 번 더 두루마리 적용]
-        function stageUpgradeEnchant(slotKey, socketIndex, baseId) {
-            let allScrolls = [...myInventoryItems, ...personalStorage];
-            let scroll = allScrolls.find(s => s.baseId === baseId);
+        // [중복 강화 재료 선택 팝업: 소켓을 눌렀을 때 사용 가능한 강화 재료 인챈트 목록을 보여주고 선택]
+        function openUpgradeEnchantPopup(slotKey, socketIndex, baseId) {
+            let allScrolls = getAvailableEnchantScrolls();
+            let targetScrolls = allScrolls.filter(i => {
+                if (!ITEM_DB[i.baseId] || ITEM_DB[i.baseId].type !== "enchant") return false;
+                return i.baseId === baseId;
+            });
+
+            let popup = document.getElementById("enchantPopupUI");
+            if (!popup) return;
+
+            let baseInfo = ITEM_DB[baseId];
+            let effectName = (baseInfo && baseInfo.enchantEffect) ? baseInfo.enchantEffect.name : "강타";
+
+            if (targetScrolls.length === 0) {
+                popup.innerHTML = `
+                    <div style="color:gold; font-weight:bold; font-size:12px; margin-bottom:8px; text-align:center;">중복 강화 재료 선택</div>
+                    <div style="color:#bbb; font-size:11px; text-align:center; line-height:1.5;">
+                        강화 재료로 사용할 [${effectName}] 두루마리가 없습니다.<br>
+                        <span style="color:#888; font-size:10px;">(가방에 소지하거나 창고를 연 상태에서 이용할 수 있습니다.)</span>
+                    </div>
+                    <button onclick="document.getElementById('enchantPopupUI').style.display='none'" style="margin-top:12px; background:#444; color:#fff; border:none; padding:5px 15px; border-radius:4px; cursor:pointer;">닫기</button>
+                `;
+            } else {
+                let listHtml = targetScrolls.map(scroll => {
+                    let base = ITEM_DB[scroll.baseId];
+                    let isInv = myInventoryItems.some(i => (i.id || i.uid) === (scroll.id || scroll.uid));
+                    let sourceText = isInv ? "가방" : "창고";
+                    let sourceColor = isInv ? "#4fc3f7" : "#ffb74d";
+                    let sId = scroll.id || scroll.uid;
+                    let eff = base.enchantEffect ? `${base.enchantEffect.stat.toUpperCase()} +${base.enchantEffect.value}` : "";
+
+                    return `
+                        <div class="enchant-scroll-item" onclick="stageUpgradeEnchant('${slotKey}', ${socketIndex}, '${sId}')" style="display:flex; justify-content:space-between; align-items:center; padding:7px 10px; margin:4px 0; background:rgba(255,255,255,0.08); border:1px solid #555; border-radius:4px; cursor:pointer;">
+                            <div style="text-align:left;">
+                                <span style="color:${sourceColor}; font-size:10px; font-weight:bold; margin-right:4px;">[${sourceText}]</span>
+                                <span style="color:#fff; font-size:11px; font-weight:bold;">${base.name}</span>
+                                <span style="color:gold; font-size:10px; margin-left:4px;">(${eff})</span>
+                            </div>
+                            <div style="color:#00ffcc; font-size:10px; font-weight:bold; border:1px solid #00ffcc; padding:2px 6px; border-radius:3px;">
+                                선택
+                            </div>
+                        </div>
+                    `;
+                }).join('');
+
+                popup.innerHTML = `
+                    <div style="color:gold; font-weight:bold; font-size:12px; margin-bottom:4px; text-align:center;">중복 강화 재료 선택</div>
+                    <div style="color:#aaa; font-size:10px; margin-bottom:10px; text-align:center;">강화에 소모할 인챈트 두루마리를 선택하세요.</div>
+                    <div style="max-height:180px; overflow-y:auto; width:100%; display:flex; flex-direction:column; gap:4px;">
+                        ${listHtml}
+                    </div>
+                    <button onclick="document.getElementById('enchantPopupUI').style.display='none'" style="margin-top:10px; background:#444; color:#fff; border:none; padding:5px 15px; border-radius:4px; cursor:pointer;">취소</button>
+                `;
+            }
+            popup.style.display = 'flex';
+        }
+
+        // [중복 강화 스테이징: 유저가 선택한 두루마리로 소켓 업그레이드 등록]
+        function stageUpgradeEnchant(slotKey, socketIndex, scrollId) {
+            let popup = document.getElementById('enchantPopupUI');
+            if (popup) popup.style.display = 'none';
+
+            let allScrolls = getAvailableEnchantScrolls();
+            let scroll = allScrolls.find(s => (s.id || s.uid) === scrollId);
             if (!scroll) return;
+
             pendingEnchant = {
                 slotKey: slotKey,
                 socketIndex: socketIndex,
                 scrollId: scroll.id || scroll.uid,
                 isUpgrade: true
             };
+            window.pendingEnchant = pendingEnchant;
             let slotEl = document.querySelector(`[data-slot="${slotKey}"]`);
             let slotNameKOR = slotEl ? slotEl.innerText : "";
             selectEquipSlotForEnchant(slotNameKOR, slotKey);
         }
 
         function openEnchantPopup(slotKey, socketIndex) {
-            let allScrolls = [...myInventoryItems, ...personalStorage];
+            let allScrolls = getAvailableEnchantScrolls();
             let item = player.equipment[slotKey];
             let equippedEnchants = (item && item.sockets) ? item.sockets.filter(s => s !== null).map(s => typeof s === "string" ? s : s.baseId) : [];
 
             // 이미 장착된 인챈트는 빈 소켓에 중복으로 넣을 수 없도록 원천 제외
             let scrolls = allScrolls.filter(i => ITEM_DB[i.baseId] && ITEM_DB[i.baseId].type === "enchant" && !equippedEnchants.includes(i.baseId));
             let popup = document.getElementById("enchantPopupUI");
+            if (!popup) return;
             
             if(scrolls.length === 0) {
                 popup.innerHTML = `<div style="color:gray; font-size:11px; text-align:center; line-height:1.5;">사용 가능한 새로운 인챈트 두루마리가 없습니다.<br><span style="color:gold;">(이미 장착된 인챈트는 기존 소켓에서 중복 강화(!)를 진행하세요.)</span></div>
@@ -341,22 +420,37 @@ function showTooltip(e, itemObj) {
             } else {
                 let listHtml = scrolls.map(scroll => {
                     let base = ITEM_DB[scroll.baseId];
-                    let sourceText = myInventoryItems.some(i => (i.id || i.uid) === (scroll.id || scroll.uid)) ? "가방" : "창고";
-                    return `<div class="enchant-scroll-item" onclick="stageEnchant('${slotKey}', ${socketIndex}, '${scroll.id || scroll.uid}')">
-                        <span style="color:#aaa; font-size:9px;">[${sourceText}]</span> ${base.name} <span style="color:gold; font-size:10px;">${base.enchantEffect.name}</span>
+                    let isInv = myInventoryItems.some(i => (i.id || i.uid) === (scroll.id || scroll.uid));
+                    let sourceText = isInv ? "가방" : "창고";
+                    let sourceColor = isInv ? "#4fc3f7" : "#ffb74d";
+                    let sId = scroll.id || scroll.uid;
+                    let eff = base.enchantEffect ? `${base.enchantEffect.stat.toUpperCase()} +${base.enchantEffect.value}` : "";
+
+                    return `<div class="enchant-scroll-item" onclick="stageEnchant('${slotKey}', ${socketIndex}, '${sId}')" style="display:flex; justify-content:space-between; align-items:center; padding:7px 10px; margin:4px 0; background:rgba(255,255,255,0.08); border:1px solid #555; border-radius:4px; cursor:pointer;">
+                        <div style="text-align:left;">
+                            <span style="color:${sourceColor}; font-size:10px; font-weight:bold; margin-right:4px;">[${sourceText}]</span>
+                            <span style="color:#fff; font-size:11px; font-weight:bold;">${base.name}</span>
+                            <span style="color:gold; font-size:10px; margin-left:4px;">(${eff})</span>
+                        </div>
+                        <div style="color:#00ffcc; font-size:10px; font-weight:bold; border:1px solid #00ffcc; padding:2px 6px; border-radius:3px;">
+                            선택
+                        </div>
                     </div>`;
                 }).join('');
                 
-                popup.innerHTML = `<div style="color:gold; font-weight:bold; font-size:12px; margin-bottom:10px; text-align:center;">인챈트 선택</div>
-                ${listHtml}
-                <button onclick="document.getElementById('enchantPopupUI').style.display='none'" style="margin-top:10px; background:#444; color:#fff; border:none; padding:5px; border-radius:4px;">취소</button>`;
+                popup.innerHTML = `<div style="color:gold; font-weight:bold; font-size:12px; margin-bottom:4px; text-align:center;">인챈트 선택</div>
+                <div style="color:#aaa; font-size:10px; margin-bottom:10px; text-align:center;">빈 소켓에 장착할 두루마리를 선택하세요.</div>
+                <div style="max-height:180px; overflow-y:auto; width:100%; display:flex; flex-direction:column; gap:4px;">
+                    ${listHtml}
+                </div>
+                <button onclick="document.getElementById('enchantPopupUI').style.display='none'" style="margin-top:10px; background:#444; color:#fff; border:none; padding:5px 15px; border-radius:4px; cursor:pointer;">취소</button>`;
             }
             popup.style.display = 'flex';
         }
 
         function stageEnchant(slotKey, socketIndex, scrollId) {
             let item = player.equipment[slotKey];
-            let allScrolls = [...myInventoryItems, ...personalStorage];
+            let allScrolls = getAvailableEnchantScrolls();
             let scroll = allScrolls.find(x => (x.id || x.uid) === scrollId);
 
             if (item && item.sockets && scroll) {
@@ -369,6 +463,7 @@ function showTooltip(e, itemObj) {
             }
 
             pendingEnchant = { slotKey, socketIndex, scrollId, isUpgrade: false };
+            window.pendingEnchant = pendingEnchant;
             document.getElementById('enchantPopupUI').style.display = 'none';
             let slotEl = document.querySelector(`[data-slot="${slotKey}"]`);
             let slotNameKOR = slotEl ? slotEl.innerText : "";
@@ -388,7 +483,7 @@ function showTooltip(e, itemObj) {
             let invIdx = myInventoryItems.findIndex(i => (i.id || i.uid) === scrollId);
             if (invIdx > -1) {
                 scroll = myInventoryItems.splice(invIdx, 1)[0];
-            } else {
+            } else if (typeof gameState !== "undefined" && gameState === "storage") {
                 let stoIdx = personalStorage.findIndex(i => (i.id || i.uid) === scrollId);
                 if (stoIdx > -1) {
                     scroll = personalStorage.splice(stoIdx, 1)[0];
@@ -411,9 +506,12 @@ function showTooltip(e, itemObj) {
                         addFloatingText(player.x, player.y - 40, "인챈트 성공!", "#00ffcc");
                     }
                 }
+            } else {
+                alert("선택한 두루마리를 찾을 수 없습니다.");
             }
             
             pendingEnchant = null;
+            window.pendingEnchant = null;
             updatePlayerTotalStats();
             if (typeof renderEquipSlotsUI === "function") renderEquipSlotsUI();
             if (typeof renderGridInventory === "function") renderGridInventory();
@@ -425,6 +523,7 @@ function showTooltip(e, itemObj) {
 
         function cancelPendingEnchant(slotNameKOR, slotKey) {
             pendingEnchant = null;
+            window.pendingEnchant = null;
             selectEquipSlotForEnchant(slotNameKOR, slotKey);
         }
 
@@ -463,6 +562,7 @@ function showTooltip(e, itemObj) {
         };
 
         let myInventoryItems = []; // [인벤토리 소지품 배열]
+        window.myInventoryItems = myInventoryItems;
 
         // [개인 창고(personalStorage) 초기 배치 - 기본 아이템 7종 + 가방 3종 겹침 없이 배치]
         if (typeof personalStorage !== "undefined") {
@@ -1927,4 +2027,5 @@ function showTooltip(e, itemObj) {
                 if (typeof renderGridInventory === "function") renderGridInventory();
                 if (typeof autoScaleInventory === "function") autoScaleInventory();
             }
+            if (typeof updateNotiBadges === "function") updateNotiBadges();
         }
