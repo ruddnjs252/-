@@ -235,7 +235,8 @@ function showTooltip(e, itemObj) {
             targetSlot.style.borderColor = "gold"; targetSlot.style.backgroundColor = baseItem.color;
 
             let allScrolls = [...myInventoryItems, ...personalStorage];
-            let hasScroll = allScrolls.some(i => ITEM_DB[i.baseId] && ITEM_DB[i.baseId].type === "enchant");
+            let equippedEnchants = item.sockets.filter(s => s !== null).map(s => typeof s === "string" ? s : s.baseId);
+            let hasNewScroll = allScrolls.some(i => ITEM_DB[i.baseId] && ITEM_DB[i.baseId].type === "enchant" && !equippedEnchants.includes(i.baseId));
             
             let foundFirstEmpty = false;
             let socketsHtml = '';
@@ -277,7 +278,7 @@ function showTooltip(e, itemObj) {
                     </div>`;
                 } else {
                     let badgeHtml = "";
-                    if (!foundFirstEmpty && hasScroll && !pendingEnchant) {
+                    if (!foundFirstEmpty && hasNewScroll && !pendingEnchant) {
                         badgeHtml = `<div class="noti-badge socket-badge">!</div>`;
                         foundFirstEmpty = true; 
                     }
@@ -327,13 +328,16 @@ function showTooltip(e, itemObj) {
 
         function openEnchantPopup(slotKey, socketIndex) {
             let allScrolls = [...myInventoryItems, ...personalStorage];
+            let item = player.equipment[slotKey];
+            let equippedEnchants = (item && item.sockets) ? item.sockets.filter(s => s !== null).map(s => typeof s === "string" ? s : s.baseId) : [];
 
-            let scrolls = allScrolls.filter(i => ITEM_DB[i.baseId] && ITEM_DB[i.baseId].type === "enchant");
+            // 이미 장착된 인챈트는 빈 소켓에 중복으로 넣을 수 없도록 원천 제외
+            let scrolls = allScrolls.filter(i => ITEM_DB[i.baseId] && ITEM_DB[i.baseId].type === "enchant" && !equippedEnchants.includes(i.baseId));
             let popup = document.getElementById("enchantPopupUI");
             
             if(scrolls.length === 0) {
-                popup.innerHTML = `<div style="color:gray; font-size:11px; text-align:center;">사용 가능한<br>인챈트 두루마리가 없습니다.</div>
-                <button onclick="document.getElementById('enchantPopupUI').style.display='none'" style="margin-top:10px; background:#444; color:#fff; border:none; padding:5px; border-radius:4px;">닫기</button>`;
+                popup.innerHTML = `<div style="color:gray; font-size:11px; text-align:center; line-height:1.5;">사용 가능한 새로운 인챈트 두루마리가 없습니다.<br><span style="color:gold;">(이미 장착된 인챈트는 기존 소켓에서 중복 강화(!)를 진행하세요.)</span></div>
+                <button onclick="document.getElementById('enchantPopupUI').style.display='none'" style="margin-top:10px; background:#444; color:#fff; border:none; padding:5px 15px; border-radius:4px; cursor:pointer;">닫기</button>`;
             } else {
                 let listHtml = scrolls.map(scroll => {
                     let base = ITEM_DB[scroll.baseId];
@@ -351,6 +355,19 @@ function showTooltip(e, itemObj) {
         }
 
         function stageEnchant(slotKey, socketIndex, scrollId) {
+            let item = player.equipment[slotKey];
+            let allScrolls = [...myInventoryItems, ...personalStorage];
+            let scroll = allScrolls.find(x => (x.id || x.uid) === scrollId);
+
+            if (item && item.sockets && scroll) {
+                let equippedEnchants = item.sockets.filter(s => s !== null).map(s => typeof s === "string" ? s : s.baseId);
+                if (equippedEnchants.includes(scroll.baseId)) {
+                    alert("동일한 인챈트는 다른 소켓에 중복 장착할 수 없습니다. 기존 소켓에서 중복 강화를 진행하세요.");
+                    document.getElementById('enchantPopupUI').style.display = 'none';
+                    return;
+                }
+            }
+
             pendingEnchant = { slotKey, socketIndex, scrollId, isUpgrade: false };
             document.getElementById('enchantPopupUI').style.display = 'none';
             let slotEl = document.querySelector(`[data-slot="${slotKey}"]`);
