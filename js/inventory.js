@@ -1207,6 +1207,17 @@ function showTooltip(e, itemObj) {
             return true;
         }
 
+        // [인벤토리 UI 화면 배율 정밀 계산 함수]
+        function getInventoryScale() {
+            const container = typeof document !== 'undefined' ? document.querySelector('.inv-container') : null;
+            if (!container) return 1;
+            const rect = container.getBoundingClientRect();
+            if (container.offsetWidth > 0) {
+                return rect.width / container.offsetWidth;
+            }
+            return 1;
+        }
+
         // [가방 슬롯에서 드래그 시작]
         function startDragFromBagSlot(e, slotIdx, bagItem) {
             const insideItems = myInventoryItems.filter(it => it.container === 'bag_' + slotIdx);
@@ -1233,15 +1244,21 @@ function showTooltip(e, itemObj) {
             let clientX = e.type.includes("touch") ? e.touches[0].clientX : e.clientX;
             let clientY = e.type.includes("touch") ? e.touches[0].clientY : e.clientY;
 
-            const board = document.getElementById("inventoryBoard_main") || document.body;
+            const currentScale = getInventoryScale();
             dragItemState.offsetX = GRID_CELL_SIZE / 2;
             dragItemState.offsetY = GRID_CELL_SIZE / 2;
+            dragItemState.scale = currentScale;
             dragItemState.lastClientX = clientX;
             dragItemState.lastClientY = clientY;
 
             let ghost = createGhostDOMForItem(bagItem);
             ghost.className = "grid-item-wrapper dragging";
-            board.appendChild(ghost);
+            ghost.style.position = "fixed";
+            ghost.style.transform = `scale(${currentScale})`;
+            ghost.style.transformOrigin = "top left";
+            ghost.style.pointerEvents = "none";
+            ghost.style.zIndex = "99999";
+            document.body.appendChild(ghost);
             dragItemState.ghostEl = ghost;
 
             document.addEventListener("mousemove", onDragMove);
@@ -1268,10 +1285,12 @@ function showTooltip(e, itemObj) {
             let clientX = e.type.includes("touch") ? e.touches[0].clientX : e.clientX;
             let clientY = e.type.includes("touch") ? e.touches[0].clientY : e.clientY;
 
-            let currentScale = 1;
+            const currentScale = getInventoryScale();
             const elRect = htmlEl.getBoundingClientRect();
-            dragItemState.offsetX = (clientX - elRect.left);
-            dragItemState.offsetY = (clientY - elRect.top);
+            // [정밀 보정]: 마우스 클릭 지점을 scale 비율로 정확히 역산하여 커서 위치 1:1 고정
+            dragItemState.offsetX = (clientX - elRect.left) / currentScale;
+            dragItemState.offsetY = (clientY - elRect.top) / currentScale;
+            dragItemState.scale = currentScale;
             dragItemState.lastClientX = clientX;
             dragItemState.lastClientY = clientY;
 
@@ -1298,6 +1317,11 @@ function showTooltip(e, itemObj) {
             ghost.style.width = htmlEl.style.width;
             ghost.style.height = htmlEl.style.height;
             ghost.innerHTML = htmlEl.innerHTML; 
+            ghost.style.position = "fixed";
+            ghost.style.transform = `scale(${currentScale})`;
+            ghost.style.transformOrigin = "top left";
+            ghost.style.pointerEvents = "none";
+            ghost.style.zIndex = "99999";
             
             document.body.appendChild(ghost);
             dragItemState.ghostEl = ghost;
@@ -1331,13 +1355,20 @@ function showTooltip(e, itemObj) {
             updatePlayerTotalStats();
             renderEquipSlotsUI();
 
+            const currentScale = getInventoryScale();
             dragItemState.offsetX = GRID_CELL_SIZE / 2; 
             dragItemState.offsetY = GRID_CELL_SIZE / 2;
+            dragItemState.scale = currentScale;
             dragItemState.lastClientX = clientX;
             dragItemState.lastClientY = clientY;
 
             let ghost = createGhostDOMForItem(itemObj);
             ghost.className = "grid-item-wrapper dragging"; 
+            ghost.style.position = "fixed";
+            ghost.style.transform = `scale(${currentScale})`;
+            ghost.style.transformOrigin = "top left";
+            ghost.style.pointerEvents = "none";
+            ghost.style.zIndex = "99999";
             
             document.body.appendChild(ghost);
             dragItemState.ghostEl = ghost;
@@ -1409,6 +1440,16 @@ function showTooltip(e, itemObj) {
         function updateDragGhost() {
             if(!dragItemState.ghostEl) return;
 
+            const currentScale = getInventoryScale();
+            dragItemState.scale = currentScale;
+
+            // [고스트 위치 고정]: 마우스 클릭 지점과 고스트의 위치를 1:1로 항상 일치시킴
+            dragItemState.ghostEl.style.position = "fixed";
+            dragItemState.ghostEl.style.transform = `scale(${currentScale})`;
+            dragItemState.ghostEl.style.transformOrigin = "top left";
+            dragItemState.ghostEl.style.left = (dragItemState.lastClientX - dragItemState.offsetX * currentScale) + "px";
+            dragItemState.ghostEl.style.top = (dragItemState.lastClientY - dragItemState.offsetY * currentScale) + "px";
+
             // 마우스 아래에 위치한 .inventory-board 요소 찾기
             const allBoards = document.querySelectorAll('.inventory-board');
             let targetBoardDOM = null;
@@ -1431,12 +1472,12 @@ function showTooltip(e, itemObj) {
 
             dragItemState.targetBoard = targetBoardDOM ? (targetContainerName === "storage" ? "storage" : "inventory") : null;
             dragItemState.targetContainer = targetContainerName;
-            let isInsideBoard = false;
             let rawGridX = 0, rawGridY = 0;
 
             if (targetBoardDOM && targetMap) {
-                let localX = dragItemState.lastClientX - targetRect.left - dragItemState.offsetX;
-                let localY = dragItemState.lastClientY - targetRect.top - dragItemState.offsetY;
+                // [정밀 보정]: 보드 내부 격자 위치를 스케일 비율로 역산
+                let localX = (dragItemState.lastClientX - targetRect.left) / currentScale - dragItemState.offsetX;
+                let localY = (dragItemState.lastClientY - targetRect.top) / currentScale - dragItemState.offsetY;
 
                 rawGridX = Math.round(localX / GRID_CELL_SIZE);
                 rawGridY = Math.round(localY / GRID_CELL_SIZE);
@@ -1444,7 +1485,6 @@ function showTooltip(e, itemObj) {
                 dragItemState.currentGridX = rawGridX;
                 dragItemState.currentGridY = rawGridY;
                 dragItemState.isValid = true;
-                isInsideBoard = true;
 
                 const baseItem = ITEM_DB[dragItemState.itemRef.baseId];
                 const shape = getRotatedShape(baseItem.shape, dragItemState.itemRef.rot || 0);
@@ -1456,30 +1496,13 @@ function showTooltip(e, itemObj) {
                     for(let c = 0; c < w; c++) {
                         if(shape[r][c] === 1) {
                             let gy = rawGridY + r, gx = rawGridX + c;
-                            if (gy < 0 || gy >= maxRows || gx < 0 || gx >= maxCols) { dragItemState.isValid = false; isInsideBoard = false; break; }
+                            if (gy < 0 || gy >= maxRows || gx < 0 || gx >= maxCols) { dragItemState.isValid = false; break; }
                             if (targetMap[gy][gx] !== null) { dragItemState.isValid = false; }
                         }
                     }
                 }
-
-                if (dragItemState.ghostEl.parentElement !== targetBoardDOM) {
-                    targetBoardDOM.appendChild(dragItemState.ghostEl);
-                }
-                
-                if (isInsideBoard) {
-                    dragItemState.ghostEl.style.left = (rawGridX * GRID_CELL_SIZE) + "px";
-                    dragItemState.ghostEl.style.top = (rawGridY * GRID_CELL_SIZE) + "px";
-                } else {
-                    dragItemState.ghostEl.style.left = localX + "px";
-                    dragItemState.ghostEl.style.top = localY + "px";
-                }
             } else {
                 dragItemState.isValid = false;
-                if (dragItemState.ghostEl.parentElement !== document.body) {
-                    document.body.appendChild(dragItemState.ghostEl);
-                }
-                dragItemState.ghostEl.style.left = (dragItemState.lastClientX - dragItemState.offsetX) + "px";
-                dragItemState.ghostEl.style.top = (dragItemState.lastClientY - dragItemState.offsetY) + "px";
             }
 
             // [가방 슬롯 호버 검사]
@@ -1620,19 +1643,67 @@ function showTooltip(e, itemObj) {
                     personalStorage.push(dragItemState.itemRef);
                 }
             } 
-            // 4. 유효하지 않은 곳 -> 원복
+            // 4. 인벤토리/창고 UI 바깥으로 드래그하여 놓았을 때 -> 바닥에 버리기!
             else {
-                if (dragItemState.source === "equipment") {
-                    player.equipment[dragItemState.sourceSlot] = dragItemState.itemRef;
-                    updatePlayerTotalStats();
-                    renderEquipSlotsUI();
-                } else if (dragItemState.source === "bagSlot") {
-                    player.equippedBags[dragItemState.sourceBagSlotIdx] = dragItemState.itemRef;
-                    containerMaps['bag_' + dragItemState.sourceBagSlotIdx] = Array.from({ length: ITEM_DB[dragItemState.itemRef.baseId].bagRows }, () => Array(INV_COLS).fill(null));
+                const invContainer = document.querySelector('.inv-container');
+                const stoPanel = document.getElementById('storagePanel');
+                const invRect = invContainer ? invContainer.getBoundingClientRect() : null;
+                const stoRect = (stoPanel && gameState === "storage") ? stoPanel.getBoundingClientRect() : null;
+
+                const isInsideUI = (invRect && dragItemState.lastClientX >= invRect.left && dragItemState.lastClientX <= invRect.right &&
+                                              dragItemState.lastClientY >= invRect.top && dragItemState.lastClientY <= invRect.bottom) ||
+                                   (stoRect && dragItemState.lastClientX >= stoRect.left && dragItemState.lastClientX <= stoRect.right &&
+                                              dragItemState.lastClientY >= stoRect.top && dragItemState.lastClientY <= stoRect.bottom);
+
+                if (!isInsideUI) {
+                    // [바닥에 버리기]
+                    const dropDist = 35;
+                    const dropAngle = Math.random() * Math.PI * 2;
+                    let dropX = Math.max(50, Math.min(typeof WORLD_WIDTH !== "undefined" ? WORLD_WIDTH - 50 : 1950, player.x + Math.cos(dropAngle) * dropDist));
+                    let dropY = Math.max(50, Math.min(typeof WORLD_HEIGHT !== "undefined" ? WORLD_HEIGHT - 50 : 1950, player.y + Math.sin(dropAngle) * dropDist));
+
+                    if (typeof fieldItems !== "undefined") {
+                        fieldItems.push({
+                            id: dragItemState.itemRef.id || ("field_" + Date.now()),
+                            baseId: dragItemState.itemRef.baseId,
+                            rot: dragItemState.itemRef.rot || 0,
+                            sockets: dragItemState.itemRef.sockets ? [...dragItemState.itemRef.sockets] : null,
+                            x: dropX,
+                            y: dropY,
+                            pickupDelay: 60, // 바로 주워지지 않도록 딜레이
+                            errorFlashTimer: 0
+                        });
+                    }
+
+                    if (dragItemState.source === "inventory" || dragItemState.source === "bagSlot") {
+                        let idx = myInventoryItems.findIndex(i => (i.id || i.uid) === (dragItemState.itemRef.id || dragItemState.itemRef.uid));
+                        if (idx > -1) myInventoryItems.splice(idx, 1);
+                    } else if (dragItemState.source === "storage") {
+                        let idx = personalStorage.findIndex(i => (i.id || i.uid) === (dragItemState.itemRef.id || dragItemState.itemRef.uid));
+                        if (idx > -1) personalStorage.splice(idx, 1);
+                    } else if (dragItemState.source === "equipment") {
+                        updatePlayerTotalStats();
+                        renderEquipSlotsUI();
+                    }
+
+                    const baseItem = ITEM_DB[dragItemState.itemRef.baseId];
+                    if (typeof addFloatingText === "function") {
+                        addFloatingText(player.x, player.y - 30, (baseItem ? baseItem.name : "아이템") + " 버림", "gray");
+                    }
                 } else {
-                    dragItemState.itemRef.gridX = dragItemState.origX;
-                    dragItemState.itemRef.gridY = dragItemState.origY;
-                    dragItemState.itemRef.container = dragItemState.sourceContainer || "main";
+                    // UI 내부이지만 유효하지 않은 칸 -> 원복
+                    if (dragItemState.source === "equipment") {
+                        player.equipment[dragItemState.sourceSlot] = dragItemState.itemRef;
+                        updatePlayerTotalStats();
+                        renderEquipSlotsUI();
+                    } else if (dragItemState.source === "bagSlot") {
+                        player.equippedBags[dragItemState.sourceBagSlotIdx] = dragItemState.itemRef;
+                        containerMaps['bag_' + dragItemState.sourceBagSlotIdx] = Array.from({ length: ITEM_DB[dragItemState.itemRef.baseId].bagRows }, () => Array(INV_COLS).fill(null));
+                    } else {
+                        dragItemState.itemRef.gridX = dragItemState.origX;
+                        dragItemState.itemRef.gridY = dragItemState.origY;
+                        dragItemState.itemRef.container = dragItemState.sourceContainer || "main";
+                    }
                 }
             }
 
