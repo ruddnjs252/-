@@ -215,10 +215,7 @@
 function updateNotiBadges() {
             document.querySelectorAll('.noti-badge:not(.socket-badge)').forEach(e => e.remove());
 
-            let allScrolls = [...myInventoryItems];
-            if (gameState === "storage") {
-                allScrolls = allScrolls.concat(personalStorage);
-            }
+            let allScrolls = [...myInventoryItems, ...personalStorage];
 
             let hasScroll = allScrolls.some(i => ITEM_DB[i.baseId] && ITEM_DB[i.baseId].type === "enchant");
             if (!hasScroll) return;
@@ -226,7 +223,16 @@ function updateNotiBadges() {
             let enchantableSlots = [];
             for(let slotKey in player.equipment) {
                 let item = player.equipment[slotKey];
-                if(item && item.sockets && item.sockets.includes(null)) {
+                if(!item || !item.sockets) continue;
+
+                let hasEmptySocket = item.sockets.some(s => s === null);
+                let hasUpgradableSocket = item.sockets.some(s => {
+                    if (!s) return false;
+                    let baseId = typeof s === "string" ? s : s.baseId;
+                    return allScrolls.some(sc => sc.baseId === baseId);
+                });
+
+                if (hasEmptySocket || hasUpgradableSocket) {
                     enchantableSlots.push(slotKey);
                 }
             }
@@ -347,8 +353,14 @@ function showTooltip(e, itemObj) {
                 let enchants = itemObj.sockets.filter(s => s !== null);
                 if (enchants.length > 0) {
                     enchantHtml = "<div class='item-tooltip-enchant-title'>[인챈트 목록]</div>";
-                    enchants.forEach(sId => {
-                        enchantHtml += `<div class='item-tooltip-enchant-item'>- ${ITEM_DB[sId].enchantEffect.name}</div>`;
+                    enchants.forEach(sock => {
+                        let baseId = typeof sock === "string" ? sock : sock.baseId;
+                        let level = (typeof sock === "object" && sock.level) ? sock.level : 1;
+                        if (ITEM_DB[baseId] && ITEM_DB[baseId].enchantEffect) {
+                            let effect = ITEM_DB[baseId].enchantEffect;
+                            let totalVal = effect.value * level;
+                            enchantHtml += `<div class='item-tooltip-enchant-item'>- 강타+${level} (${effect.stat}+${totalVal})</div>`;
+                        }
                     });
                 }
             }

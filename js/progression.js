@@ -265,10 +265,13 @@ function updatePlayerTotalStats() {
             }
 
             if (item.sockets) {
-                item.sockets.forEach(scrollId => {
-                    if (scrollId && ITEM_DB[scrollId] && ITEM_DB[scrollId].enchantEffect) {
-                        let enchData = ITEM_DB[scrollId].enchantEffect;
-                        totalStats[enchData.stat] = (totalStats[enchData.stat] || 0) + enchData.value;
+                item.sockets.forEach(sock => {
+                    if (!sock) return;
+                    let baseId = typeof sock === "string" ? sock : sock.baseId;
+                    let level = (typeof sock === "object" && sock.level) ? sock.level : 1;
+                    if (baseId && ITEM_DB[baseId] && ITEM_DB[baseId].enchantEffect) {
+                        let enchData = ITEM_DB[baseId].enchantEffect;
+                        totalStats[enchData.stat] = (totalStats[enchData.stat] || 0) + (enchData.value * level);
                     }
                 });
             }

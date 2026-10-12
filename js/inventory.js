@@ -59,9 +59,13 @@ function showTooltip(e, itemObj) {
         let enchants = itemObj.sockets.filter(s => s !== null);
         if (enchants.length > 0) {
             enchantHtml = "<div class='item-tooltip-enchant-title'>[인챈트 목록]</div>";
-            enchants.forEach(sId => {
-                if (ITEM_DB[sId] && ITEM_DB[sId].enchantEffect) {
-                    enchantHtml += `<div class='item-tooltip-enchant-item'>- ${ITEM_DB[sId].enchantEffect.name}</div>`;
+            enchants.forEach(sock => {
+                let baseId = typeof sock === "string" ? sock : sock.baseId;
+                let level = (typeof sock === "object" && sock.level) ? sock.level : 1;
+                if (ITEM_DB[baseId] && ITEM_DB[baseId].enchantEffect) {
+                    let effect = ITEM_DB[baseId].enchantEffect;
+                    let totalVal = effect.value * level;
+                    enchantHtml += `<div class='item-tooltip-enchant-item'>- 강타+${level} (${effect.stat}+${totalVal})</div>`;
                 }
             });
         }
@@ -230,50 +234,69 @@ function showTooltip(e, itemObj) {
             targetSlotHint.innerHTML = `<span style="color: white; font-weight: bold; font-size: 11px;">${baseItem.name}</span>`;
             targetSlot.style.borderColor = "gold"; targetSlot.style.backgroundColor = baseItem.color;
 
-            let allScrolls = [...myInventoryItems];
-            if (gameState === "storage") {
-                allScrolls = allScrolls.concat(personalStorage);
-            }
+            let allScrolls = [...myInventoryItems, ...personalStorage];
             let hasScroll = allScrolls.some(i => ITEM_DB[i.baseId] && ITEM_DB[i.baseId].type === "enchant");
             
             let foundFirstEmpty = false;
             let socketsHtml = '';
             
             for(let i = 0; i < baseItem.maxSockets; i++) {
-                let scrollId = item.sockets[i];
-                if(scrollId) {
-                    let effect = ITEM_DB[scrollId].enchantEffect;
-                    socketsHtml += `<div class="socket-slot socket-animated" style="background:#ff4444; border-color:white; position:relative;">
-                        <span style="font-size:9px; color:#fff; font-weight:bold;">${effect.stat}+${effect.value}</span>
-                    </div>`;
-                } else if (pendingEnchant && pendingEnchant.slotKey === slotKey && pendingEnchant.socketIndex === i) {
+                let sock = item.sockets[i];
+                let isPendingThis = (pendingEnchant && pendingEnchant.slotKey === slotKey && pendingEnchant.socketIndex === i);
+
+                if (isPendingThis) {
                     let pScroll = myInventoryItems.find(x => (x.id||x.uid) === pendingEnchant.scrollId) || personalStorage.find(x => (x.id||x.uid) === pendingEnchant.scrollId);
                     if (pScroll) {
                         let effect = ITEM_DB[pScroll.baseId].enchantEffect;
-                        socketsHtml += `<div class="socket-slot socket-animated" style="background:#ff8800; border:2px dashed gold; animation: pulse-noti 1.2s infinite; position:relative;">
-                            <span style="font-size:9px; color:#fff; font-weight:bold;">${effect.stat}+${effect.value}</span>
+                        let curLevel = (sock && typeof sock === "object" && sock.level) ? sock.level : (sock ? 1 : 0);
+                        let nextLevel = curLevel + 1;
+                        let nextVal = effect.value * nextLevel;
+                        socketsHtml += `<div class="socket-slot socket-animated" style="background:#ff8800; border:2px dashed gold; animation: pulse-noti 1.2s infinite; position:relative; cursor:pointer;">
+                            <span style="font-size:9px; color:#fff; font-weight:bold; line-height:1.1; display:block; text-align:center;">강타+${nextLevel}<br><span style="font-size:8px; color:gold;">${effect.stat}+${nextVal}</span></span>
                         </div>`;
                     }
+                } else if (sock) {
+                    let baseId = typeof sock === "string" ? sock : sock.baseId;
+                    let level = (typeof sock === "object" && sock.level) ? sock.level : 1;
+                    let effect = ITEM_DB[baseId] ? ITEM_DB[baseId].enchantEffect : { stat: "str", value: 5, name: "강타" };
+                    let totalVal = effect.value * level;
+
+                    // 가방 또는 창고에 동일한 인챈트 두루마리가 있을 경우 중복 강화 알림 '!' 뱃지 표시
+                    let hasDupeScroll = allScrolls.some(s => s.baseId === baseId);
+                    let badgeHtml = "";
+                    let clickAction = "";
+
+                    if (hasDupeScroll && !pendingEnchant) {
+                        badgeHtml = `<div class="noti-badge socket-badge">!</div>`;
+                        clickAction = `onclick="stageUpgradeEnchant('${slotKey}', ${i}, '${baseId}')" style="cursor:pointer;"`;
+                    }
+
+                    socketsHtml += `<div class="socket-slot socket-animated" style="background:#ff4444; border-color:white; position:relative;" ${clickAction}>
+                        ${badgeHtml}
+                        <span style="font-size:9px; color:#fff; font-weight:bold; line-height:1.1; display:block; text-align:center;">강타+${level}<br><span style="font-size:8px; color:gold;">${effect.stat}+${totalVal}</span></span>
+                    </div>`;
                 } else {
                     let badgeHtml = "";
                     if (!foundFirstEmpty && hasScroll && !pendingEnchant) {
                         badgeHtml = `<div class="noti-badge socket-badge">!</div>`;
                         foundFirstEmpty = true; 
                     }
-                    socketsHtml += `<div class="socket-slot socket-animated" style="position:relative;" onclick="openEnchantPopup('${slotKey}', ${i})">${badgeHtml}</div>`;
+                    socketsHtml += `<div class="socket-slot socket-animated" style="position:relative; cursor:pointer;" onclick="openEnchantPopup('${slotKey}', ${i})">${badgeHtml}</div>`;
                 }
             }
 
             let confirmUI = '';
             if (pendingEnchant && pendingEnchant.slotKey === slotKey) {
+                let msg = pendingEnchant.isUpgrade ? "중복 강화로 소켓 레벨을 올리시겠습니까?" : "인챈트를 적용하시겠습니까?";
                 confirmUI = `
-                    <div style="display:flex; gap:10px; justify-content:center; margin-top: 6px; position:relative; z-index:10;">
+                    <div style="font-size: 11px; color: gold; text-align: center; margin-bottom: 4px;">${msg}</div>
+                    <div style="display:flex; gap:10px; justify-content:center; margin-top: 4px; position:relative; z-index:10;">
                         <button style="padding:7px 20px; background:limegreen; border:2px solid white; color:white; font-weight:bold; border-radius:4px; cursor:pointer;" onclick="confirmPendingEnchant()">확정</button>
                         <button style="padding:7px 20px; background:gray; border:2px solid white; color:white; font-weight:bold; border-radius:4px; cursor:pointer;" onclick="cancelPendingEnchant('${slotNameKOR}', '${slotKey}')">취소</button>
                     </div>
                 `;
             } else {
-                confirmUI = `<div style="font-size: 11px; color: #888; text-align: center;">빈 소켓을 클릭하면<br>인챈트 북 목록이 표시됩니다.</div>`;
+                confirmUI = `<div style="font-size: 11px; color: #888; text-align: center;">빈 소켓 또는 '!' 소켓을 클릭하면<br>인챈트 및 중복 강화를 진행합니다.</div>`;
             }
 
             content.innerHTML = `
@@ -286,11 +309,24 @@ function showTooltip(e, itemObj) {
             setTimeout(updateNotiBadges, 10); 
         }
 
+        // [중복 강화 스테이징: 기존 소켓에 한 번 더 두루마리 적용]
+        function stageUpgradeEnchant(slotKey, socketIndex, baseId) {
+            let allScrolls = [...myInventoryItems, ...personalStorage];
+            let scroll = allScrolls.find(s => s.baseId === baseId);
+            if (!scroll) return;
+            pendingEnchant = {
+                slotKey: slotKey,
+                socketIndex: socketIndex,
+                scrollId: scroll.id || scroll.uid,
+                isUpgrade: true
+            };
+            let slotEl = document.querySelector(`[data-slot="${slotKey}"]`);
+            let slotNameKOR = slotEl ? slotEl.innerText : "";
+            selectEquipSlotForEnchant(slotNameKOR, slotKey);
+        }
+
         function openEnchantPopup(slotKey, socketIndex) {
-            let allScrolls = [...myInventoryItems];
-            if (gameState === "storage") {
-                allScrolls = allScrolls.concat(personalStorage);
-            }
+            let allScrolls = [...myInventoryItems, ...personalStorage];
 
             let scrolls = allScrolls.filter(i => ITEM_DB[i.baseId] && ITEM_DB[i.baseId].type === "enchant");
             let popup = document.getElementById("enchantPopupUI");
@@ -315,9 +351,10 @@ function showTooltip(e, itemObj) {
         }
 
         function stageEnchant(slotKey, socketIndex, scrollId) {
-            pendingEnchant = { slotKey, socketIndex, scrollId };
+            pendingEnchant = { slotKey, socketIndex, scrollId, isUpgrade: false };
             document.getElementById('enchantPopupUI').style.display = 'none';
-            let slotNameKOR = document.querySelector(`[data-slot="${slotKey}"]`).innerText;
+            let slotEl = document.querySelector(`[data-slot="${slotKey}"]`);
+            let slotNameKOR = slotEl ? slotEl.innerText : "";
             selectEquipSlotForEnchant(slotNameKOR, slotKey); 
         }
 
@@ -326,6 +363,7 @@ function showTooltip(e, itemObj) {
             let slotKey = pendingEnchant.slotKey;
             let socketIndex = pendingEnchant.socketIndex;
             let scrollId = pendingEnchant.scrollId;
+            let isUpgrade = pendingEnchant.isUpgrade;
             
             let item = player.equipment[slotKey];
             let scroll = null;
@@ -333,7 +371,7 @@ function showTooltip(e, itemObj) {
             let invIdx = myInventoryItems.findIndex(i => (i.id || i.uid) === scrollId);
             if (invIdx > -1) {
                 scroll = myInventoryItems.splice(invIdx, 1)[0];
-            } else if (gameState === "storage") {
+            } else {
                 let stoIdx = personalStorage.findIndex(i => (i.id || i.uid) === scrollId);
                 if (stoIdx > -1) {
                     scroll = personalStorage.splice(stoIdx, 1)[0];
@@ -342,13 +380,29 @@ function showTooltip(e, itemObj) {
             }
             
             if (scroll) {
-                item.sockets[socketIndex] = scroll.baseId;
+                if (isUpgrade) {
+                    let cur = item.sockets[socketIndex];
+                    let sockObj = (typeof cur === "string") ? { baseId: cur, level: 1 } : { ...cur };
+                    sockObj.level = (sockObj.level || 1) + 1;
+                    item.sockets[socketIndex] = sockObj;
+                    if (typeof addFloatingText === "function") {
+                        addFloatingText(player.x, player.y - 40, `강타+${sockObj.level} 강화 성공!`, "gold");
+                    }
+                } else {
+                    item.sockets[socketIndex] = { baseId: scroll.baseId, level: 1 };
+                    if (typeof addFloatingText === "function") {
+                        addFloatingText(player.x, player.y - 40, "인챈트 성공!", "#00ffcc");
+                    }
+                }
             }
             
             pendingEnchant = null;
             updatePlayerTotalStats();
+            if (typeof renderEquipSlotsUI === "function") renderEquipSlotsUI();
+            if (typeof renderGridInventory === "function") renderGridInventory();
             
-            let slotNameKOR = document.querySelector(`[data-slot="${slotKey}"]`).innerText;
+            let slotEl = document.querySelector(`[data-slot="${slotKey}"]`);
+            let slotNameKOR = slotEl ? slotEl.innerText : "";
             selectEquipSlotForEnchant(slotNameKOR, slotKey); 
         }
 
@@ -402,7 +456,8 @@ function showTooltip(e, itemObj) {
                     { id: "item_pot_1",   baseId: "potion_hp",   container: "storage", gridX: 5, gridY: 0, rot: 0 }, // 1x1
                     { id: "item_pot_2",   baseId: "potion_hp",   container: "storage", gridX: 6, gridY: 0, rot: 0 }, // 1x1
                     { id: "item_axe_1",   baseId: "axe_battle",  container: "storage", gridX: 0, gridY: 4, rot: 0 }, // 2x3
-                    { id: "scroll_1",     baseId: "scroll_smite", container: "storage", gridX: 3, gridY: 4, rot: 0 }, // 1x2
+                    { id: "scroll_1",     baseId: "scroll_smite", container: "storage", gridX: 3, gridY: 4, rot: 0 }, // 1x1
+                    { id: "scroll_2",     baseId: "scroll_smite", container: "storage", gridX: 4, gridY: 4, rot: 0 }, // 1x1
                     { id: "book_teleport_1", baseId: "book_teleport", container: "storage", gridX: 5, gridY: 4, rot: 0 }, // 1x1
                     // ★ 신규 가방 3종 배치
                     { id: "bag_s_1", baseId: "bag_small",  container: "storage", gridX: 0, gridY: 7, rot: 0 }, // 2x2 (0,7 ~ 1,8)
@@ -529,11 +584,15 @@ function showTooltip(e, itemObj) {
           let enchantHtml = "";
           if (itemObj.sockets) {
               const enchants = itemObj.sockets.filter(id => id !== null);
-              enchantHtml = enchants.map(id => {
-                  const data = ITEM_DB[id];
-                  return data?.enchantEffect
-                      ? `<div style="color:#ff8888">- ${data.enchantEffect.name}</div>`
-                      : "";
+              enchantHtml = enchants.map(sock => {
+                  let baseId = typeof sock === "string" ? sock : sock.baseId;
+                  let level = (typeof sock === "object" && sock.level) ? sock.level : 1;
+                  const data = ITEM_DB[baseId];
+                  if (data?.enchantEffect) {
+                      let totalVal = data.enchantEffect.value * level;
+                      return `<div style="color:#ff8888">- 강타+${level} (${data.enchantEffect.stat}+${totalVal})</div>`;
+                  }
+                  return "";
               }).join("");
 
               if (!enchantHtml) {
