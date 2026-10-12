@@ -187,6 +187,16 @@
             } 
             // 던전 고블린
             else if (currentMap === "dungeon" && typeof MAP_DATA !== "undefined") {
+                // 던전 귀환 포탈 렌더링
+                if (MAP_DATA.dungeon.portal) {
+                    const dPor = MAP_DATA.dungeon.portal;
+                    ctx.fillStyle = dPor.color; ctx.fillRect(dPor.x, dPor.y, dPor.w, dPor.h);
+                    ctx.strokeStyle = "#4B0082"; ctx.lineWidth = 2; ctx.strokeRect(dPor.x, dPor.y, dPor.w, dPor.h);
+                    ctx.fillStyle = "white"; ctx.font = "bold 13px sans-serif";
+                    ctx.textAlign = "center"; ctx.textBaseline = "middle";
+                    ctx.fillText("길드 귀환", dPor.x + dPor.w/2, dPor.y - 12);
+                }
+
                 let gob = MAP_DATA.dungeon.goblin;
                 if (gob.active) {
                     const dx = pCenterX - gob.x, dy = pCenterY - gob.y;

@@ -25,6 +25,11 @@ function openNPCMenu(type) {
         content.innerHTML = `
             <button class="btn" style="padding: 15px; background: purple;" onclick="enterDungeon()">발러 던전 입장</button>
         `;
+    } else if (type === 'dungeon_portal') {
+        title.innerText = "귀환 포탈";
+        content.innerHTML = `
+            <button class="btn" style="padding: 15px; background: #0077cc;" onclick="returnToGuild()">길드로 귀환하기</button>
+        `;
     }
 }
 
@@ -76,8 +81,20 @@ function enterDungeon() {
     player.x = 1500; player.y = 1500; 
     if (typeof MAP_DATA !== "undefined" && MAP_DATA.dungeon) {
         MAP_DATA.dungeon.goblin.hp = MAP_DATA.dungeon.goblin.maxHp; 
-        MAP_DATA.dungeon.goblin.x = 1500; MAP_DATA.dungeon.goblin.y = 1200;
+        MAP_DATA.dungeon.goblin.x = 1500; MAP_DATA.dungeon.goblin.y = 1350;
         MAP_DATA.dungeon.goblin.active = true;
+    }
+    player.aimingSkill = null;
+    player.dashTimer = 0;
+    closeNPCMenu();
+}
+
+// 던전에서 다시 길드로 안전하게 귀환합니다.
+function returnToGuild() {
+    currentMap = "guild";
+    player.x = 100; player.y = 350;
+    if (typeof MAP_DATA !== "undefined" && MAP_DATA.dungeon) {
+        MAP_DATA.dungeon.goblin.active = false;
     }
     player.aimingSkill = null;
     player.dashTimer = 0;

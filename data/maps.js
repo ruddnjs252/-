@@ -6,7 +6,8 @@ const MAP_DATA = {
         personalChest: { x: 910, y: 50, w: 50, h: 50, color: "gold", name: "개인창고" }
     },
     dungeon: {
-        goblin: { x: 700, y: 400, size: 30, hp: 150, maxHp: 150, name: "고블린 lv1", speed: 0.7, damage: 1, expReward: 25 }
+        goblin: { x: 1500, y: 1350, size: 30, hp: 150, maxHp: 150, name: "고블린 lv1", speed: 0.7, damage: 1, expReward: 25 },
+        portal: { x: 1460, y: 1650, w: 80, h: 40, color: "purple", name: "길드 귀환 포탈" }
     }
 };
 // [MAP-001-END]

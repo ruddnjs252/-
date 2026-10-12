@@ -123,6 +123,18 @@
                     }
                 }
                 
+                if (currentMap === "dungeon" && typeof MAP_DATA !== "undefined") {
+                    if (MAP_DATA.dungeon.portal) {
+                        const dPor = MAP_DATA.dungeon.portal;
+                        if (wMouseX >= dPor.x && wMouseX <= dPor.x + dPor.w && wMouseY >= dPor.y && wMouseY <= dPor.y + dPor.h) {
+                            if (Math.hypot((dPor.x + dPor.w/2) - pCenterX, (dPor.y + dPor.h/2) - pCenterY) < 120) {
+                                openNPCMenu('dungeon_portal');
+                                return;
+                            }
+                        }
+                    }
+                }
+                
                 if (currentMap === "dungeon" && typeof MAP_DATA !== "undefined" && MAP_DATA.dungeon.goblin.active) {
                     const gob = MAP_DATA.dungeon.goblin;
                     if (Math.hypot(wMouseX - gob.x, wMouseY - gob.y) < gob.size) {
