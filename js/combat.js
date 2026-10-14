@@ -50,13 +50,25 @@ function getActiveQuickSlotSkill() {
 }
 
 // [MOD-015-2: 사다리형 UI 회전 로직]
+// R키: 오른쪽(다음 스킬)으로 회전
 function handleRKey() {
     if (gameState !== "playing" || player.dashTimer > 0) return;
     
     const N = player.quickSlots.length;
     if (N > 0) {
-        // R키를 누르면 현재 인덱스를 다음으로 넘김
         player.currentQuickSlotIdx = (player.currentQuickSlotIdx + 1) % N;
+        player.aimingSkill = null; 
+        updateQuickSlotUI(); 
+    }
+}
+
+// E키: 왼쪽(이전 스킬)으로 회전
+function handleEKey() {
+    if (gameState !== "playing" || player.dashTimer > 0) return;
+    
+    const N = player.quickSlots.length;
+    if (N > 0) {
+        player.currentQuickSlotIdx = (player.currentQuickSlotIdx - 1 + N) % N;
         player.aimingSkill = null; 
         updateQuickSlotUI(); 
     }

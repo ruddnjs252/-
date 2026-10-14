@@ -23,14 +23,22 @@
             keys[e.key] = true;
             if (e.key.length === 1) keys[e.key.toLowerCase()] = true;
 
-            if (e.key.toLowerCase() === 'r') handleRKey();
+            // [R키: 스킬 퀵슬롯 우측 회전]
+            const isRKey = e.code === "KeyR" || (e.key && (e.key.toLowerCase() === 'r' || e.key === 'ㄱ'));
+            if (isRKey && gameState === "playing") handleRKey();
+
+            // [E키: 스킬 퀵슬롯 좌측 회전]
+            const isEKey = e.code === "KeyE" || (e.key && (e.key.toLowerCase() === 'e' || e.key === 'ㄷ'));
+            if (isEKey && gameState === "playing") handleEKey();
             
             if (e.key.toLowerCase() === 'f' && gameState === "playing") {
                 if (targetedFieldItem) pickupFieldItem(targetedFieldItem);
             }
 
-            const isEKey = e.code === "KeyE" || (e.key && (e.key.toLowerCase() === 'e' || e.key === 'ㄷ' || e.key.toLowerCase() === 'i'));
-            if (isEKey && gameState !== "dead" && gameState !== "knockback") {
+            // [Tab키 / I키: 인벤토리 및 창고 토글 (열기/닫기)]
+            const isTabKey = e.code === "Tab" || e.key === "Tab" || (e.key && e.key.toLowerCase() === 'i');
+            if (isTabKey && gameState !== "dead" && gameState !== "knockback") {
+                e.preventDefault(); // 브라우저 기본 포커스 이동 방지
                 const invUI = document.getElementById("inventoryUI");
                 const isInvOpen = (invUI && invUI.style.display === "flex") || gameState === "inventory" || gameState === "storage";
                 if (isInvOpen) {
