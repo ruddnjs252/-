@@ -1123,15 +1123,60 @@ function showTooltip(e, itemObj) {
                   slotEl.onmouseleave = handleItemMouseLeave;
                   slotEl.onmousemove = handleItemMouseMove;
 
-                  slotEl.onclick = () => unequipBag(i);
                   slotEl.oncontextmenu = (e) => {
                       e.preventDefault();
                       unequipBag(i);
                   };
-                  slotEl.onmousedown = (e) => {
-                      if (e.button !== 0) return;
-                      startDragFromBagSlot(e, i, bagItem);
+
+                  let isPressing = false;
+                  let isDragging = false;
+                  let startX = 0, startY = 0;
+
+                  const onDown = (ev) => {
+                      if (ev.type === "mousedown" && ev.button !== 0) return;
+                      const pt = (ev.touches && ev.touches.length > 0) ? ev.touches[0] : ev;
+                      startX = pt.clientX;
+                      startY = pt.clientY;
+                      isPressing = true;
+                      isDragging = false;
+
+                      const onMove = (mv) => {
+                          if (!isPressing) return;
+                          const mpt = (mv.touches && mv.touches.length > 0) ? mv.touches[0] : mv;
+                          const dist = Math.hypot(mpt.clientX - startX, mpt.clientY - startY);
+                          if (dist > 5 && !isDragging) {
+                              isDragging = true;
+                              cleanup();
+                              startDragFromBagSlot(mv, i, bagItem);
+                          }
+                      };
+
+                      const onUp = (uv) => {
+                          if (!isPressing) return;
+                          cleanup();
+                          if (!isDragging) {
+                              unequipBag(i);
+                          }
+                      };
+
+                      const cleanup = () => {
+                          isPressing = false;
+                          document.removeEventListener("mousemove", onMove);
+                          document.removeEventListener("mouseup", onUp);
+                          document.removeEventListener("touchmove", onMove);
+                          document.removeEventListener("touchend", onUp);
+                          document.removeEventListener("touchcancel", onUp);
+                      };
+
+                      document.addEventListener("mousemove", onMove);
+                      document.addEventListener("mouseup", onUp);
+                      document.addEventListener("touchmove", onMove, { passive: false });
+                      document.addEventListener("touchend", onUp);
+                      document.addEventListener("touchcancel", onUp);
                   };
+
+                  slotEl.addEventListener("mousedown", onDown);
+                  slotEl.addEventListener("touchstart", onDown, { passive: false });
               } else {
                   slotEl.innerHTML = `
                       <div class="bag-slot-label">🎒 ${i + 1}</div>
@@ -1428,8 +1473,9 @@ function showTooltip(e, itemObj) {
             renderBagSlotsUI();
             renderGridInventory(); // 가방 해제 즉시 해당 확장 가방 격자판도 화면에서 숨김 처리
 
-            let clientX = e.type.includes("touch") ? e.touches[0].clientX : e.clientX;
-            let clientY = e.type.includes("touch") ? e.touches[0].clientY : e.clientY;
+            const pt = (e.touches && e.touches.length > 0) ? e.touches[0] : ((e.changedTouches && e.changedTouches.length > 0) ? e.changedTouches[0] : e);
+            let clientX = pt.clientX;
+            let clientY = pt.clientY;
 
             const currentScale = getInventoryScale();
             dragItemState.offsetX = GRID_CELL_SIZE / 2;
