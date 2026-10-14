@@ -93,7 +93,7 @@
         }
         // [MOD-016-1-END]
 
-        // [MOD-016-2: 마우스 이동 및 클릭 처리]
+        // [MOD-016-2: 마우스 이동 및 클릭 상호작용 처리]
         canvas.addEventListener("mousemove", (e) => {
             const rect = canvas.getBoundingClientRect();
             mouseX = (e.clientX - rect.left) * (canvas.width / rect.width);
@@ -102,66 +102,113 @@
 
         // [addFloatingText는 js/combat.js로 분리되었습니다.]
 
-        canvas.addEventListener("mousedown", (e) => {
-            if (typeof isMenuOpen !== 'undefined' && isMenuOpen) return; 
-            if (gameState !== "playing") return;
+        // [마우스/터치 월드 인터랙션 공통 처리기]
+        function handleCanvasInteraction(clientX, clientY, isRightClick = false) {
+            if (typeof isMenuOpen !== 'undefined' && isMenuOpen) return false; 
+            if (gameState !== "playing") return false;
 
-            let wMouseX = mouseX + camera.x;
-            let wMouseY = mouseY + camera.y;
+            const rect = canvas.getBoundingClientRect();
+            const canvasX = (clientX - rect.left) * (canvas.width / rect.width);
+            const canvasY = (clientY - rect.top) * (canvas.height / rect.height);
+
+            mouseX = canvasX;
+            mouseY = canvasY;
+
+            let wMouseX = canvasX + camera.x;
+            let wMouseY = canvasY + camera.y;
             const pCenterX = player.x + player.width / 2;
             const pCenterY = player.y + player.height / 2;
 
-            if (e.button === 2) { aimCurrentQuickSlot(); return; }
+            if (isRightClick) { 
+                aimCurrentQuickSlot(); 
+                return true; 
+            }
 
-            if (e.button === 0) { 
-                if (player.aimingSkill) { executeAimingSkill(); return; }
+            if (player.aimingSkill) { 
+                executeAimingSkill(); 
+                return true; 
+            }
 
-                if (targetedFieldItem) {
-                    let distToItem = Math.hypot(wMouseX - targetedFieldItem.x, wMouseY - targetedFieldItem.y);
-                    if (distToItem < 45) { 
-                        pickupFieldItem(targetedFieldItem);
-                        return;
-                    }
+            if (targetedFieldItem) {
+                let distToItem = Math.hypot(wMouseX - targetedFieldItem.x, wMouseY - targetedFieldItem.y);
+                if (distToItem < 45) { 
+                    pickupFieldItem(targetedFieldItem);
+                    return true;
                 }
+            }
 
-                if (currentMap === "guild" && typeof MAP_DATA !== "undefined") {
-                    const rec = MAP_DATA.guild.receptionist;
-                    const por = MAP_DATA.guild.portal;
-                    const chs = MAP_DATA.guild.personalChest;
-                    if (wMouseX >= rec.x && wMouseX <= rec.x + rec.size && wMouseY >= rec.y && wMouseY <= rec.y + rec.size) {
-                        if (Math.hypot((rec.x+15) - pCenterX, (rec.y+15) - pCenterY) < 100) { openNPCMenu('receptionist'); return; }
-                    }
-                    if (wMouseX >= por.x && wMouseX <= por.x + por.w && wMouseY >= por.y && wMouseY <= por.y + por.h) {
-                        if (Math.hypot((por.x+20) - pCenterX, (por.y+100) - pCenterY) < 100) { openNPCMenu('portal'); return; }
-                    }
-                    if (wMouseX >= chs.x && wMouseX <= chs.x + chs.w && wMouseY >= chs.y && wMouseY <= chs.y + chs.h) {
-                        if (Math.hypot((chs.x+chs.w/2) - pCenterX, (chs.y+chs.h/2) - pCenterY) < 100) { openStorage(); return; }
-                    }
-                }
-                
-                if (currentMap === "dungeon" && typeof MAP_DATA !== "undefined") {
-                    if (MAP_DATA.dungeon.portal) {
-                        const dPor = MAP_DATA.dungeon.portal;
-                        if (wMouseX >= dPor.x && wMouseX <= dPor.x + dPor.w && wMouseY >= dPor.y && wMouseY <= dPor.y + dPor.h) {
-                            if (Math.hypot((dPor.x + dPor.w/2) - pCenterX, (dPor.y + dPor.h/2) - pCenterY) < 120) {
-                                openNPCMenu('dungeon_portal');
-                                return;
-                            }
-                        }
-                    }
-                }
-                
-                if (currentMap === "dungeon" && typeof MAP_DATA !== "undefined" && MAP_DATA.dungeon.goblin.active) {
-                    const gob = MAP_DATA.dungeon.goblin;
-                    if (Math.hypot(wMouseX - gob.x, wMouseY - gob.y) < gob.size) {
-                        player.lockedTarget = gob;
-                        addFloatingText(gob.x, gob.y - 30, "타겟 고정!", "red");
+            if (currentMap === "guild" && typeof MAP_DATA !== "undefined") {
+                const rec = MAP_DATA.guild.receptionist;
+                const por = MAP_DATA.guild.portal;
+                const chs = MAP_DATA.guild.personalChest;
+
+                // 상자 유닛 네모 클릭 판정 (글씨 제외, 본체 사각형 영역)
+                if (wMouseX >= chs.x && wMouseX <= chs.x + chs.w && wMouseY >= chs.y && wMouseY <= chs.y + chs.h) {
+                    const distToChest = Math.hypot((chs.x + chs.w / 2) - pCenterX, (chs.y + chs.h / 2) - pCenterY);
+                    if (distToChest < 140) {
+                        openStorage();
+                        return true;
                     } else {
-                        player.lockedTarget = null;
+                        if (typeof addFloatingText === "function") {
+                            addFloatingText(player.x, player.y - 30, "상자가 너무 멉니다", "orange");
+                        }
+                        return true;
+                    }
+                }
+
+                if (wMouseX >= rec.x && wMouseX <= rec.x + rec.size && wMouseY >= rec.y && wMouseY <= rec.y + rec.size) {
+                    if (Math.hypot((rec.x + 15) - pCenterX, (rec.y + 15) - pCenterY) < 100) { 
+                        openNPCMenu('receptionist'); 
+                        return true; 
+                    }
+                }
+                if (wMouseX >= por.x && wMouseX <= por.x + por.w && wMouseY >= por.y && wMouseY <= por.y + por.h) {
+                    if (Math.hypot((por.x + 20) - pCenterX, (por.y + 100) - pCenterY) < 100) { 
+                        openNPCMenu('portal'); 
+                        return true; 
                     }
                 }
             }
+            
+            if (currentMap === "dungeon" && typeof MAP_DATA !== "undefined") {
+                if (MAP_DATA.dungeon.portal) {
+                    const dPor = MAP_DATA.dungeon.portal;
+                    if (wMouseX >= dPor.x && wMouseX <= dPor.x + dPor.w && wMouseY >= dPor.y && wMouseY <= dPor.y + dPor.h) {
+                        if (Math.hypot((dPor.x + dPor.w / 2) - pCenterX, (dPor.y + dPor.h / 2) - pCenterY) < 120) {
+                            openNPCMenu('dungeon_portal');
+                            return true;
+                        }
+                    }
+                }
+            }
+            
+            if (currentMap === "dungeon" && typeof MAP_DATA !== "undefined" && MAP_DATA.dungeon.goblin.active) {
+                const gob = MAP_DATA.dungeon.goblin;
+                if (Math.hypot(wMouseX - gob.x, wMouseY - gob.y) < gob.size) {
+                    player.lockedTarget = gob;
+                    addFloatingText(gob.x, gob.y - 30, "타겟 고정!", "red");
+                    return true;
+                } else {
+                    player.lockedTarget = null;
+                }
+            }
+
+            return false;
+        }
+
+        canvas.addEventListener("mousedown", (e) => {
+            handleCanvasInteraction(e.clientX, e.clientY, e.button === 2);
         });
+
+        // 모바일 터치 탭 지원: 캔버스 터치 시 상자 네모 및 오브젝트 탭 상호작용
+        canvas.addEventListener("touchstart", (e) => {
+            if (typeof isMenuOpen !== 'undefined' && isMenuOpen) return;
+            if (gameState !== "playing") return;
+            for (let i = 0; i < e.changedTouches.length; i++) {
+                const t = e.changedTouches[i];
+                handleCanvasInteraction(t.clientX, t.clientY, false);
+            }
+        }, { passive: true });
 
         // [MOD-016-3: 모바일 터치 패드 초기화]
         (function initVirtualPad() {

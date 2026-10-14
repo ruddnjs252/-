@@ -49,7 +49,7 @@
                 if (currentMap === "guild" && typeof MAP_DATA !== "undefined" && MAP_DATA.guild && MAP_DATA.guild.personalChest) {
                     const chs = MAP_DATA.guild.personalChest;
                     const distToChest = Math.hypot((chs.x + chs.w / 2) - pCenterX, (chs.y + chs.h / 2) - pCenterY);
-                    if (distToChest < 100) {
+                    if (distToChest < 130) {
                         isNearChest = true;
                     }
                 }
