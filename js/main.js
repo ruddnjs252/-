@@ -144,6 +144,39 @@
 
 // [자동 공격 시스템 삭제: 좌클릭 수동 공격으로 대체]
 
+                // [원거리 투사체(화살) 이동 및 피격 처리]
+                if (typeof projectiles !== "undefined" && projectiles.length > 0) {
+                    for (let i = projectiles.length - 1; i >= 0; i--) {
+                        let p = projectiles[i];
+                        p.x += p.vx;
+                        p.y += p.vy;
+                        p.traveled += Math.hypot(p.vx, p.vy);
+
+                        // 벽/장애물 충돌 검사
+                        if (typeof checkObstacleCollision === "function" && checkObstacleCollision(p.x - 5, p.y - 5)) {
+                            if (typeof addVisualEffect === "function") addVisualEffect(p.x, p.y, 10, "gray");
+                            projectiles.splice(i, 1);
+                            continue;
+                        }
+
+                        // 던전 고블린 피격 검사
+                        if (currentMap === "dungeon" && typeof MAP_DATA !== "undefined" && MAP_DATA.dungeon.goblin.active) {
+                            const gob = MAP_DATA.dungeon.goblin;
+                            if (Math.hypot(gob.x - p.x, gob.y - p.y) < gob.size / 2 + 12) {
+                                if (typeof applyDamageToGoblin === "function") applyDamageToGoblin(p.damage);
+                                if (typeof addVisualEffect === "function") addVisualEffect(p.x, p.y, 25, "red");
+                                projectiles.splice(i, 1);
+                                continue;
+                            }
+                        }
+
+                        // 최대 사거리 도달 또는 맵 경계 이탈 시 소멸
+                        if (p.traveled >= p.maxDist || p.x < 0 || p.x > WORLD_WIDTH || p.y < 0 || p.y > WORLD_HEIGHT) {
+                            projectiles.splice(i, 1);
+                        }
+                    }
+                }
+
             } else if (gameState === "knockback") {
                 player.x += player.knockbackDirX * 25;
                 player.y += player.knockbackDirY * 5;
@@ -362,7 +395,81 @@
                     ctx.restore();
                 }
                 
-                const weaponLength = 50, weaponWidth = 12, pivotX = 0, pivotY = playerRadius + 25;
+                // [원거리 화살 투사체 렌더링]
+                if (typeof projectiles !== "undefined") {
+                    projectiles.forEach(p => {
+                        ctx.save();
+                        ctx.translate(p.x, p.y);
+                        ctx.rotate(p.angle);
+                        
+                        // 화살대 (갈색)
+                        ctx.strokeStyle = "#8B5A2B";
+                        ctx.lineWidth = 3;
+                        ctx.beginPath();
+                        ctx.moveTo(-15, 0);
+                        ctx.lineTo(15, 0);
+                        ctx.stroke();
+
+                        // 화살촉 (은색 메탈)
+                        ctx.fillStyle = "#E0E0E0";
+                        ctx.beginPath();
+                        ctx.moveTo(17, 0);
+                        ctx.lineTo(9, -5);
+                        ctx.lineTo(9, 5);
+                        ctx.closePath();
+                        ctx.fill();
+
+                        // 화살 깃털 (흰색)
+                        ctx.fillStyle = "white";
+                        ctx.beginPath();
+                        ctx.moveTo(-15, 0);
+                        ctx.lineTo(-21, -4);
+                        ctx.lineTo(-13, 0);
+                        ctx.lineTo(-21, 4);
+                        ctx.closePath();
+                        ctx.fill();
+
+                        ctx.restore();
+                    });
+                }
+
+                const wpn = player.equipment?.mainWeapon;
+                const isBowEquipped = wpn && (wpn.baseId === "bow_basic" || (typeof ITEM_DB !== "undefined" && ITEM_DB[wpn.baseId]?.weaponType === "bow"));
+
+                if (isBowEquipped) {
+                    // ★ 활(Bow) 무기 외형 렌더링
+                    ctx.save();
+                    ctx.translate(pCenterX, pCenterY);
+                    ctx.rotate(aimAngle);
+                    ctx.translate(playerRadius + 8, 0);
+
+                    // 활대 (갈색 우드 곡선)
+                    ctx.beginPath();
+                    ctx.arc(0, 0, 26, -Math.PI / 2.3, Math.PI / 2.3);
+                    ctx.strokeStyle = "#8B5A2B";
+                    ctx.lineWidth = 4;
+                    ctx.stroke();
+
+                    // 활시위 (연한 흰색)
+                    const stringTopY = -Math.sin(Math.PI / 2.3) * 26;
+                    const stringBotY = Math.sin(Math.PI / 2.3) * 26;
+                    const stringX = Math.cos(Math.PI / 2.3) * 26;
+                    
+                    let pullX = stringX - 10;
+                    if (attackTimer > 0) {
+                        pullX = stringX - (attackTimer / 22) * 14;
+                    }
+                    ctx.beginPath();
+                    ctx.moveTo(stringX, stringTopY);
+                    ctx.lineTo(pullX, 0);
+                    ctx.lineTo(stringX, stringBotY);
+                    ctx.strokeStyle = "rgba(255, 255, 255, 0.75)";
+                    ctx.lineWidth = 1.5;
+                    ctx.stroke();
+
+                    ctx.restore();
+                } else {
+                    const weaponLength = 50, weaponWidth = 12, pivotX = 0, pivotY = playerRadius + 25;
                 let currentAngle = aimAngle;
                 let isSwinging = (attackTimer > 0 && player.lastAttackAngle !== undefined);
                 let wristAngle = -Math.PI / 6; 
@@ -398,6 +505,7 @@
                 ctx.beginPath(); ctx.arc(0, 0, 5, 0, Math.PI * 2);
                 ctx.fillStyle = "white"; ctx.fill(); ctx.strokeStyle = "black"; ctx.lineWidth = 1.5; ctx.stroke();
                 ctx.restore();
+                } // isBowEquipped else 종료
             }
 
             for (let i = floatingTexts.length - 1; i >= 0; i--) {

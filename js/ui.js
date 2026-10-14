@@ -27,7 +27,7 @@ document.head.appendChild(introStyle);
 const titleScreen = document.createElement("div");
 titleScreen.className = "intro-screen";
 titleScreen.innerHTML = `
-            <div style="position: absolute; top: 20px; right: 24px; font-size: 14px; color: #aaa; font-family: 'Consolas', 'Courier New', monospace; letter-spacing: 1px; background: rgba(255, 255, 255, 0.08); padding: 5px 12px; border-radius: 6px; border: 1px solid rgba(255, 255, 255, 0.15); pointer-events: none; z-index: 5001;">v0.2.7.1015.3</div>
+            <div style="position: absolute; top: 20px; right: 24px; font-size: 14px; color: #aaa; font-family: 'Consolas', 'Courier New', monospace; letter-spacing: 1px; background: rgba(255, 255, 255, 0.08); padding: 5px 12px; border-radius: 6px; border: 1px solid rgba(255, 255, 255, 0.15); pointer-events: none; z-index: 5001;">v0.2.7.1015.4</div>
             <div style="font-size: 48px; font-weight: bold; letter-spacing: 5px; cursor: pointer; text-shadow: 0 0 20px rgba(255,255,255,0.5);">Under To Under</div>
             <div style="margin-top: 30px; font-size: 14px; color: #888; animation: pulse-noti 1.5s infinite;">화면을 클릭하여 시작하세요</div>
         `;
@@ -58,7 +58,7 @@ const lobbyScreen = document.createElement("div");
 lobbyScreen.className = "intro-screen hidden-screen";
 lobbyScreen.style.backgroundColor = "#111"; // 추후 배경 이미지 삽입 가능
 lobbyScreen.innerHTML = `
-            <div style="position: absolute; top: 20px; right: 24px; font-size: 14px; color: #aaa; font-family: 'Consolas', 'Courier New', monospace; letter-spacing: 1px; background: rgba(255, 255, 255, 0.08); padding: 5px 12px; border-radius: 6px; border: 1px solid rgba(255, 255, 255, 0.15); pointer-events: none; z-index: 5001;">v0.2.7.1015.3</div>
+            <div style="position: absolute; top: 20px; right: 24px; font-size: 14px; color: #aaa; font-family: 'Consolas', 'Courier New', monospace; letter-spacing: 1px; background: rgba(255, 255, 255, 0.08); padding: 5px 12px; border-radius: 6px; border: 1px solid rgba(255, 255, 255, 0.15); pointer-events: none; z-index: 5001;">v0.2.7.1015.4</div>
             <div style="background: rgba(20,20,25,0.95); border: 2px solid #444; border-radius: 10px; padding: 30px; width: 420px; box-shadow: 0 10px 40px rgba(0,0,0,0.8); display: flex; flex-direction: column; gap: 20px; text-align: center;">
                 <div id="lobbyWelcomeMsg" style="color: white; font-size: 18px; font-weight: bold; border-bottom: 1px solid #333; padding-bottom: 15px;">환영합니다, 플레이어님</div>
                 
@@ -72,10 +72,11 @@ lobbyScreen.innerHTML = `
 
                 <div style="text-align: left;">
                     <div style="color: gold; font-size: 13px; font-weight: bold; margin-bottom: 10px;">시작 무기 선택 (직업 결정)</div>
-                    <div style="display: flex; gap: 10px; justify-content: space-between;">
-                        <button id="wpn_sword" class="lobby-btn selected" style="flex: 1; padding: 10px 5px; font-size: 12px;" onclick="selectLobbyWeapon('sword')">⚔️ 기본 검<br><span style="font-size:10px; color:#aaa;">밸런스형</span></button>
-                        <button id="wpn_axe" class="lobby-btn" style="flex: 1; padding: 10px 5px; font-size: 12px;" onclick="selectLobbyWeapon('axe')">🪓 ㄱ자 도끼<br><span style="font-size:10px; color:#aaa;">힘 특화</span></button>
-                        <button id="wpn_wand" class="lobby-btn" style="flex: 1; padding: 10px 5px; font-size: 12px;" onclick="selectLobbyWeapon('wand')">🪄 지팡이<br><span style="font-size:10px; color:#aaa;">마나 특화</span></button>
+                    <div style="display: flex; gap: 8px; justify-content: space-between;">
+                        <button id="wpn_sword" class="lobby-btn selected" style="flex: 1; padding: 10px 4px; font-size: 11px;" onclick="selectLobbyWeapon('sword')">⚔️ 기본 검<br><span style="font-size:9px; color:#aaa;">밸런스형</span></button>
+                        <button id="wpn_axe" class="lobby-btn" style="flex: 1; padding: 10px 4px; font-size: 11px;" onclick="selectLobbyWeapon('axe')">🪓 ㄱ자 도끼<br><span style="font-size:9px; color:#aaa;">힘 특화</span></button>
+                        <button id="wpn_wand" class="lobby-btn" style="flex: 1; padding: 10px 4px; font-size: 11px;" onclick="selectLobbyWeapon('wand')">🪄 지팡이<br><span style="font-size:9px; color:#aaa;">마나 특화</span></button>
+                        <button id="wpn_bow" class="lobby-btn" style="flex: 1; padding: 10px 4px; font-size: 11px;" onclick="selectLobbyWeapon('bow')">🏹 활<br><span style="font-size:9px; color:#aaa;">원거리</span></button>
                     </div>
                 </div>
 
@@ -156,10 +157,16 @@ function skipIntroToLobby() {
 // [로직 4] 무기 선택(직업) 라디오 버튼 스위칭
 window.selectLobbyWeapon = function (type) {
     selectedLobbyWeapon = type;
-    document.getElementById("wpn_sword").classList.remove("selected");
-    document.getElementById("wpn_axe").classList.remove("selected");
-    document.getElementById("wpn_wand").classList.remove("selected");
-    document.getElementById("wpn_" + type).classList.add("selected");
+    const btnSword = document.getElementById("wpn_sword");
+    const btnAxe = document.getElementById("wpn_axe");
+    const btnWand = document.getElementById("wpn_wand");
+    const btnBow = document.getElementById("wpn_bow");
+    if (btnSword) btnSword.classList.remove("selected");
+    if (btnAxe) btnAxe.classList.remove("selected");
+    if (btnWand) btnWand.classList.remove("selected");
+    if (btnBow) btnBow.classList.remove("selected");
+    const targetBtn = document.getElementById("wpn_" + type);
+    if (targetBtn) targetBtn.classList.add("selected");
 };
 
 // [로직 5] 로비 -> 게임 월드 진짜 입장!
@@ -188,6 +195,21 @@ window.enterWorld = function () {
     let startWeaponId = "sword_basic"; // 기본 검
     if (selectedLobbyWeapon === "axe") startWeaponId = "axe_battle"; // ㄱ자 도끼
     if (selectedLobbyWeapon === "wand") startWeaponId = "wand_basic"; // 지팡이
+    if (selectedLobbyWeapon === "bow") {
+        startWeaponId = "bow_basic"; // 활
+        // 활 선택 시 기본 소지품으로 화살 64개 묶음 1개 지급
+        if (typeof myInventoryItems !== "undefined") {
+            myInventoryItems.push({
+                id: "start_arrow_1",
+                baseId: "arrow",
+                count: 64,
+                container: "main",
+                gridX: 0,
+                gridY: 0,
+                rot: 0
+            });
+        }
+    }
 
     let startWpn = {
         id: "start_wpn_1",

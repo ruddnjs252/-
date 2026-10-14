@@ -109,7 +109,38 @@ function updateQuickSlotUI() {
 // [MOD-015-2-END]
 
 // [MOD-015-3: 기본 공격 및 스킬 조준/발동 로직]
-// [좌클릭 기본 공격 로직]
+
+// [활 장착 시 퀵슬롯 가운데 위 화살 수량 표시 UI 갱신]
+function updateArrowCountUI() {
+    const el = document.getElementById("arrow-count-display");
+    if (!el) return;
+
+    if (typeof player === "undefined" || !player.equipment) {
+        el.style.display = "none";
+        return;
+    }
+
+    const wpn = player.equipment.mainWeapon;
+    const isBow = wpn && (wpn.baseId === "bow_basic" || (typeof ITEM_DB !== "undefined" && ITEM_DB[wpn.baseId]?.weaponType === "bow"));
+
+    if (!isBow) {
+        el.style.display = "none";
+        return;
+    }
+
+    const totalArrows = typeof getTotalArrowCount === "function" ? getTotalArrowCount() : 0;
+    el.style.display = "block";
+    el.innerText = `🏹 화살: ${totalArrows}개`;
+
+    if (totalArrows <= 0) {
+        el.classList.add("empty-arrow");
+    } else {
+        el.classList.remove("empty-arrow");
+    }
+}
+window.updateArrowCountUI = updateArrowCountUI;
+
+// [좌클릭 기본 공격 로직: 근접 무기 및 원거리 활 공격 분기]
 function executeBasicAttack(wMouseX, wMouseY) {
     if (typeof attackTimer !== 'undefined' && attackTimer > 0) return false;
 
@@ -117,6 +148,50 @@ function executeBasicAttack(wMouseX, wMouseY) {
     const pCenterY = player.y + player.height / 2;
     const clickAngle = Math.atan2(wMouseY - pCenterY, wMouseX - pCenterX);
 
+    const wpn = player.equipment?.mainWeapon;
+    const isBow = wpn && (wpn.baseId === "bow_basic" || (typeof ITEM_DB !== "undefined" && ITEM_DB[wpn.baseId]?.weaponType === "bow"));
+
+    // ★ 원거리 무기: 활인 경우
+    if (isBow) {
+        const totalArrows = typeof getTotalArrowCount === "function" ? getTotalArrowCount() : 0;
+        if (totalArrows <= 0) {
+            if (typeof addFloatingText === "function") {
+                addFloatingText(player.x, player.y - 30, "화살이 없습니다!", "red");
+            }
+            return false;
+        }
+
+        // 화살 1개 소모
+        if (typeof consumeArrow === "function") consumeArrow();
+
+        attackTimer = 22; // 활 발사 딜레이
+        player.lastAttackAngle = clickAngle;
+
+        // 투사체(화살) 생성
+        const arrowSpeed = 16;
+        const arrowDmg = (player.stats.str * 2) + 12;
+
+        if (typeof projectiles !== "undefined") {
+            projectiles.push({
+                type: "arrow",
+                x: pCenterX + Math.cos(clickAngle) * 20,
+                y: pCenterY + Math.sin(clickAngle) * 20,
+                vx: Math.cos(clickAngle) * arrowSpeed,
+                vy: Math.sin(clickAngle) * arrowSpeed,
+                angle: clickAngle,
+                traveled: 0,
+                maxDist: 500,
+                damage: arrowDmg
+            });
+        }
+
+        if (typeof addVisualEffect === "function") {
+            addVisualEffect(pCenterX, pCenterY, 15, "#A0522D");
+        }
+        return true;
+    }
+
+    // ★ 근접 무기(검, 도끼, 지팡이 등)인 경우
     attackTimer = 30; // 스윙 애니메이션 및 기본 공격 쿨타임 (30프레임 = 0.5초)
     player.lastAttackAngle = clickAngle;
 
@@ -292,5 +367,8 @@ function applyDamageToGoblin(dmg) {
     }
 }
 
-setTimeout(updateQuickSlotUI, 100); // 로드 시 UI 강제 갱신
+setTimeout(() => {
+    updateQuickSlotUI();
+    if (typeof updateArrowCountUI === "function") updateArrowCountUI();
+}, 100); // 로드 시 UI 강제 갱신
 // [MOD-015-END]

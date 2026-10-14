@@ -51,6 +51,7 @@ let player = {
 let quest = { active: false, target: 10, current: 0 }; // 퀘스트 진행 상태
 let floatingTexts = []; // 데미지, 타겟팅 텍스트 등 공중에 뜨는 글자 관리
 let visualEffects = []; // 스킬 타격 이펙트 (원형 파티클 등) 관리
+let projectiles = []; // 원거리 발사체(화살 등) 관리
 let inventory = []; // 플레이어 가방 (그리드 연동)
 let equipment = []; // 장착 중인 장비
 let personalStorage = []; // 창고 보관 아이템

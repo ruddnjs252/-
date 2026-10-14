@@ -151,6 +151,9 @@ function showTooltip(e, itemObj) {
             if (typeof updateNotiBadges === "function") {
                 setTimeout(updateNotiBadges, 10);
             }
+            if (typeof updateArrowCountUI === "function") {
+                updateArrowCountUI();
+            }
         }
 
         // [장비 슬롯 인터랙션: 클릭 시 상세창 팝업 / 이동 시 드래그 앤 드롭]
@@ -579,7 +582,10 @@ function showTooltip(e, itemObj) {
                     // ★ 신규 가방 3종 배치
                     { id: "bag_s_1", baseId: "bag_small",  container: "storage", gridX: 0, gridY: 7, rot: 0 }, // 2x2 (0,7 ~ 1,8)
                     { id: "bag_m_1", baseId: "bag_medium", container: "storage", gridX: 3, gridY: 7, rot: 0 }, // 2x2 (3,7 ~ 4,8)
-                    { id: "bag_l_1", baseId: "bag_large",  container: "storage", gridX: 6, gridY: 7, rot: 0 }  // 2x2 (6,7 ~ 7,8)
+                    { id: "bag_l_1", baseId: "bag_large",  container: "storage", gridX: 6, gridY: 7, rot: 0 }, // 2x2 (6,7 ~ 7,8)
+                    // ★ 신규 활 및 화살 64개 묶음 배치
+                    { id: "item_bow_1", baseId: "bow_basic", container: "storage", gridX: 7, gridY: 0, rot: 0 }, // 1x3
+                    { id: "item_arrow_1", baseId: "arrow", count: 64, container: "storage", gridX: 7, gridY: 4, rot: 0 } // 1x1
                 );
             }
         }
@@ -1015,6 +1021,13 @@ function showTooltip(e, itemObj) {
                           title.style.top = (r * GRID_CELL_SIZE + GRID_CELL_SIZE / 2) + "px";
                           wrapper.appendChild(title);
                           labelPlaced = true;
+
+                          if (typeof item.count === "number") {
+                              const badge = document.createElement("div");
+                              badge.className = "item-count-badge";
+                              badge.innerText = item.count;
+                              wrapper.appendChild(badge);
+                          }
                       }
                   }
               }
@@ -1224,6 +1237,10 @@ function showTooltip(e, itemObj) {
                   "storage",
                   "storage"
               );
+          }
+
+          if (typeof updateArrowCountUI === "function") {
+              updateArrowCountUI();
           }
       }
       // [MOD-020-4-END]
@@ -2170,3 +2187,32 @@ function showTooltip(e, itemObj) {
             }
             if (typeof updateNotiBadges === "function") updateNotiBadges();
         }
+
+        // [화살 시스템 유틸리티]
+        // 1. 인벤토리 내의 총 화살 수량 계산
+        function getTotalArrowCount() {
+            if (typeof myInventoryItems === "undefined" || !Array.isArray(myInventoryItems)) return 0;
+            return myInventoryItems
+                .filter(item => item && item.baseId === "arrow")
+                .reduce((sum, item) => sum + (typeof item.count === "number" ? item.count : 1), 0);
+        }
+        window.getTotalArrowCount = getTotalArrowCount;
+
+        // 2. 화살 1개 소모 함수 (수량 차감 및 0개 소진 시 인벤토리 제거)
+        function consumeArrow() {
+            if (typeof myInventoryItems === "undefined" || !Array.isArray(myInventoryItems)) return false;
+            const arrowItem = myInventoryItems.find(item => item && item.baseId === "arrow" && (item.count || 1) > 0);
+            if (!arrowItem) return false;
+
+            if (typeof arrowItem.count !== "number") arrowItem.count = 1;
+            arrowItem.count--;
+
+            if (arrowItem.count <= 0) {
+                const idx = myInventoryItems.indexOf(arrowItem);
+                if (idx !== -1) myInventoryItems.splice(idx, 1);
+            }
+            if (typeof renderGridInventory === "function") renderGridInventory();
+            if (typeof updateArrowCountUI === "function") updateArrowCountUI();
+            return true;
+        }
+        window.consumeArrow = consumeArrow;

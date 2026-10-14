@@ -50,6 +50,27 @@ const ITEM_DB = {
         maxSockets: 2, 
         desc: "마력을 집중하기 좋은 튼튼한 나무 지팡이."
     },
+    // [기본 활]: 원거리 주무기(mainWeapon) 전용, 화살 소모, 소켓 3칸
+    "bow_basic":    {
+        name: "활",
+        type: "equip",
+        equipSlot: "mainWeapon",
+        weaponType: "bow",
+        color: "#8B5A2B",
+        shape: [[1], [1], [1]],
+        stats: { str: 2 },
+        maxSockets: 3,
+        desc: "화살을 소모하여 먼 거리의 적을 저격하는 활이다."
+    },
+    // [화살]: 활 전용 소모품 (최대 64개 한 묶음)
+    "arrow":        {
+        name: "화살",
+        type: "ammo",
+        maxStack: 64,
+        color: "#A0522D",
+        shape: [[1]],
+        desc: "활로 사격할 때 소모되는 화살이다. (최대 64개 중첩)"
+    },
     // [인챈트 두루마리]: 장비 소켓 강화용
     "scroll_smite": { 
         name: "강타 두루마리", 
