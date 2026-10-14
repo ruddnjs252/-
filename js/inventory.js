@@ -1123,56 +1123,25 @@ function showTooltip(e, itemObj) {
                   slotEl.onmouseleave = handleItemMouseLeave;
                   slotEl.onmousemove = handleItemMouseMove;
 
+                  slotEl.style.touchAction = "none";
                   slotEl.oncontextmenu = (e) => {
                       e.preventDefault();
                       unequipBag(i);
                   };
 
-                  let isPressing = false;
-                  let isDragging = false;
-                  let startX = 0, startY = 0;
-
                   const onDown = (ev) => {
                       if (ev.type === "mousedown" && ev.button !== 0) return;
-                      const pt = (ev.touches && ev.touches.length > 0) ? ev.touches[0] : ev;
-                      startX = pt.clientX;
-                      startY = pt.clientY;
-                      isPressing = true;
-                      isDragging = false;
+                      if (ev.cancelable) ev.preventDefault();
 
-                      const onMove = (mv) => {
-                          if (!isPressing) return;
-                          const mpt = (mv.touches && mv.touches.length > 0) ? mv.touches[0] : mv;
-                          const dist = Math.hypot(mpt.clientX - startX, mpt.clientY - startY);
-                          if (dist > 5 && !isDragging) {
-                              isDragging = true;
-                              cleanup();
-                              startDragFromBagSlot(mv, i, bagItem);
+                      const insideItems = myInventoryItems.filter(it => it.container === 'bag_' + i);
+                      if (insideItems.length > 0) {
+                          if (typeof addFloatingText === "function") {
+                              addFloatingText(player.x, player.y - 30, "가방에 아이템이 있어 이동 불가!", "#ff4444");
                           }
-                      };
+                          return;
+                      }
 
-                      const onUp = (uv) => {
-                          if (!isPressing) return;
-                          cleanup();
-                          if (!isDragging) {
-                              unequipBag(i);
-                          }
-                      };
-
-                      const cleanup = () => {
-                          isPressing = false;
-                          document.removeEventListener("mousemove", onMove);
-                          document.removeEventListener("mouseup", onUp);
-                          document.removeEventListener("touchmove", onMove);
-                          document.removeEventListener("touchend", onUp);
-                          document.removeEventListener("touchcancel", onUp);
-                      };
-
-                      document.addEventListener("mousemove", onMove);
-                      document.addEventListener("mouseup", onUp);
-                      document.addEventListener("touchmove", onMove, { passive: false });
-                      document.addEventListener("touchend", onUp);
-                      document.addEventListener("touchcancel", onUp);
+                      startDragFromBagSlot(ev, i, bagItem);
                   };
 
                   slotEl.addEventListener("mousedown", onDown);
@@ -1654,6 +1623,7 @@ function showTooltip(e, itemObj) {
 
         function onDragMove(e) {
             if (!dragItemState.active) return;
+            if (e.cancelable) e.preventDefault();
             
             if (dragItemState.originalEl) {
                 dragItemState.originalEl.style.display = "none";
@@ -2019,8 +1989,32 @@ function showTooltip(e, itemObj) {
                         updatePlayerTotalStats();
                         renderEquipSlotsUI();
                     } else if (dragItemState.source === "bagSlot") {
-                        player.equippedBags[dragItemState.sourceBagSlotIdx] = dragItemState.itemRef;
-                        containerMaps['bag_' + dragItemState.sourceBagSlotIdx] = Array.from({ length: ITEM_DB[dragItemState.itemRef.baseId].bagRows }, () => Array(INV_COLS).fill(null));
+                        // 유효한 그리드 칸이 아닌 곳에 놓았을 때: 인벤토리 빈 공간에 자동 적치 시도
+                        const candidates = ['main'];
+                        if (gameState === "storage") candidates.push('storage');
+                        let freePos = null;
+                        let targetC = 'main';
+                        for (let cId of candidates) {
+                            const cMap = getContainerMap(cId);
+                            if (cMap) {
+                                const pos = findFreeSpace(dragItemState.itemRef, cMap);
+                                if (pos) { freePos = pos; targetC = cId; break; }
+                            }
+                        }
+                        if (freePos) {
+                            dragItemState.itemRef.container = targetC;
+                            dragItemState.itemRef.gridX = freePos.x;
+                            dragItemState.itemRef.gridY = freePos.y;
+                            const targetArr = targetC === "storage" ? personalStorage : myInventoryItems;
+                            targetArr.push(dragItemState.itemRef);
+                        } else {
+                            // 빈 공간이 없으면 원래 슬롯으로 원복
+                            player.equippedBags[dragItemState.sourceBagSlotIdx] = dragItemState.itemRef;
+                            containerMaps['bag_' + dragItemState.sourceBagSlotIdx] = Array.from({ length: ITEM_DB[dragItemState.itemRef.baseId].bagRows }, () => Array(INV_COLS).fill(null));
+                            if (typeof addFloatingText === "function") {
+                                addFloatingText(player.x, player.y - 30, "인벤토리에 빈 공간이 없습니다!", "#ff4444");
+                            }
+                        }
                     } else {
                         dragItemState.itemRef.gridX = dragItemState.origX;
                         dragItemState.itemRef.gridY = dragItemState.origY;
