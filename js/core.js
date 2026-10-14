@@ -65,6 +65,9 @@ let tempSelectedJobs = []; // 캐릭터 생성 시 임시로 선택한 직업 �
 
 let mouseX = 0, mouseY = 0; // 월드 좌표계 기준 마우스 위치
 let attackTimer = 0; // 기본 공격 쿨타임 및 무기 스윙 애니메이션 프레임 제어
+let isBowCharging = false; // 활 좌클릭 차징 중 여부
+let bowChargeTime = 0; // 활 차징 프레임 타이머
+let bowChargeRatio = 0; // 활 차징 게이지 비율 (0.0 ~ 1.0)
 let keys = {}; // 키보드 입력 상태 저장 객체
 const statKeys = ["hp", "str", "dex", "mana", "stamina", "charm"];
 // [MOD-010-END]

@@ -62,10 +62,20 @@ function showTooltip(e, itemObj) {
             enchants.forEach(sock => {
                 let baseId = typeof sock === "string" ? sock : sock.baseId;
                 let level = (typeof sock === "object" && sock.level) ? sock.level : 1;
-                if (ITEM_DB[baseId] && ITEM_DB[baseId].enchantEffect) {
-                    let effect = ITEM_DB[baseId].enchantEffect;
-                    let totalVal = effect.value * level;
-                    enchantHtml += `<div class='item-tooltip-enchant-item'>- 강타+${level} (${effect.stat}+${totalVal})</div>`;
+                if (ITEM_DB[baseId]) {
+                    if (ITEM_DB[baseId].enchantEffect) {
+                        let effect = ITEM_DB[baseId].enchantEffect;
+                        if (effect.type === 'homing') {
+                            enchantHtml += `<div class='item-tooltip-enchant-item'>- 추격 (유도 화살)</div>`;
+                        } else if (effect.type === 'split') {
+                            enchantHtml += `<div class='item-tooltip-enchant-item'>- 분열 (3발 부채꼴)</div>`;
+                        } else {
+                            let totalVal = (effect.value || 0) * level;
+                            enchantHtml += `<div class='item-tooltip-enchant-item'>- ${ITEM_DB[baseId].name || effect.stat}+${level} (${effect.stat}+${totalVal})</div>`;
+                        }
+                    } else {
+                        enchantHtml += `<div class='item-tooltip-enchant-item'>- ${ITEM_DB[baseId].name}</div>`;
+                    }
                 }
             });
         }
@@ -265,16 +275,20 @@ function showTooltip(e, itemObj) {
                         let effect = ITEM_DB[pScroll.baseId].enchantEffect;
                         let curLevel = (sock && typeof sock === "object" && sock.level) ? sock.level : (sock ? 1 : 0);
                         let nextLevel = curLevel + 1;
-                        let nextVal = effect.value * nextLevel;
+                        let nextVal = (effect.value || 0) * nextLevel;
+                        let effName = effect.name || (effect.type === 'homing' ? '추격' : (effect.type === 'split' ? '분열' : '강타'));
+                        let effSub = effect.stat ? `${effect.stat}+${nextVal}` : (effect.type === 'homing' ? '유도' : '3발');
                         socketsHtml += `<div class="socket-slot socket-animated" style="background:#ff8800; border:2px dashed gold; animation: pulse-noti 1.2s infinite; position:relative; cursor:pointer;">
-                            <span style="font-size:9px; color:#fff; font-weight:bold; line-height:1.1; display:block; text-align:center;">강타+${nextLevel}<br><span style="font-size:8px; color:gold;">${effect.stat}+${nextVal}</span></span>
+                            <span style="font-size:9px; color:#fff; font-weight:bold; line-height:1.1; display:block; text-align:center;">${effName}+${nextLevel}<br><span style="font-size:8px; color:gold;">${effSub}</span></span>
                         </div>`;
                     }
                 } else if (sock) {
                     let baseId = typeof sock === "string" ? sock : sock.baseId;
                     let level = (typeof sock === "object" && sock.level) ? sock.level : 1;
                     let effect = ITEM_DB[baseId] ? ITEM_DB[baseId].enchantEffect : { stat: "str", value: 5, name: "강타" };
-                    let totalVal = effect.value * level;
+                    let totalVal = (effect.value || 0) * level;
+                    let effName = effect.name || (effect.type === 'homing' ? '추격' : (effect.type === 'split' ? '분열' : '강타'));
+                    let effSub = effect.stat ? `${effect.stat}+${totalVal}` : (effect.type === 'homing' ? '유도' : '3발');
 
                     // 가방 또는 열린 창고에 동일한 인챈트 두루마리가 있을 경우 중복 강화 알림 '!' 뱃지 표시
                     let hasDupeScroll = allScrolls.some(s => s.baseId === baseId);
@@ -292,7 +306,7 @@ function showTooltip(e, itemObj) {
 
                     socketsHtml += `<div class="socket-slot socket-animated" style="background:#ff4444; border-color:white; position:relative;" ${clickAction}>
                         ${badgeHtml}
-                        <span style="font-size:9px; color:#fff; font-weight:bold; line-height:1.1; display:block; text-align:center;">강타+${level}<br><span style="font-size:8px; color:gold;">${effect.stat}+${totalVal}</span></span>
+                        <span style="font-size:9px; color:#fff; font-weight:bold; line-height:1.1; display:block; text-align:center;">${effName}+${level}<br><span style="font-size:8px; color:gold;">${effSub}</span></span>
                     </div>`;
                 } else {
                     let badgeHtml = "";
@@ -358,7 +372,16 @@ function showTooltip(e, itemObj) {
                     let sourceText = isInv ? "가방" : "창고";
                     let sourceColor = isInv ? "#4fc3f7" : "#ffb74d";
                     let sId = scroll.id || scroll.uid;
-                    let eff = base.enchantEffect ? `${base.enchantEffect.stat.toUpperCase()} +${base.enchantEffect.value}` : "";
+                    let eff = "";
+                    if (base.enchantEffect) {
+                        if (base.enchantEffect.stat) {
+                            eff = `${base.enchantEffect.stat.toUpperCase()} +${base.enchantEffect.value}`;
+                        } else if (base.enchantEffect.type === "homing") {
+                            eff = "유도 화살";
+                        } else if (base.enchantEffect.type === "split") {
+                            eff = "3발 부채꼴";
+                        }
+                    }
 
                     return `
                         <div class="enchant-scroll-item" onclick="stageUpgradeEnchant('${slotKey}', ${socketIndex}, '${sId}')" style="display:flex; justify-content:space-between; align-items:center; padding:7px 10px; margin:4px 0; background:rgba(255,255,255,0.08); border:1px solid #555; border-radius:4px; cursor:pointer;">
@@ -427,7 +450,16 @@ function showTooltip(e, itemObj) {
                     let sourceText = isInv ? "가방" : "창고";
                     let sourceColor = isInv ? "#4fc3f7" : "#ffb74d";
                     let sId = scroll.id || scroll.uid;
-                    let eff = base.enchantEffect ? `${base.enchantEffect.stat.toUpperCase()} +${base.enchantEffect.value}` : "";
+                    let eff = "";
+                    if (base.enchantEffect) {
+                        if (base.enchantEffect.stat) {
+                            eff = `${base.enchantEffect.stat.toUpperCase()} +${base.enchantEffect.value}`;
+                        } else if (base.enchantEffect.type === "homing") {
+                            eff = "유도 화살";
+                        } else if (base.enchantEffect.type === "split") {
+                            eff = "3발 부채꼴";
+                        }
+                    }
 
                     return `<div class="enchant-scroll-item" onclick="stageEnchant('${slotKey}', ${socketIndex}, '${sId}')" style="display:flex; justify-content:space-between; align-items:center; padding:7px 10px; margin:4px 0; background:rgba(255,255,255,0.08); border:1px solid #555; border-radius:4px; cursor:pointer;">
                         <div style="text-align:left;">
@@ -585,7 +617,11 @@ function showTooltip(e, itemObj) {
                     { id: "bag_l_1", baseId: "bag_large",  container: "storage", gridX: 6, gridY: 7, rot: 0 }, // 2x2 (6,7 ~ 7,8)
                     // ★ 신규 활 및 화살 64개 묶음 배치
                     { id: "item_bow_1", baseId: "bow_basic", container: "storage", gridX: 7, gridY: 0, rot: 0 }, // 1x3
-                    { id: "item_arrow_1", baseId: "arrow", count: 64, container: "storage", gridX: 7, gridY: 4, rot: 0 } // 1x1
+                    { id: "item_arrow_1", baseId: "arrow", count: 64, container: "storage", gridX: 7, gridY: 4, rot: 0 }, // 1x1
+                    // ★ 신규 활 전용 인챈트(추격, 분열) 및 활 스킬북(속공) 배치
+                    { id: "scroll_homing_1", baseId: "scroll_homing", container: "storage", gridX: 3, gridY: 5, rot: 0 }, // 1x1
+                    { id: "scroll_split_1",  baseId: "scroll_split",  container: "storage", gridX: 4, gridY: 5, rot: 0 }, // 1x1
+                    { id: "book_rapid_1",    baseId: "book_rapid_shot", container: "storage", gridX: 5, gridY: 5, rot: 0 }  // 1x1
                 );
             }
         }
@@ -712,8 +748,15 @@ function showTooltip(e, itemObj) {
                   let level = (typeof sock === "object" && sock.level) ? sock.level : 1;
                   const data = ITEM_DB[baseId];
                   if (data?.enchantEffect) {
-                      let totalVal = data.enchantEffect.value * level;
-                      return `<div style="color:#ff8888">- 강타+${level} (${data.enchantEffect.stat}+${totalVal})</div>`;
+                      let effect = data.enchantEffect;
+                      if (effect.type === 'homing') {
+                          return `<div style="color:#ff8888">- 추격 (유도 화살)</div>`;
+                      } else if (effect.type === 'split') {
+                          return `<div style="color:#ff8888">- 분열 (3발 부채꼴)</div>`;
+                      } else {
+                          let totalVal = (effect.value || 0) * level;
+                          return `<div style="color:#ff8888">- ${data.name || effect.stat}+${level} (${effect.stat}+${totalVal})</div>`;
+                      }
                   }
                   return "";
               }).join("");
@@ -1079,13 +1122,25 @@ function showTooltip(e, itemObj) {
           if (!baseItem || baseItem.type !== "skillbook") return;
 
           const skillId = baseItem.skillId;
+          const skillName = (typeof MOCK_SKILLS !== "undefined" && MOCK_SKILLS[skillId]?.name) 
+              ? MOCK_SKILLS[skillId].name 
+              : baseItem.name.replace(" 스킬북", "").replace("스킬북: ", "");
 
+          if (player.unlockedSkills && !player.unlockedSkills.includes(skillId)) {
+              player.unlockedSkills.push(skillId);
+          }
           if (typeof playerUnlockedSkills !== "undefined" && !playerUnlockedSkills.includes(skillId)) {
               playerUnlockedSkills.push(skillId);
           }
-
           if (typeof playerAvailableSkills !== "undefined" && !playerAvailableSkills.includes(skillId)) {
               playerAvailableSkills.push(skillId);
+          }
+
+          if (player.quickSlots && typeof MOCK_SKILLS !== "undefined" && MOCK_SKILLS[skillId]) {
+              let emptySlot = player.quickSlots.findIndex(s => s === null);
+              if (emptySlot !== -1) {
+                  player.quickSlots[emptySlot] = MOCK_SKILLS[skillId];
+              }
           }
 
           const targetArr = sourceName === "storage" ? personalStorage : myInventoryItems;
@@ -1096,9 +1151,10 @@ function showTooltip(e, itemObj) {
 
           closeItemDetail();
           renderGridInventory();
+          if (typeof updateQuickSlotUI === "function") updateQuickSlotUI();
 
           if (typeof addFloatingText === "function") {
-              addFloatingText(player.x, player.y - 20, "[순간이동] 스킬 습득!", "#00ffcc");
+              addFloatingText(player.x, player.y - 20, `[${skillName}] 스킬 습득!`, "#00ffcc");
           }
 
           if (currentRightView === "enchant" &&
@@ -2114,6 +2170,42 @@ function showTooltip(e, itemObj) {
                 }
             }
 
+            // ★ [화살 등 스택형 소모품 기존 스택(최대 64개) 우선 합산 처리]
+            let remainingCount = fItem.count || 1;
+            const maxStack = baseItem.maxStack || (baseItem.baseId === "arrow" ? 64 : 1);
+
+            if (maxStack > 1) {
+                for (let cId of candidates) {
+                    const existingItems = myInventoryItems.filter(it => it.container === cId && it.baseId === fItem.baseId && (it.count || 1) < maxStack);
+                    for (let exist of existingItems) {
+                        const curCount = exist.count || 1;
+                        const canAdd = maxStack - curCount;
+                        const addAmount = Math.min(canAdd, remainingCount);
+                        exist.count = curCount + addAmount;
+                        remainingCount -= addAmount;
+                        if (remainingCount <= 0) break;
+                    }
+                    if (remainingCount <= 0) break;
+                }
+
+                // 완전히 기존 스택에 다 들어간 경우
+                if (remainingCount <= 0) {
+                    if (typeof fieldItems !== "undefined") {
+                        const idx = fieldItems.indexOf(fItem);
+                        if (idx > -1) fieldItems.splice(idx, 1);
+                    }
+                    if (typeof targetedFieldItem !== "undefined" && targetedFieldItem === fItem) {
+                        targetedFieldItem = null;
+                    }
+                    renderGridInventory();
+                    if (typeof updateArrowCountUI === "function") updateArrowCountUI();
+                    if (typeof addFloatingText === "function") {
+                        addFloatingText(player.x, player.y - 30, "+ " + baseItem.name + (fItem.count > 1 ? " x" + fItem.count : ""), "#00ff88");
+                    }
+                    return;
+                }
+            }
+
             let placedContainer = null;
             let freePos = null;
 
@@ -2150,6 +2242,7 @@ function showTooltip(e, itemObj) {
             const newItem = {
                 id: fItem.id || ("item_" + Date.now() + "_" + Math.floor(Math.random() * 1000)),
                 baseId: fItem.baseId,
+                count: remainingCount,
                 rot: fItem.rot || 0,
                 container: placedContainer,
                 gridX: freePos.x,
@@ -2159,9 +2252,10 @@ function showTooltip(e, itemObj) {
 
             myInventoryItems.push(newItem);
             renderGridInventory();
+            if (typeof updateArrowCountUI === "function") updateArrowCountUI();
 
             if (typeof addFloatingText === "function") {
-                addFloatingText(player.x, player.y - 30, "+ " + baseItem.name, "#00ff88");
+                addFloatingText(player.x, player.y - 30, "+ " + baseItem.name + (newItem.count > 1 ? " x" + newItem.count : ""), "#00ff88");
             }
         }
 

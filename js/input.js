@@ -123,12 +123,14 @@
 
             // 1) 우클릭 누름 -> 퀵슬롯 스킬 사용 준비(조준)
             if (isRightClick) { 
+                if (typeof cancelBowCharging === "function") cancelBowCharging();
                 aimCurrentQuickSlot(); 
                 return true; 
             }
 
             // 2) 우클릭이 눌린 상태에서 좌클릭이 눌린 경우 -> 스킬 사용!
             if (isRightMouseDown && player.aimingSkill) { 
+                if (typeof cancelBowCharging === "function") cancelBowCharging();
                 executeAimingSkill(); 
                 return true; 
             }
@@ -187,10 +189,19 @@
                 }
             }
 
-            // 5) 상호작용 대상이 아니라면 -> 좌클릭 수동 기본 공격 실행!
-            if (typeof executeBasicAttack === "function") {
-                executeBasicAttack(wMouseX, wMouseY);
-                return true;
+            // 5) 활을 들고 있다면 차징 시작, 아니면 일반 근접 기본 공격 실행
+            const wpn = player.equipment?.mainWeapon;
+            const isBow = wpn && (wpn.baseId === "bow_basic" || (typeof ITEM_DB !== "undefined" && ITEM_DB[wpn.baseId]?.weaponType === "bow"));
+            if (isBow) {
+                if (typeof startBowCharging === "function") {
+                    startBowCharging();
+                    return true;
+                }
+            } else {
+                if (typeof executeBasicAttack === "function") {
+                    executeBasicAttack(wMouseX, wMouseY);
+                    return true;
+                }
             }
 
             return false;
@@ -205,9 +216,17 @@
             }
         });
 
-        // 우클릭 해제 시 스킬 사용준비 취소
+        // 마우스 버튼 해제 시 처리 (좌클릭: 활 발사 / 우클릭: 조준 취소)
         window.addEventListener("mouseup", (e) => {
-            if (e.button === 2) {
+            if (e.button === 0) {
+                if (typeof isBowCharging !== "undefined" && isBowCharging) {
+                    let wMouseX = mouseX + camera.x;
+                    let wMouseY = mouseY + camera.y;
+                    if (typeof releaseBowShot === "function") {
+                        releaseBowShot(wMouseX, wMouseY);
+                    }
+                }
+            } else if (e.button === 2) {
                 isRightMouseDown = false;
                 if (player && player.aimingSkill) {
                     player.aimingSkill = null;
@@ -215,9 +234,10 @@
             }
         });
 
-        // 윈도우 포커스 해제 시 우클릭 상태 초기화
+        // 윈도우 포커스 해제 시 상태 초기화
         window.addEventListener("blur", () => {
             isRightMouseDown = false;
+            if (typeof cancelBowCharging === "function") cancelBowCharging();
             if (player && player.aimingSkill) {
                 player.aimingSkill = null;
             }

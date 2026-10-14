@@ -142,12 +142,37 @@
 
                 if (attackTimer > 0) attackTimer--;
 
-// [자동 공격 시스템 삭제: 좌클릭 수동 공격으로 대체]
+                // [활 차징 진행 업데이트]
+                if (typeof isBowCharging !== "undefined" && isBowCharging) {
+                    bowChargeTime++;
+                    // 50프레임(약 0.83초) 동안 게이지가 0.0 -> 1.0으로 풀 충전
+                    bowChargeRatio = Math.min(1.0, bowChargeTime / 50);
+                }
 
-                // [원거리 투사체(화살) 이동 및 피격 처리]
+                // [원거리 투사체(화살) 이동, 유도 및 피격 처리]
                 if (typeof projectiles !== "undefined" && projectiles.length > 0) {
                     for (let i = projectiles.length - 1; i >= 0; i--) {
                         let p = projectiles[i];
+
+                        // ★ [추격(Homing) 인챈트 유도 비행]
+                        if (p.isHoming && currentMap === "dungeon" && typeof MAP_DATA !== "undefined" && MAP_DATA.dungeon.goblin.active) {
+                            const gob = MAP_DATA.dungeon.goblin;
+                            const gDist = Math.hypot(gob.x - p.x, gob.y - p.y);
+                            if (gDist < 480) {
+                                const targetAngle = Math.atan2(gob.y - p.y, gob.x - p.x);
+                                let curAngle = Math.atan2(p.vy, p.vx);
+                                let diff = targetAngle - curAngle;
+                                while (diff < -Math.PI) diff += Math.PI * 2;
+                                while (diff > Math.PI) diff -= Math.PI * 2;
+                                const turnSpeed = 0.09;
+                                const newAngle = curAngle + Math.max(-turnSpeed, Math.min(turnSpeed, diff));
+                                const speed = Math.hypot(p.vx, p.vy);
+                                p.vx = Math.cos(newAngle) * speed;
+                                p.vy = Math.sin(newAngle) * speed;
+                                p.angle = newAngle;
+                            }
+                        }
+
                         p.x += p.vx;
                         p.y += p.vy;
                         p.traveled += Math.hypot(p.vx, p.vy);
@@ -155,11 +180,22 @@
                         // 벽/장애물 충돌 검사
                         if (typeof checkObstacleCollision === "function" && checkObstacleCollision(p.x - 5, p.y - 5)) {
                             if (typeof addVisualEffect === "function") addVisualEffect(p.x, p.y, 10, "gray");
+                            // 빗나간 화살은 땅에 박혀 F키/마우스로 회수 가능 (복제 화살 제외)
+                            if (p.isPickable && typeof fieldItems !== "undefined") {
+                                fieldItems.push({
+                                    id: "arrow_drop_" + Date.now() + "_" + Math.random().toString(36).substr(2, 4),
+                                    baseId: "arrow",
+                                    count: 1,
+                                    rot: 0,
+                                    x: Math.max(20, Math.min(WORLD_WIDTH - 20, p.x)),
+                                    y: Math.max(20, Math.min(WORLD_HEIGHT - 20, p.y))
+                                });
+                            }
                             projectiles.splice(i, 1);
                             continue;
                         }
 
-                        // 던전 고블린 피격 검사
+                        // 던전 고블린 피격 검사 (몬스터에 박힌 화살은 회수 불가!)
                         if (currentMap === "dungeon" && typeof MAP_DATA !== "undefined" && MAP_DATA.dungeon.goblin.active) {
                             const gob = MAP_DATA.dungeon.goblin;
                             if (Math.hypot(gob.x - p.x, gob.y - p.y) < gob.size / 2 + 12) {
@@ -170,8 +206,18 @@
                             }
                         }
 
-                        // 최대 사거리 도달 또는 맵 경계 이탈 시 소멸
+                        // 최대 사거리 도달 또는 맵 경계 이탈 시 소멸 (사거리가 다한 화살은 땅에 박힘)
                         if (p.traveled >= p.maxDist || p.x < 0 || p.x > WORLD_WIDTH || p.y < 0 || p.y > WORLD_HEIGHT) {
+                            if (p.isPickable && typeof fieldItems !== "undefined" && p.x >= 0 && p.x <= WORLD_WIDTH && p.y >= 0 && p.y <= WORLD_HEIGHT) {
+                                fieldItems.push({
+                                    id: "arrow_drop_" + Date.now() + "_" + Math.random().toString(36).substr(2, 4),
+                                    baseId: "arrow",
+                                    count: 1,
+                                    rot: 0,
+                                    x: Math.max(20, Math.min(WORLD_WIDTH - 20, p.x)),
+                                    y: Math.max(20, Math.min(WORLD_HEIGHT - 20, p.y))
+                                });
+                            }
                             projectiles.splice(i, 1);
                         }
                     }
@@ -456,7 +502,9 @@
                     const stringX = Math.cos(Math.PI / 2.3) * 26;
                     
                     let pullX = stringX - 10;
-                    if (attackTimer > 0) {
+                    if (typeof isBowCharging !== "undefined" && isBowCharging) {
+                        pullX = stringX - 10 - (bowChargeRatio * 16);
+                    } else if (attackTimer > 0) {
                         pullX = stringX - (attackTimer / 22) * 14;
                     }
                     ctx.beginPath();
@@ -467,6 +515,76 @@
                     ctx.lineWidth = 1.5;
                     ctx.stroke();
 
+                    ctx.restore();
+
+                    // ★ [활 차징 3색 게이지 바 렌더링]
+                    // 활을 들면 캐릭터 우측 옆에 세로 게이지 바가 표시되고, 좌클릭을 꾹 누르면 아래에서 위로 차오릅니다.
+                    const barW = 7;
+                    const barH = 50;
+                    const barX = pCenterX + playerRadius + 10;
+                    const barY = pCenterY - barH / 2;
+
+                    ctx.save();
+                    // 1. 게이지 바 배경 프레임
+                    ctx.fillStyle = "rgba(15, 15, 20, 0.75)";
+                    ctx.fillRect(barX - 1, barY - 1, barW + 2, barH + 2);
+                    ctx.strokeStyle = "rgba(255, 255, 255, 0.5)";
+                    ctx.lineWidth = 1;
+                    ctx.strokeRect(barX - 1, barY - 1, barW + 2, barH + 2);
+
+                    // 2. 3구간 배경 (비활성 은은한 가이드 색상)
+                    // - 80~100% (위 1/5: 10px): 실패 구간 (빨강)
+                    ctx.fillStyle = "rgba(231, 76, 60, 0.35)";
+                    ctx.fillRect(barX, barY, barW, 10);
+                    // - 60~80% (중간 1/5: 10px): 퍼펙트 구간 (녹색)
+                    ctx.fillStyle = "rgba(46, 204, 113, 0.35)";
+                    ctx.fillRect(barX, barY + 10, barW, 10);
+                    // - 0~60% (아래 3/5: 30px): 약한 공격 구간 (노랑)
+                    ctx.fillStyle = "rgba(241, 196, 15, 0.35)";
+                    ctx.fillRect(barX, barY + 20, barW, 30);
+
+                    // 구분선
+                    ctx.strokeStyle = "rgba(255, 255, 255, 0.35)";
+                    ctx.beginPath();
+                    ctx.moveTo(barX, barY + 10); ctx.lineTo(barX + barW, barY + 10);
+                    ctx.moveTo(barX, barY + 20); ctx.lineTo(barX + barW, barY + 20);
+                    ctx.stroke();
+
+                    // 3. 차징 진행 시 채워지는 게이지 바
+                    const curRatio = (typeof bowChargeRatio !== "undefined") ? bowChargeRatio : 0;
+                    if (curRatio > 0) {
+                        const fillH = Math.min(barH, barH * curRatio);
+                        const fillY = barY + barH - fillH;
+
+                        let fillColor = "#FFD700"; // 기본 노란색
+                        if (curRatio >= 0.8) {
+                            fillColor = "#FF3333"; // 빨간색 (실패)
+                        } else if (curRatio >= 0.6) {
+                            fillColor = "#00FF66"; // 녹색 (가장 강함)
+                        }
+
+                        // 퍼펙트 구간 도달 시 글로우 효과
+                        if (curRatio >= 0.6 && curRatio < 0.8) {
+                            ctx.shadowColor = "#00FF66";
+                            ctx.shadowBlur = 8;
+                        } else if (curRatio >= 0.8) {
+                            ctx.shadowColor = "#FF3333";
+                            ctx.shadowBlur = 8;
+                        }
+
+                        ctx.fillStyle = fillColor;
+                        ctx.fillRect(barX, fillY, barW, fillH);
+
+                        // 현재 위치 인디케이터 화살표
+                        ctx.shadowBlur = 0;
+                        ctx.fillStyle = "#ffffff";
+                        ctx.beginPath();
+                        ctx.moveTo(barX + barW + 1, fillY);
+                        ctx.lineTo(barX + barW + 5, fillY - 3);
+                        ctx.lineTo(barX + barW + 5, fillY + 3);
+                        ctx.closePath();
+                        ctx.fill();
+                    }
                     ctx.restore();
                 } else {
                     const weaponLength = 50, weaponWidth = 12, pivotX = 0, pivotY = playerRadius + 25;

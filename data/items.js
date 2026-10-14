@@ -80,6 +80,24 @@ const ITEM_DB = {
         enchantEffect: { stat: "str", value: 5, name: "강타(+5)" },
         desc: "무기에 바르면 힘을 대폭 올려주는 주문서다."
     },
+    // ★ 활 전용 인챈트 두루마리: 추격
+    "scroll_homing": {
+        name: "추격 두루마리",
+        type: "enchant",
+        shape: [[1]],
+        color: "#9c27b0",
+        enchantEffect: { type: "homing", name: "추격" },
+        desc: "활에 바르면 화살이 적을 자동으로 유도 추적한다."
+    },
+    // ★ 활 전용 인챈트 두루마리: 분열
+    "scroll_split": {
+        name: "분열 두루마리",
+        type: "enchant",
+        shape: [[1]],
+        color: "#00bcd4",
+        enchantEffect: { type: "split", name: "분열" },
+        desc: "활에 바르면 발사 순간 1개의 화살이 3개로 분열되어 부채꼴로 발사된다."
+    },
     // ★ 신규 아이템: 스킬북
     "book_teleport": { 
         name: "스킬북: 순간이동", 
@@ -88,6 +106,15 @@ const ITEM_DB = {
         shape: [[1]], 
         color: "rgba(100, 50, 200, 0.9)", 
         desc: "사용 시 [순간이동] 스킬을 습득한다.<br><span style='color:gold;'>(PC: 더블클릭 / 모바일: 두번 연속 터치)</span>"
+    },
+    // ★ 활 전용 스킬북: 속공
+    "book_rapid_shot": {
+        name: "스킬북: 속공",
+        type: "skillbook",
+        skillId: "rapid_shot",
+        shape: [[1]],
+        color: "#ff9800",
+        desc: "사용 시 [속공] 스킬을 습득한다.<br><span style='color:gold;'>(3발의 화살을 강력한 파워로 순간 연속 발사)</span>"
     },
     // ★ 가방 아이템 3종
     "bag_small": {

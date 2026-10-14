@@ -18,7 +18,8 @@ const MOCK_SKILLS = {
     fire: { id: "fire", name: "화염", type: "fire", cooldown: 4, bonusDmg: 15 },
     ice: { id: "ice", name: "얼음", type: "ice", cooldown: 4, bonusDmg: 12 },
     wind: { id: "wind", name: "바람", type: "wind", cooldown: 3, bonusDmg: 8 },
-    teleport: { id: "teleport", name: "순간이동", type: "teleport", cooldown: 5, bonusDmg: 0 } // ★ 순간이동 추가
+    teleport: { id: "teleport", name: "순간이동", type: "teleport", cooldown: 5, bonusDmg: 0 },
+    rapid_shot: { id: "rapid_shot", name: "속공", type: "rapid_shot", cooldown: 6, bonusDmg: 20 }
 };
 
 if (!player.quickSlots) {
@@ -140,58 +141,174 @@ function updateArrowCountUI() {
 }
 window.updateArrowCountUI = updateArrowCountUI;
 
-// [좌클릭 기본 공격 로직: 근접 무기 및 원거리 활 공격 분기]
-function executeBasicAttack(wMouseX, wMouseY) {
-    if (typeof attackTimer !== 'undefined' && attackTimer > 0) return false;
+// [활 차징 공격 시스템]
+function startBowCharging() {
+    const wpn = player.equipment?.mainWeapon;
+    const isBow = wpn && (wpn.baseId === "bow_basic" || (typeof ITEM_DB !== "undefined" && ITEM_DB[wpn.baseId]?.weaponType === "bow"));
+    if (!isBow) return false;
+
+    const totalArrows = typeof getTotalArrowCount === "function" ? getTotalArrowCount() : 0;
+    if (totalArrows <= 0) {
+        if (typeof addFloatingText === "function") {
+            addFloatingText(player.x, player.y - 30, "화살이 없습니다!", "red");
+        }
+        return false;
+    }
+
+    isBowCharging = true;
+    bowChargeTime = 0;
+    bowChargeRatio = 0;
+    return true;
+}
+window.startBowCharging = startBowCharging;
+
+function cancelBowCharging() {
+    isBowCharging = false;
+    bowChargeTime = 0;
+    bowChargeRatio = 0;
+}
+window.cancelBowCharging = cancelBowCharging;
+
+function releaseBowShot(wMouseX, wMouseY) {
+    if (!isBowCharging) return false;
+
+    const wpn = player.equipment?.mainWeapon;
+    const isBow = wpn && (wpn.baseId === "bow_basic" || (typeof ITEM_DB !== "undefined" && ITEM_DB[wpn.baseId]?.weaponType === "bow"));
+    if (!isBow) {
+        cancelBowCharging();
+        return false;
+    }
+
+    const ratio = Math.min(1.0, bowChargeRatio);
+    isBowCharging = false;
+    bowChargeTime = 0;
+    bowChargeRatio = 0;
 
     const pCenterX = player.x + player.width / 2;
     const pCenterY = player.y + player.height / 2;
     const clickAngle = Math.atan2(wMouseY - pCenterY, wMouseX - pCenterX);
 
-    const wpn = player.equipment?.mainWeapon;
-    const isBow = wpn && (wpn.baseId === "bow_basic" || (typeof ITEM_DB !== "undefined" && ITEM_DB[wpn.baseId]?.weaponType === "bow"));
-
-    // ★ 원거리 무기: 활인 경우
-    if (isBow) {
-        const totalArrows = typeof getTotalArrowCount === "function" ? getTotalArrowCount() : 0;
-        if (totalArrows <= 0) {
-            if (typeof addFloatingText === "function") {
-                addFloatingText(player.x, player.y - 30, "화살이 없습니다!", "red");
-            }
-            return false;
+    // ★ 구간 3: 5분의 5 (0.80 ~ 1.00) = 빨간색 실패 구간!
+    if (ratio >= 0.8) {
+        if (typeof addFloatingText === "function") {
+            addFloatingText(player.x, player.y - 30, "공격 실패!", "#ff3333");
         }
-
-        // 화살 1개 소모
-        if (typeof consumeArrow === "function") consumeArrow();
-
-        attackTimer = 22; // 활 발사 딜레이
+        attackTimer = 15;
         player.lastAttackAngle = clickAngle;
-
-        // 투사체(화살) 생성
-        const arrowSpeed = 16;
-        const arrowDmg = (player.stats.str * 2) + 12;
-
-        if (typeof projectiles !== "undefined") {
-            projectiles.push({
-                type: "arrow",
-                x: pCenterX + Math.cos(clickAngle) * 20,
-                y: pCenterY + Math.sin(clickAngle) * 20,
-                vx: Math.cos(clickAngle) * arrowSpeed,
-                vy: Math.sin(clickAngle) * arrowSpeed,
-                angle: clickAngle,
-                traveled: 0,
-                maxDist: 500,
-                damage: arrowDmg
-            });
-        }
-
-        if (typeof addVisualEffect === "function") {
-            addVisualEffect(pCenterX, pCenterY, 15, "#A0522D");
-        }
-        return true;
+        return false;
     }
 
-    // ★ 근접 무기(검, 도끼, 지팡이 등)인 경우
+    // 화살 유무 재확인
+    const totalArrows = typeof getTotalArrowCount === "function" ? getTotalArrowCount() : 0;
+    if (totalArrows <= 0) {
+        if (typeof addFloatingText === "function") {
+            addFloatingText(player.x, player.y - 30, "화살이 없습니다!", "red");
+        }
+        return false;
+    }
+
+    // 화살 1개 소모
+    if (typeof consumeArrow === "function") consumeArrow();
+
+    attackTimer = 20;
+    player.lastAttackAngle = clickAngle;
+
+    // 주무기 소켓에서 인챈트 확인 (homing, split 검사)
+    let hasHoming = false, hasSplit = false;
+    if (wpn && Array.isArray(wpn.sockets)) {
+        hasHoming = wpn.sockets.some(s => {
+            if (!s) return false;
+            let bId = typeof s === "string" ? s : s.baseId;
+            return bId === 'scroll_homing' || ITEM_DB[bId]?.enchantEffect?.type === 'homing';
+        });
+        hasSplit = wpn.sockets.some(s => {
+            if (!s) return false;
+            let bId = typeof s === "string" ? s : s.baseId;
+            return bId === 'scroll_split' || ITEM_DB[bId]?.enchantEffect?.type === 'split';
+        });
+    }
+
+    let arrowSpeed = 14;
+    let maxDist = 380;
+    let arrowDmg = (player.stats.str * 2) + 8;
+    let effectColor = "#FFD700";
+
+    // ★ 구간 2: 5분의 4 (0.60 ~ 0.80) = 녹색 퍼펙트 구간!
+    if (ratio >= 0.6) {
+        arrowSpeed = 24;
+        maxDist = 650;
+        arrowDmg = (player.stats.str * 2) + 26; // 강력한 최대 공격력
+        effectColor = "#00FF66";
+        if (typeof addFloatingText === "function") {
+            addFloatingText(player.x, player.y - 35, "PERFECT SHOT!", "#00FF66");
+        }
+    } else {
+        // ★ 구간 1: 5분의 3 (0.00 ~ 0.60) = 노란색 약한 공격 구간
+        arrowSpeed = 14;
+        maxDist = 380;
+        arrowDmg = (player.stats.str * 2) + 8;
+        effectColor = "#FFD700";
+    }
+
+    if (typeof projectiles !== "undefined") {
+        // 1. 메인 화살 생성 (isPickable: true -> 빗나가거나 사거리 다하면 필드 회수 가능!)
+        projectiles.push({
+            type: "arrow",
+            x: pCenterX + Math.cos(clickAngle) * 20,
+            y: pCenterY + Math.sin(clickAngle) * 20,
+            vx: Math.cos(clickAngle) * arrowSpeed,
+            vy: Math.sin(clickAngle) * arrowSpeed,
+            angle: clickAngle,
+            traveled: 0,
+            maxDist: maxDist,
+            damage: arrowDmg,
+            isHoming: hasHoming,
+            isPickable: true // 땅에 박혀 줍기 가능!
+        });
+
+        // 2. [분열] 인챈트: 부채꼴 좌우 2발 추가 발사
+        if (hasSplit) {
+            [-0.24, 0.24].forEach(spread => {
+                const spAngle = clickAngle + spread;
+                projectiles.push({
+                    type: "arrow",
+                    x: pCenterX + Math.cos(spAngle) * 20,
+                    y: pCenterY + Math.sin(spAngle) * 20,
+                    vx: Math.cos(spAngle) * arrowSpeed,
+                    vy: Math.sin(spAngle) * arrowSpeed,
+                    angle: spAngle,
+                    traveled: 0,
+                    maxDist: maxDist,
+                    damage: Math.floor(arrowDmg * 0.85),
+                    isHoming: hasHoming,
+                    isPickable: false // ★ 분열로 늘어난 화살은 주울 수 없음!
+                });
+            });
+        }
+    }
+
+    if (typeof addVisualEffect === "function") {
+        addVisualEffect(pCenterX, pCenterY, ratio >= 0.6 ? 24 : 14, effectColor);
+    }
+    return true;
+}
+window.releaseBowShot = releaseBowShot;
+
+// [좌클릭 기본 공격 로직: 근접 무기(검/도끼/지팡이)]
+function executeBasicAttack(wMouseX, wMouseY) {
+    if (typeof attackTimer !== 'undefined' && attackTimer > 0) return false;
+
+    const wpn = player.equipment?.mainWeapon;
+    const isBow = wpn && (wpn.baseId === "bow_basic" || (typeof ITEM_DB !== "undefined" && ITEM_DB[wpn.baseId]?.weaponType === "bow"));
+    if (isBow) {
+        // 활은 차징 릴리즈 시스템으로 동작
+        return false;
+    }
+
+    const pCenterX = player.x + player.width / 2;
+    const pCenterY = player.y + player.height / 2;
+    const clickAngle = Math.atan2(wMouseY - pCenterY, wMouseX - pCenterX);
+
     attackTimer = 30; // 스윙 애니메이션 및 기본 공격 쿨타임 (30프레임 = 0.5초)
     player.lastAttackAngle = clickAngle;
 
@@ -333,6 +450,89 @@ function executeAimingSkill() {
             addFloatingText(player.x, player.y - 20, "막힌 공간입니다!", "red");
         }
         
+        player.aimingSkill = null;
+        return true;
+    }
+    // ★ 활 스킬: 속공 (3발의 화살을 가장 강력한 공격력으로 순간 연속 발사)
+    else if (player.aimingSkill === "rapid_shot") {
+        const totalArrows = typeof getTotalArrowCount === "function" ? getTotalArrowCount() : 0;
+        if (totalArrows < 1) {
+            addFloatingText(player.x, player.y - 20, "화살이 없습니다!", "red");
+            player.aimingSkill = null;
+            return false;
+        }
+
+        startSkillCooldown(activeSkill.id, activeSkill.cooldown);
+
+        const wpn = player.equipment?.mainWeapon;
+        let hasHoming = false, hasSplit = false;
+        if (wpn && Array.isArray(wpn.sockets)) {
+            hasHoming = wpn.sockets.some(s => {
+                if (!s) return false;
+                let bId = typeof s === "string" ? s : s.baseId;
+                return bId === 'scroll_homing' || ITEM_DB[bId]?.enchantEffect?.type === 'homing';
+            });
+            hasSplit = wpn.sockets.some(s => {
+                if (!s) return false;
+                let bId = typeof s === "string" ? s : s.baseId;
+                return bId === 'scroll_split' || ITEM_DB[bId]?.enchantEffect?.type === 'split';
+            });
+        }
+
+        const dx = wMouseX - pCenterX;
+        const dy = wMouseY - pCenterY;
+        const baseAngle = Math.atan2(dy, dx);
+        const arrowSpeed = 26;
+        const maxDist = 650;
+        const arrowDmg = (player.stats.str * 2) + 26 + activeSkill.bonusDmg; // 가장 강력한 데미지
+
+        const shotCount = Math.min(3, totalArrows);
+        for (let i = 0; i < shotCount; i++) {
+            setTimeout(() => {
+                if (typeof consumeArrow === "function") consumeArrow();
+                const curCenterX = player.x + player.width / 2;
+                const curCenterY = player.y + player.height / 2;
+
+                projectiles.push({
+                    type: "arrow",
+                    x: curCenterX + Math.cos(baseAngle) * 20,
+                    y: curCenterY + Math.sin(baseAngle) * 20,
+                    vx: Math.cos(baseAngle) * arrowSpeed,
+                    vy: Math.sin(baseAngle) * arrowSpeed,
+                    angle: baseAngle,
+                    traveled: 0,
+                    maxDist: maxDist,
+                    damage: arrowDmg,
+                    isHoming: hasHoming,
+                    isPickable: true // 필드 회수 가능
+                });
+
+                if (hasSplit) {
+                    [-0.22, 0.22].forEach(spread => {
+                        const spAngle = baseAngle + spread;
+                        projectiles.push({
+                            type: "arrow",
+                            x: curCenterX + Math.cos(spAngle) * 20,
+                            y: curCenterY + Math.sin(spAngle) * 20,
+                            vx: Math.cos(spAngle) * arrowSpeed,
+                            vy: Math.sin(spAngle) * arrowSpeed,
+                            angle: spAngle,
+                            traveled: 0,
+                            maxDist: maxDist,
+                            damage: Math.floor(arrowDmg * 0.85),
+                            isHoming: hasHoming,
+                            isPickable: false // 분열 복제 화살은 회수 불가
+                        });
+                    });
+                }
+
+                if (typeof addVisualEffect === "function") {
+                    addVisualEffect(curCenterX, curCenterY, 20, "#00FF66");
+                }
+            }, i * 90);
+        }
+
+        addFloatingText(player.x, player.y - 30, "속공(RAPID SHOT)!", "#00FF66");
         player.aimingSkill = null;
         return true;
     }
