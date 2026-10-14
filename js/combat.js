@@ -108,7 +108,40 @@ function updateQuickSlotUI() {
 }
 // [MOD-015-2-END]
 
-// [MOD-015-3: 스킬 조준 및 발동 로직]
+// [MOD-015-3: 기본 공격 및 스킬 조준/발동 로직]
+// [좌클릭 기본 공격 로직]
+function executeBasicAttack(wMouseX, wMouseY) {
+    if (typeof attackTimer !== 'undefined' && attackTimer > 0) return false;
+
+    const pCenterX = player.x + player.width / 2;
+    const pCenterY = player.y + player.height / 2;
+    const clickAngle = Math.atan2(wMouseY - pCenterY, wMouseX - pCenterX);
+
+    attackTimer = 30; // 스윙 애니메이션 및 기본 공격 쿨타임 (30프레임 = 0.5초)
+    player.lastAttackAngle = clickAngle;
+
+    const baseRange = 85;
+    const totalDmg = (player.stats.str * 3) + 5;
+
+    // 던전 고블린 적중 판정 (사거리 내 + 마우스 부채꼴 방향 판정)
+    if (currentMap === "dungeon" && typeof MAP_DATA !== "undefined" && MAP_DATA.dungeon.goblin.active) {
+        const gob = MAP_DATA.dungeon.goblin;
+        const dist = Math.hypot(gob.x - pCenterX, gob.y - pCenterY);
+
+        if (dist <= baseRange + gob.size / 2) {
+            let angleToGob = Math.atan2(gob.y - pCenterY, gob.x - pCenterX);
+            let diffAngle = Math.abs(clickAngle - angleToGob);
+            if (diffAngle > Math.PI) diffAngle = 2 * Math.PI - diffAngle;
+
+            // 정면 부채꼴(약 80도) 또는 락온된 타겟이면 피격 성공
+            if (diffAngle < Math.PI * 0.45 || player.lockedTarget === gob) {
+                applyDamageToGoblin(totalDmg);
+            }
+        }
+    }
+    return true;
+}
+
 // 마우스 우클릭 시 현재 선택된 슬롯의 스킬 쿨타임을 점검하고 조준(aiming) 상태로 전환합니다.
 function aimCurrentQuickSlot() {
     const activeSkill = getActiveQuickSlotSkill();

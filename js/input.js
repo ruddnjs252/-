@@ -93,7 +93,9 @@
         }
         // [MOD-016-1-END]
 
-        // [MOD-016-2: 마우스 이동 및 클릭 상호작용 처리]
+        // [MOD-016-2: 마우스 상태 및 상호작용/전투 처리]
+        let isRightMouseDown = false;
+
         canvas.addEventListener("mousemove", (e) => {
             const rect = canvas.getBoundingClientRect();
             mouseX = (e.clientX - rect.left) * (canvas.width / rect.width);
@@ -102,7 +104,7 @@
 
         // [addFloatingText는 js/combat.js로 분리되었습니다.]
 
-        // [마우스/터치 월드 인터랙션 공통 처리기]
+        // [마우스/터치 월드 인터랙션 및 공격 처리기]
         function handleCanvasInteraction(clientX, clientY, isRightClick = false) {
             if (typeof isMenuOpen !== 'undefined' && isMenuOpen) return false; 
             if (gameState !== "playing") return false;
@@ -119,16 +121,19 @@
             const pCenterX = player.x + player.width / 2;
             const pCenterY = player.y + player.height / 2;
 
+            // 1) 우클릭 누름 -> 퀵슬롯 스킬 사용 준비(조준)
             if (isRightClick) { 
                 aimCurrentQuickSlot(); 
                 return true; 
             }
 
-            if (player.aimingSkill) { 
+            // 2) 우클릭이 눌린 상태에서 좌클릭이 눌린 경우 -> 스킬 사용!
+            if (isRightMouseDown && player.aimingSkill) { 
                 executeAimingSkill(); 
                 return true; 
             }
 
+            // 3) 일반 좌클릭 시: 맵 상호작용(아이템, 상자, NPC, 포탈) 우선 검사
             if (targetedFieldItem) {
                 let distToItem = Math.hypot(wMouseX - targetedFieldItem.x, wMouseY - targetedFieldItem.y);
                 if (distToItem < 45) { 
@@ -181,23 +186,41 @@
                     }
                 }
             }
-            
-            if (currentMap === "dungeon" && typeof MAP_DATA !== "undefined" && MAP_DATA.dungeon.goblin.active) {
-                const gob = MAP_DATA.dungeon.goblin;
-                if (Math.hypot(wMouseX - gob.x, wMouseY - gob.y) < gob.size) {
-                    player.lockedTarget = gob;
-                    addFloatingText(gob.x, gob.y - 30, "타겟 고정!", "red");
-                    return true;
-                } else {
-                    player.lockedTarget = null;
-                }
+
+            // 5) 상호작용 대상이 아니라면 -> 좌클릭 수동 기본 공격 실행!
+            if (typeof executeBasicAttack === "function") {
+                executeBasicAttack(wMouseX, wMouseY);
+                return true;
             }
 
             return false;
         }
 
         canvas.addEventListener("mousedown", (e) => {
-            handleCanvasInteraction(e.clientX, e.clientY, e.button === 2);
+            if (e.button === 2) {
+                isRightMouseDown = true;
+                handleCanvasInteraction(e.clientX, e.clientY, true);
+            } else if (e.button === 0) {
+                handleCanvasInteraction(e.clientX, e.clientY, false);
+            }
+        });
+
+        // 우클릭 해제 시 스킬 사용준비 취소
+        window.addEventListener("mouseup", (e) => {
+            if (e.button === 2) {
+                isRightMouseDown = false;
+                if (player && player.aimingSkill) {
+                    player.aimingSkill = null;
+                }
+            }
+        });
+
+        // 윈도우 포커스 해제 시 우클릭 상태 초기화
+        window.addEventListener("blur", () => {
+            isRightMouseDown = false;
+            if (player && player.aimingSkill) {
+                player.aimingSkill = null;
+            }
         });
 
         // 모바일 터치 탭 지원: 캔버스 터치 시 상자 네모 및 오브젝트 탭 상호작용

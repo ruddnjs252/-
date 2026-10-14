@@ -142,27 +142,7 @@
 
                 if (attackTimer > 0) attackTimer--;
 
-                if (attackTimer <= 0) { 
-                    const baseRange = 85;
-                    const totalDmg = (player.stats.str * 3) + 5; 
-
-                    if (currentMap === "dungeon" && typeof MAP_DATA !== "undefined" && MAP_DATA.dungeon.goblin.active) {
-                        const gob = MAP_DATA.dungeon.goblin;
-                        let targetToAttack = null;
-
-                        if (player.lockedTarget && Math.hypot(player.lockedTarget.x - pCenterX, player.lockedTarget.y - pCenterY) <= baseRange + player.lockedTarget.size / 2) {
-                            targetToAttack = player.lockedTarget;
-                        } else if (Math.hypot(gob.x - pCenterX, gob.y - pCenterY) <= baseRange + gob.size / 2) {
-                            targetToAttack = gob;
-                        }
-
-                        if (targetToAttack) {
-                            attackTimer = 30;
-                            player.lastAttackAngle = Math.atan2(targetToAttack.y - pCenterY, targetToAttack.x - pCenterX);
-                            applyDamageToGoblin(totalDmg);
-                        }
-                    }
-                }
+// [자동 공격 시스템 삭제: 좌클릭 수동 공격으로 대체]
 
             } else if (gameState === "knockback") {
                 player.x += player.knockbackDirX * 25;
