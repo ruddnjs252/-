@@ -1,112 +1,184 @@
 <!DOCTYPE html>
 <html lang="ko">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>UTU v0.2.1013.4</title>
-    
+    <title>UTU v0.2.7.1014.1</title>
+
     <link rel="stylesheet" href="css/style.css">
 </head>
+
 <body>
     <!-- [MOD-004: 오버레이 UI 및 캔버스 렌더링 영역] -->
     <!-- [MOD-004-1: 모바일 가상 패드 및 사다리형 퀵슬롯 HTML] -->
     <div id="vpad-container">
         <!-- 5칸 사다리형 슬롯 -->
         <div id="quick-slot-wrapper">
-            <div id="q-slot-0" class="q-slot-ladder q-slot-far"><div class="q-slot-inner"></div></div>
-            <div id="q-slot-1" class="q-slot-ladder q-slot-side"><div class="q-slot-inner"></div></div>
-            <div id="q-slot-2" class="q-slot-ladder q-slot-center"><div class="q-slot-inner"></div></div>
-            <div id="q-slot-3" class="q-slot-ladder q-slot-side"><div class="q-slot-inner"></div></div>
-            <div id="q-slot-4" class="q-slot-ladder q-slot-far"><div class="q-slot-inner"></div></div>
+            <div id="q-slot-0" class="q-slot-ladder q-slot-far">
+                <div class="q-slot-inner"></div>
+            </div>
+            <div id="q-slot-1" class="q-slot-ladder q-slot-side">
+                <div class="q-slot-inner"></div>
+            </div>
+            <div id="q-slot-2" class="q-slot-ladder q-slot-center">
+                <div class="q-slot-inner"></div>
+            </div>
+            <div id="q-slot-3" class="q-slot-ladder q-slot-side">
+                <div class="q-slot-inner"></div>
+            </div>
+            <div id="q-slot-4" class="q-slot-ladder q-slot-far">
+                <div class="q-slot-inner"></div>
+            </div>
         </div>
-        
-        <div id="vpad-stick-base"><div id="vpad-stick-knob"></div></div>
+
+        <div id="vpad-stick-base">
+            <div id="vpad-stick-knob"></div>
+        </div>
         <div id="vpad-atk" class="vpad-btn">공격</div>
         <div id="vpad-skill" class="vpad-btn">스킬</div>
         <div id="vpad-r" class="vpad-btn">R변경</div>
         <div id="vpad-e" class="vpad-btn">가방</div>
     </div>
     <!-- [MOD-004-1-END] -->
-    
+
     <!-- [MOD-004-2: 메인 게임 캔버스] -->
     <div id="gameContainer">
         <!-- 내부 렌더링 크기는 1000x750 기준이며, JS를 통해 브라우저 해상도에 맞춰 스케일링 됨 -->
         <canvas id="gameCanvas" width="1000" height="750"></canvas>
-    <!-- [MOD-004-END] -->
-        
+        <!-- [MOD-004-END] -->
+
         <!-- [MOD-005: 길드 가입 신청서 (캐릭터 생성) UI] -->
         <!-- [MOD-005-1: 스탯 분배 패널] -->
-        <div id="charCreationUI" class="ui-layer" style="display: none; flex-direction: column; align-items: center; justify-content: center;">
-            <div class="panel" style="width: 840px; height: 640px; background: #222; border: 2px solid #aaa; display: flex; flex-direction: column; align-items: center; justify-content: flex-start; position: relative;">
+        <div id="charCreationUI" class="ui-layer"
+            style="display: none; flex-direction: column; align-items: center; justify-content: center;">
+            <div class="panel"
+                style="width: 840px; height: 640px; background: #222; border: 2px solid #aaa; display: flex; flex-direction: column; align-items: center; justify-content: flex-start; position: relative;">
                 <h2 style="margin: 5px 0;">모험가 길드 가입 신청서</h2>
                 <input type="text" id="ccPlayerName" placeholder="캐릭터 이름 입력" maxlength="10">
                 <div style="margin-bottom: 15px;">
-                    <span style="margin: 0 5px;">남은 포인트: <span id="ccFreePoints" style="color: gold; font-weight: bold; font-size: 18px;">30</span></span>
+                    <span style="margin: 0 5px;">남은 포인트: <span id="ccFreePoints"
+                            style="color: gold; font-weight: bold; font-size: 18px;">30</span></span>
                     <span style="font-size: 12px; color: lightgray;">(스탯 조건 충족 시 중복 습득 가능)</span>
                 </div>
-                
-                <div style="display: flex; justify-content: space-between; width: 100%; text-align: left; flex: 1; overflow-y: auto; padding-bottom: 40px;">
+
+                <div
+                    style="display: flex; justify-content: space-between; width: 100%; text-align: left; flex: 1; overflow-y: auto; padding-bottom: 40px;">
                     <div style="width: 48%; display: flex; flex-direction: column; align-items: center;">
-                        <canvas id="ccRadarCanvas" width="320" height="250" style="background: transparent; border: none;"></canvas>
-                        
+                        <canvas id="ccRadarCanvas" width="320" height="250"
+                            style="background: transparent; border: none;"></canvas>
+
                         <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; width: 100%;">
-                            <div class="stat-control-box"><div class="stat-text">체력</div><button class="stat-btn" onclick="adjustStat('hp', -1)">-</button><strong id="st_hp" style="display:inline-block; width:20px; font-size:14px;">3</strong><button class="stat-btn" onclick="adjustStat('hp', 1)">+</button></div>
-                            <div class="stat-control-box"><div class="stat-text">힘</div><button class="stat-btn" onclick="adjustStat('str', -1)">-</button><strong id="st_str" style="display:inline-block; width:20px; font-size:14px;">3</strong><button class="stat-btn" onclick="adjustStat('str', 1)">+</button></div>
-                            <div class="stat-control-box"><div class="stat-text">민첩</div><button class="stat-btn" onclick="adjustStat('dex', -1)">-</button><strong id="st_dex" style="display:inline-block; width:20px; font-size:14px;">3</strong><button class="stat-btn" onclick="adjustStat('dex', 1)">+</button></div>
-                            <div class="stat-control-box"><div class="stat-text">마나</div><button class="stat-btn" onclick="adjustStat('mana', -1)">-</button><strong id="st_mana" style="display:inline-block; width:20px; font-size:14px;">3</strong><button class="stat-btn" onclick="adjustStat('mana', 1)">+</button></div>
-                            <div class="stat-control-box"><div class="stat-text">스테미나</div><button class="stat-btn" onclick="adjustStat('stamina', -1)">-</button><strong id="st_stamina" style="display:inline-block; width:20px; font-size:16px;">3</strong><button class="stat-btn" onclick="adjustStat('stamina', 1)">+</button></div>
-                            <div class="stat-control-box"><div class="stat-text">매력</div><button class="stat-btn" onclick="adjustStat('charm', -1)">-</button><strong id="st_charm" style="display:inline-block; width:20px; font-size:16px;">3</strong><button class="stat-btn" onclick="adjustStat('charm', 1)">+</button></div>
+                            <div class="stat-control-box">
+                                <div class="stat-text">체력</div><button class="stat-btn"
+                                    onclick="adjustStat('hp', -1)">-</button><strong id="st_hp"
+                                    style="display:inline-block; width:20px; font-size:14px;">3</strong><button
+                                    class="stat-btn" onclick="adjustStat('hp', 1)">+</button>
+                            </div>
+                            <div class="stat-control-box">
+                                <div class="stat-text">힘</div><button class="stat-btn"
+                                    onclick="adjustStat('str', -1)">-</button><strong id="st_str"
+                                    style="display:inline-block; width:20px; font-size:14px;">3</strong><button
+                                    class="stat-btn" onclick="adjustStat('str', 1)">+</button>
+                            </div>
+                            <div class="stat-control-box">
+                                <div class="stat-text">민첩</div><button class="stat-btn"
+                                    onclick="adjustStat('dex', -1)">-</button><strong id="st_dex"
+                                    style="display:inline-block; width:20px; font-size:14px;">3</strong><button
+                                    class="stat-btn" onclick="adjustStat('dex', 1)">+</button>
+                            </div>
+                            <div class="stat-control-box">
+                                <div class="stat-text">마나</div><button class="stat-btn"
+                                    onclick="adjustStat('mana', -1)">-</button><strong id="st_mana"
+                                    style="display:inline-block; width:20px; font-size:14px;">3</strong><button
+                                    class="stat-btn" onclick="adjustStat('mana', 1)">+</button>
+                            </div>
+                            <div class="stat-control-box">
+                                <div class="stat-text">스테미나</div><button class="stat-btn"
+                                    onclick="adjustStat('stamina', -1)">-</button><strong id="st_stamina"
+                                    style="display:inline-block; width:20px; font-size:16px;">3</strong><button
+                                    class="stat-btn" onclick="adjustStat('stamina', 1)">+</button>
+                            </div>
+                            <div class="stat-control-box">
+                                <div class="stat-text">매력</div><button class="stat-btn"
+                                    onclick="adjustStat('charm', -1)">-</button><strong id="st_charm"
+                                    style="display:inline-block; width:20px; font-size:16px;">3</strong><button
+                                    class="stat-btn" onclick="adjustStat('charm', 1)">+</button>
+                            </div>
                         </div>
                     </div>
-                    
+
                     <!-- [MOD-005-2: 직업 선택 패널] -->
-                    <div style="width: 48%; border-left: 1px solid #555; padding-left: 12px; display: flex; flex-direction: column;">
+                    <div
+                        style="width: 48%; border-left: 1px solid #555; padding-left: 12px; display: flex; flex-direction: column;">
                         <h4 style="margin: 0 0 5px 0; color: gold;">직업 목록</h4>
                         <div id="ccClassList" style="height: 310px; overflow-y: auto; padding-right: 5px;"></div>
                     </div>
                 </div>
-                <button id="ccStartBtn" class="btn" style="position: absolute; bottom: 10px; padding: 10px 40px; font-size: 16px; background: gray;" onclick="finishGuildJoin()" disabled>가입 완료</button>
+                <button id="ccStartBtn" class="btn"
+                    style="position: absolute; bottom: 10px; padding: 10px 40px; font-size: 16px; background: gray;"
+                    onclick="finishGuildJoin()" disabled>가입 완료</button>
             </div>
         </div>
         <!-- [MOD-005-END] -->
 
- <!-- [MOD-006: 통합 UI (ui_1 가방 & ui_2 인챈트/스킬 & ui_3 창고)] -->
+        <!-- [MOD-006: 통합 UI (ui_1 가방 & ui_2 인챈트/스킬 & ui_3 창고)] -->
         <div id="inventoryUI" class="ui-layer">
             <div class="inv-container" id="invMainContainer">
                 <!-- ★ [버그 수정] 닫기 버튼을 패널 바깥(-15px)이 아니라 안쪽(10px)으로 밀어넣고 z-index 부여 -->
-                <button class="close-btn" style="top: 10px; right: 10px; border-radius: 50%; width: 35px; height: 35px; padding: 0; z-index: 100;" onclick="closeUI()">X</button>
-                
+                <button class="close-btn"
+                    style="top: 10px; right: 10px; border-radius: 50%; width: 35px; height: 35px; padding: 0; z-index: 100;"
+                    onclick="closeUI()">X</button>
+
                 <div id="leftPanel">
                     <div id="equipSection">
-                        <div class="equip-slot slot-head" data-slot="head" onclick="selectEquipSlotForEnchant('머리', 'head')"><span class="slot-hint">머리</span></div>
-                        <div class="equip-slot slot-mainWeapon" data-slot="mainWeapon" onclick="selectEquipSlotForEnchant('주무기', 'mainWeapon')"><span class="slot-hint">주무기</span></div>
-                        <div class="equip-slot slot-chest" data-slot="chest" onclick="selectEquipSlotForEnchant('갑옷', 'chest')"><span class="slot-hint">갑옷</span></div>
-                        <div class="equip-slot slot-subWeapon" data-slot="subWeapon" onclick="selectEquipSlotForEnchant('부무기', 'subWeapon')"><span class="slot-hint">부무기</span></div>
-                        <div class="equip-slot slot-shoes" data-slot="shoes" onclick="selectEquipSlotForEnchant('신발', 'shoes')"><span class="slot-hint">신발</span></div>
-                        <div class="equip-slot slot-throwable" data-slot="throwable" onclick="selectEquipSlotForEnchant('투척', 'throwable')"><span class="slot-hint"></span></div>
+                        <div class="equip-slot slot-head" data-slot="head"
+                            onclick="selectEquipSlotForEnchant('머리', 'head')"><span class="slot-hint">머리</span></div>
+                        <div class="equip-slot slot-mainWeapon" data-slot="mainWeapon"
+                            onclick="selectEquipSlotForEnchant('주무기', 'mainWeapon')"><span class="slot-hint">주무기</span>
+                        </div>
+                        <div class="equip-slot slot-chest" data-slot="chest"
+                            onclick="selectEquipSlotForEnchant('갑옷', 'chest')"><span class="slot-hint">갑옷</span></div>
+                        <div class="equip-slot slot-subWeapon" data-slot="subWeapon"
+                            onclick="selectEquipSlotForEnchant('부무기', 'subWeapon')"><span class="slot-hint">부무기</span>
+                        </div>
+                        <div class="equip-slot slot-shoes" data-slot="shoes"
+                            onclick="selectEquipSlotForEnchant('신발', 'shoes')"><span class="slot-hint">신발</span></div>
+                        <div class="equip-slot slot-throwable" data-slot="throwable"
+                            onclick="selectEquipSlotForEnchant('투척', 'throwable')"><span class="slot-hint"></span></div>
                     </div>
-                    
+
                     <div id="artifactSection">
                         <span class="artifact-label">아티팩트</span>
-                        <div class="artifact-slot" data-slot="artifact_0" onclick="selectEquipSlotForEnchant('아티팩트1', 'artifact_0')"></div>
-                        <div class="artifact-slot" data-slot="artifact_1" onclick="selectEquipSlotForEnchant('아티팩트2', 'artifact_1')"></div>
-                        <div class="artifact-slot" data-slot="artifact_2" onclick="selectEquipSlotForEnchant('아티팩트3', 'artifact_2')"></div>
-                        <div class="artifact-slot" data-slot="artifact_3" onclick="selectEquipSlotForEnchant('아티팩트4', 'artifact_3')"></div>
-                        <div class="artifact-slot" data-slot="artifact_4" onclick="selectEquipSlotForEnchant('아티팩트5', 'artifact_4')"></div>
+                        <div class="artifact-slot" data-slot="artifact_0"
+                            onclick="selectEquipSlotForEnchant('아티팩트1', 'artifact_0')"></div>
+                        <div class="artifact-slot" data-slot="artifact_1"
+                            onclick="selectEquipSlotForEnchant('아티팩트2', 'artifact_1')"></div>
+                        <div class="artifact-slot" data-slot="artifact_2"
+                            onclick="selectEquipSlotForEnchant('아티팩트3', 'artifact_2')"></div>
+                        <div class="artifact-slot" data-slot="artifact_3"
+                            onclick="selectEquipSlotForEnchant('아티팩트4', 'artifact_3')"></div>
+                        <div class="artifact-slot" data-slot="artifact_4"
+                            onclick="selectEquipSlotForEnchant('아티팩트5', 'artifact_4')"></div>
                     </div>
-                    
+
                     <div id="statSection">
                         <div style="position: relative; width: 150px; height: 205px;">
-                            <canvas id="infoRadarCanvas" width="300" height="410" style="width: 150px; height: 205px; background: transparent; border: none; cursor: default; display: block;"></canvas>
-                            <div id="infoRadarCanvas_labels" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none;"></div>
+                            <canvas id="infoRadarCanvas" width="300" height="410"
+                                style="width: 150px; height: 205px; background: transparent; border: none; cursor: default; display: block;"></canvas>
+                            <div id="infoRadarCanvas_labels"
+                                style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none;">
+                            </div>
                         </div>
                     </div>
                 </div>
-                
+
                 <div id="rightPanel" style="display: flex; position: relative;">
-                    <button id="modeSwitchBtn" onclick="toggleRightPanelView()" style="position: absolute; left: -27px; top: 10px; background: #333; color: white; border: 2px solid #555; padding: 15px 5px; cursor: pointer; z-index: 10; border-radius: 4px 0 0 4px;">&raquo;</button>
-                    
-                    <div id="viewInventory" style="padding: 0; display: flex; flex-direction: column; width: 332px; height: 400px; max-height: 400px; overflow: hidden; box-sizing: border-box; position: relative; background: #111;">
+                    <button id="modeSwitchBtn" onclick="toggleRightPanelView()"
+                        style="position: absolute; left: -27px; top: 10px; background: #333; color: white; border: 2px solid #555; padding: 15px 5px; cursor: pointer; z-index: 10; border-radius: 4px 0 0 4px;">&raquo;</button>
+
+                    <div id="viewInventory"
+                        style="padding: 0; display: flex; flex-direction: column; width: 332px; height: 400px; max-height: 400px; overflow: hidden; box-sizing: border-box; position: relative; background: #111;">
                         <!-- 상단 가방 장착 바 (5개 슬롯) -->
                         <div id="invBagSlotBar" class="bag-slot-bar"></div>
                         <!-- 인벤토리 섹션 스크롤 컨테이너 -->
@@ -115,45 +187,60 @@
                                 <div class="inv-section-header">
                                     <span class="sec-title">📦 기본 소지품 (8 × 3)</span>
                                 </div>
-                                <div id="inventoryBoard_main" class="inventory-board" data-container="main" style="height: 120px;"></div>
+                                <div id="inventoryBoard_main" class="inventory-board" data-container="main"
+                                    style="height: 120px;"></div>
                             </div>
                         </div>
                     </div>
 
-                    <div id="viewEnchant" style="padding: 0; display: none; width: 332px; height: 400px; background-color: #1a1a1a; border: 2px solid #555; flex-direction: column; box-sizing: border-box; position: relative;">
-                        
+                    <div id="viewEnchant"
+                        style="padding: 0; display: none; width: 332px; height: 400px; background-color: #1a1a1a; border: 2px solid #555; flex-direction: column; box-sizing: border-box; position: relative;">
+
                         <!-- 1. 장비 인챈트 구역 (상단 205px로 확장) -->
-                        <div style="height: 205px; border-bottom: 2px solid #333; display: flex; flex-direction: row; padding: 10px 0; box-sizing: border-box;">
-                            <div style="width: 80px; display: flex; justify-content: center; align-items: center; border-right: 2px solid #333;">
+                        <div
+                            style="height: 205px; border-bottom: 2px solid #333; display: flex; flex-direction: row; padding: 10px 0; box-sizing: border-box;">
+                            <div
+                                style="width: 80px; display: flex; justify-content: center; align-items: center; border-right: 2px solid #333;">
                                 <div id="enchantTargetSlot" class="enchant-target-slot">
                                     <span class="enchant-target-hint" id="enchantTargetHint">장비<br>등록</span>
                                 </div>
                             </div>
-                            <div style="flex: 1; display: flex; flex-direction: column; padding: 0 10px; justify-content: center;">
-                                <div id="enchantContent" style="flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; color: gray; font-size: 11px; text-align: center;">
+                            <div
+                                style="flex: 1; display: flex; flex-direction: column; padding: 0 10px; justify-content: center;">
+                                <div id="enchantContent"
+                                    style="flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; color: gray; font-size: 11px; text-align: center;">
                                     좌측 장비창에서 장비를<br>클릭하여 올려주세요.
                                 </div>
                             </div>
                         </div>
 
                         <!-- 2. 스킬 덱 빌딩 구역 (하단 나머지) -->
-                        <div style="flex: 1; display: flex; flex-direction: column; padding: 4px 10px 6px 10px; box-sizing: border-box; overflow: hidden;">
-                            <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #444; padding-bottom: 1px; margin-bottom: 3px; height: 16px;">
-                                <span style="margin: 0; color: #00ffcc; font-size: 10px; font-weight: bold; line-height: 1;">보유 스킬</span>
+                        <div
+                            style="flex: 1; display: flex; flex-direction: column; padding: 4px 10px 6px 10px; box-sizing: border-box; overflow: hidden;">
+                            <div
+                                style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #444; padding-bottom: 1px; margin-bottom: 3px; height: 16px;">
+                                <span
+                                    style="margin: 0; color: #00ffcc; font-size: 10px; font-weight: bold; line-height: 1;">보유
+                                    스킬</span>
                                 <span style="font-size: 8px; color: gray; line-height: 1;">드래그하여 장착</span>
                             </div>
-                            
+
                             <!-- ★ 스킬 인벤토리: 가로 스크롤 제거, 한 줄 5칸, 세로 스크롤 활성화 -->
-                            <div id="skillListContainer" style="display: grid; grid-template-columns: repeat(5, 1fr); gap: 4px; overflow-y: scroll; overflow-x: hidden; flex: 1; min-height: 0; align-content: start; padding-right: 4px;">
+                            <div id="skillListContainer"
+                                style="display: grid; grid-template-columns: repeat(5, 1fr); gap: 4px; overflow-y: scroll; overflow-x: hidden; flex: 1; min-height: 0; align-content: start; padding-right: 4px;">
                                 <!-- 스킬 아이콘들이 JS로 생성됨 -->
                             </div>
-                            
+
                             <!-- 사다리 퀵슬롯 장착칸 (HUD 연동) -->
-                            <div style="margin-top: 5px; padding-top: 5px; border-top: 1px solid #333; display: flex; justify-content: center;">
-                                <div style="display: flex; border-top: 3px solid rgba(255,255,255,0.8); border-bottom: 3px solid rgba(255,255,255,0.8);">
+                            <div
+                                style="margin-top: 5px; padding-top: 5px; border-top: 1px solid #333; display: flex; justify-content: center;">
+                                <div
+                                    style="display: flex; border-top: 3px solid rgba(255,255,255,0.8); border-bottom: 3px solid rgba(255,255,255,0.8);">
                                     <div class="deck-slot" id="deck-slot-0" data-idx="0"></div>
                                     <div class="deck-slot" id="deck-slot-1" data-idx="1"></div>
-                                    <div class="deck-slot" id="deck-slot-2" data-idx="2" style="background: rgba(0, 255, 255, 0.15); border: 2px solid #00ffff; box-shadow: inset 0 0 10px rgba(0,255,255,0.5);"></div>
+                                    <div class="deck-slot" id="deck-slot-2" data-idx="2"
+                                        style="background: rgba(0, 255, 255, 0.15); border: 2px solid #00ffff; box-shadow: inset 0 0 10px rgba(0,255,255,0.5);">
+                                    </div>
                                     <div class="deck-slot" id="deck-slot-3" data-idx="3"></div>
                                     <div class="deck-slot" id="deck-slot-4" data-idx="4"></div>
                                 </div>
@@ -162,25 +249,37 @@
 
                         <div id="enchantPopupUI" class="enchant-popup"></div>
                     </div>
-                <!-- [추가] 개인 창고 패널 (가방 열렸을 때만 우측에 표시) -->
-                <div id="storagePanel" style="display: none; width: 320px; height: 400px; background-color: #1a1a1a; border: 2px solid #555; flex-direction: column; position: relative; box-sizing: content-box;">
-                    <h3 style="margin: 0; padding: 15px; background: #222; border-bottom: 2px solid #333; text-align: center; color: gold; font-size: 14px;">개인 창고</h3>
-                    <div id="storageBoard" class="inventory-board" style="border: none; border-top: 1px solid #555; width: 320px; height: 400px; position: relative; overflow: hidden;"></div>
+                    <!-- [추가] 개인 창고 패널 (가방 열렸을 때만 우측에 표시) -->
+                    <div id="storagePanel"
+                        style="display: none; width: 320px; height: 400px; background-color: #1a1a1a; border: 2px solid #555; flex-direction: column; position: relative; box-sizing: content-box;">
+                        <h3
+                            style="margin: 0; padding: 15px; background: #222; border-bottom: 2px solid #333; text-align: center; color: gold; font-size: 14px;">
+                            개인 창고</h3>
+                        <div id="storageBoard" class="inventory-board"
+                            style="border: none; border-top: 1px solid #555; width: 320px; height: 400px; position: relative; overflow: hidden;">
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
-    </div>
-    <!-- [MOD-006-END] -->
+        <!-- [MOD-006-END] -->
 
         <!-- [MOD-007: 개인 창고 UI (추후 그리드 시스템으로 연동 예정)] -->
         <div id="storageUI" class="ui-layer" style="display: none; flex-direction: column;">
             <div style="width: 100%; padding: 10px; background: #111; text-align: center;">
-                <h2 style="color: gold; margin: 0;">개인 창고 <span style="font-size: 14px; color: gray;">(타인 접근 불가)</span></h2>
+                <h2 style="color: gold; margin: 0;">개인 창고 <span style="font-size: 14px; color: gray;">(타인 접근 불가)</span>
+                </h2>
                 <button class="close-btn" onclick="closeUI()">X</button>
             </div>
             <div style="display: flex; height: 100%;">
-                <div class="panel" style="width: 50%; border-right: 2px solid #666;"><h3 style="margin-top:0;">내 가방 (클릭하여 보관)</h3><div id="storageInvList"></div></div>
-                <div class="panel" style="width: 50%;"><h3 style="margin-top:0;">창고 내부 (클릭하여 꺼내기)</h3><div id="storageBoxList"></div></div>
+                <div class="panel" style="width: 50%; border-right: 2px solid #666;">
+                    <h3 style="margin-top:0;">내 가방 (클릭하여 보관)</h3>
+                    <div id="storageInvList"></div>
+                </div>
+                <div class="panel" style="width: 50%;">
+                    <h3 style="margin-top:0;">창고 내부 (클릭하여 꺼내기)</h3>
+                    <div id="storageBoxList"></div>
+                </div>
             </div>
         </div>
         <!-- [MOD-007-END] -->
@@ -190,21 +289,24 @@
         <div id="npcMenuUI" class="ui-layer" style="display: none; justify-content: center; align-items: center;">
             <div class="panel" style="background: #222; border: 2px solid #aaa; min-width: 300px;">
                 <h2 id="npcMenuTitle" style="color: gold; margin-top:0;">메뉴</h2>
-                <div id="npcMenuContent" style="display: flex; flex-direction: column; gap: 10px; margin-top: 20px;"></div>
+                <div id="npcMenuContent" style="display: flex; flex-direction: column; gap: 10px; margin-top: 20px;">
+                </div>
                 <button class="btn" style="margin-top: 20px; width: 100%;" onclick="closeNPCMenu()">닫기</button>
             </div>
         </div>
 
         <!-- 체력이 0이 되었을 때 표시되는 데스 스크린 -->
-        <div id="deathUI" class="ui-layer" style="display: none; flex-direction: column; justify-content: center; align-items: center; background: rgba(150, 0, 0, 0.7);">
+        <div id="deathUI" class="ui-layer"
+            style="display: none; flex-direction: column; justify-content: center; align-items: center; background: rgba(150, 0, 0, 0.7);">
             <h1 style="color: white; font-size: 50px;">사망하셨습니다.</h1>
             <h3 style="color: lightgray;">접수원은 매우 강합니다...</h3>
-            <button class="btn" style="font-size: 20px; padding: 10px 20px; margin-top: 20px;" onclick="respawn()">길드에서 부활하기</button>
+            <button class="btn" style="font-size: 20px; padding: 10px 20px; margin-top: 20px;" onclick="respawn()">길드에서
+                부활하기</button>
         </div>
         <!-- [MOD-008-END] -->
     </div>
 
-    <!-- [UTU v0.2.6 기능별 스크립트 모듈 로더] -->
+    <!-- [UTU v0.2.7 기능별 스크립트 모듈 로더] -->
     <!-- 1. 정적 데이터 모듈 -->
     <script src="data/maps.js"></script>
     <script src="data/jobs.js"></script>
@@ -224,4 +326,5 @@
     <script src="js/main.js"></script>
 
 </body>
+
 </html>
