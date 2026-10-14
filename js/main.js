@@ -43,6 +43,31 @@
                     }
                 }
                 targetedFieldItem = bestTarget;
+
+                // [모바일 상자 접근 감지 및 vpad-e 버튼 동적 전환]
+                let isNearChest = false;
+                if (currentMap === "guild" && typeof MAP_DATA !== "undefined" && MAP_DATA.guild && MAP_DATA.guild.personalChest) {
+                    const chs = MAP_DATA.guild.personalChest;
+                    const distToChest = Math.hypot((chs.x + chs.w / 2) - pCenterX, (chs.y + chs.h / 2) - pCenterY);
+                    if (distToChest < 100) {
+                        isNearChest = true;
+                    }
+                }
+                window.isNearPersonalChest = isNearChest;
+                const vpadE = document.getElementById("vpad-e");
+                if (vpadE) {
+                    if (isNearChest) {
+                        if (vpadE.innerText !== "상자") {
+                            vpadE.innerText = "상자";
+                            vpadE.classList.add("vpad-chest");
+                        }
+                    } else {
+                        if (vpadE.innerText !== "가방") {
+                            vpadE.innerText = "가방";
+                            vpadE.classList.remove("vpad-chest");
+                        }
+                    }
+                }
             }
 
             if (gameState === "playing") {

@@ -27,7 +27,7 @@ document.head.appendChild(introStyle);
 const titleScreen = document.createElement("div");
 titleScreen.className = "intro-screen";
 titleScreen.innerHTML = `
-            <div style="position: absolute; top: 20px; right: 24px; font-size: 14px; color: #aaa; font-family: 'Consolas', 'Courier New', monospace; letter-spacing: 1px; background: rgba(255, 255, 255, 0.08); padding: 5px 12px; border-radius: 6px; border: 1px solid rgba(255, 255, 255, 0.15); pointer-events: none; z-index: 5001;">v0.2.7.1014.3</div>
+            <div style="position: absolute; top: 20px; right: 24px; font-size: 14px; color: #aaa; font-family: 'Consolas', 'Courier New', monospace; letter-spacing: 1px; background: rgba(255, 255, 255, 0.08); padding: 5px 12px; border-radius: 6px; border: 1px solid rgba(255, 255, 255, 0.15); pointer-events: none; z-index: 5001;">v0.2.7.1014.4</div>
             <div style="font-size: 48px; font-weight: bold; letter-spacing: 5px; cursor: pointer; text-shadow: 0 0 20px rgba(255,255,255,0.5);">Under To Under</div>
             <div style="margin-top: 30px; font-size: 14px; color: #888; animation: pulse-noti 1.5s infinite;">화면을 클릭하여 시작하세요</div>
         `;
@@ -58,7 +58,7 @@ const lobbyScreen = document.createElement("div");
 lobbyScreen.className = "intro-screen hidden-screen";
 lobbyScreen.style.backgroundColor = "#111"; // 추후 배경 이미지 삽입 가능
 lobbyScreen.innerHTML = `
-            <div style="position: absolute; top: 20px; right: 24px; font-size: 14px; color: #aaa; font-family: 'Consolas', 'Courier New', monospace; letter-spacing: 1px; background: rgba(255, 255, 255, 0.08); padding: 5px 12px; border-radius: 6px; border: 1px solid rgba(255, 255, 255, 0.15); pointer-events: none; z-index: 5001;">v0.2.7.1014.3</div>
+            <div style="position: absolute; top: 20px; right: 24px; font-size: 14px; color: #aaa; font-family: 'Consolas', 'Courier New', monospace; letter-spacing: 1px; background: rgba(255, 255, 255, 0.08); padding: 5px 12px; border-radius: 6px; border: 1px solid rgba(255, 255, 255, 0.15); pointer-events: none; z-index: 5001;">v0.2.7.1014.4</div>
             <div style="background: rgba(20,20,25,0.95); border: 2px solid #444; border-radius: 10px; padding: 30px; width: 420px; box-shadow: 0 10px 40px rgba(0,0,0,0.8); display: flex; flex-direction: column; gap: 20px; text-align: center;">
                 <div id="lobbyWelcomeMsg" style="color: white; font-size: 18px; font-weight: bold; border-bottom: 1px solid #333; padding-bottom: 15px;">환영합니다, 플레이어님</div>
                 
@@ -474,7 +474,7 @@ document.head.appendChild(sysStyle);
 // 4. 시스템 메뉴(반투명 배경 및 팝업) 동적 생성
 const sysMenuOverlay = document.createElement("div");
 sysMenuOverlay.id = "sysMenuOverlay";
-sysMenuOverlay.style.cssText = "position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0, 0, 0, 0.75); z-index: 3000; display: none; justify-content: center; align-items: center; backdrop-filter: blur(2px);";
+sysMenuOverlay.style.cssText = "position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0, 0, 0, 0.75); z-index: 15000; display: none; justify-content: center; align-items: center; backdrop-filter: blur(2px);";
 
 sysMenuOverlay.innerHTML = `
             <div id="sysMenuMain" style="background: #1a1a1a; border: 2px solid #444; border-radius: 8px; padding: 30px; width: 280px; text-align: center; box-shadow: 0 10px 40px rgba(0,0,0,0.8); display: flex; flex-direction: column; gap: 15px;">
@@ -498,7 +498,9 @@ document.body.appendChild(sysMenuOverlay);
 function toggleSystemMenu() {
     isMenuOpen = !isMenuOpen;
 
+    const vpad = document.getElementById("vpad-container");
     if (isMenuOpen) {
+        if (vpad) vpad.style.display = "none";
         sysMenuOverlay.style.display = "flex";
         document.getElementById("sysMenuMain").style.display = "flex";
         document.getElementById("sysMenuSettings").style.display = "none";
@@ -511,6 +513,9 @@ function toggleSystemMenu() {
     } else {
         sysMenuOverlay.style.display = "none";
         closeSysSettings();
+        if (gameState === "playing" && vpad) {
+            vpad.style.display = "block";
+        }
     }
 }
 

@@ -36,11 +36,15 @@
                 if (isInvOpen) {
                     if (typeof closeUI === "function") closeUI();
                 } else if (gameState === "playing") {
-                    gameState = "inventory";
-                    if (invUI) invUI.style.display = "flex";
-                    const vpad = document.getElementById("vpad-container");
-                    if (vpad) vpad.style.display = "none";
-                    if (typeof switchTab === "function") switchTab('inv');
+                    if (window.isNearPersonalChest && typeof openStorage === "function") {
+                        openStorage();
+                    } else {
+                        gameState = "inventory";
+                        if (invUI) invUI.style.display = "flex";
+                        const vpad = document.getElementById("vpad-container");
+                        if (vpad) vpad.style.display = "none";
+                        if (typeof switchTab === "function") switchTab('inv');
+                    }
                 }
             }
             
@@ -242,11 +246,15 @@
                 if (isInvOpen) {
                     if (typeof closeUI === "function") closeUI();
                 } else if (gameState === "playing") {
-                    gameState = "inventory";
-                    if (invUI) invUI.style.display = "flex";
-                    const vpad = document.getElementById("vpad-container");
-                    if (vpad) vpad.style.display = "none";
-                    if (typeof switchTab === "function") switchTab('inv');
+                    if (window.isNearPersonalChest && typeof openStorage === "function") {
+                        openStorage();
+                    } else {
+                        gameState = "inventory";
+                        if (invUI) invUI.style.display = "flex";
+                        const vpad = document.getElementById("vpad-container");
+                        if (vpad) vpad.style.display = "none";
+                        if (typeof switchTab === "function") switchTab('inv');
+                    }
                 }
             });
         })();
