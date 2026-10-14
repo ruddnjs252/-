@@ -4,9 +4,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>UTU v0.2.7.1014.2</title>
+    <title>UTU v0.2.7.1014.3</title>
 
-    <link rel="stylesheet" href="css/style.css?v=0.2.7.1014.2">
+    <link rel="stylesheet" href="css/style.css?v=0.2.7.1014.3">
 </head>
 
 <body>
@@ -125,11 +125,6 @@
         <!-- [MOD-006: 통합 UI (ui_1 가방 & ui_2 인챈트/스킬 & ui_3 창고)] -->
         <div id="inventoryUI" class="ui-layer">
             <div class="inv-container" id="invMainContainer">
-                <!-- ★ [버그 수정] 닫기 버튼을 패널 바깥(-15px)이 아니라 안쪽(10px)으로 밀어넣고 z-index 부여 -->
-                <button class="close-btn"
-                    style="top: 10px; right: 10px; border-radius: 50%; width: 35px; height: 35px; padding: 0; z-index: 100;"
-                    onclick="closeUI()">X</button>
-
                 <div id="leftPanel">
                     <div id="equipSection">
                         <div class="equip-slot slot-head" data-slot="head"
@@ -308,22 +303,22 @@
 
     <!-- [UTU v0.2.7 기능별 스크립트 모듈 로더 (캐시 방지 쿼리 파라미터 적용)] -->
     <!-- 1. 정적 데이터 모듈 -->
-    <script src="data/maps.js?v=0.2.7.1014.2"></script>
-    <script src="data/jobs.js?v=0.2.7.1014.2"></script>
-    <script src="data/items.js?v=0.2.7.1014.2"></script>
+    <script src="data/maps.js?v=0.2.7.1014.3"></script>
+    <script src="data/jobs.js?v=0.2.7.1014.3"></script>
+    <script src="data/items.js?v=0.2.7.1014.3"></script>
 
     <!-- 2. 코어 및 게임 시스템 모듈 -->
-    <script src="js/core.js?v=0.2.7.1014.2"></script>
-    <script src="js/world.js?v=0.2.7.1014.2"></script>
-    <script src="js/combat.js?v=0.2.7.1014.2"></script>
-    <script src="js/entities.js?v=0.2.7.1014.2"></script>
-    <script src="js/progression.js?v=0.2.7.1014.2"></script>
-    <script src="js/inventory.js?v=0.2.7.1014.2"></script>
-    <script src="js/ui.js?v=0.2.7.1014.2"></script>
-    <script src="js/input.js?v=0.2.7.1014.2"></script>
+    <script src="js/core.js?v=0.2.7.1014.3"></script>
+    <script src="js/world.js?v=0.2.7.1014.3"></script>
+    <script src="js/combat.js?v=0.2.7.1014.3"></script>
+    <script src="js/entities.js?v=0.2.7.1014.3"></script>
+    <script src="js/progression.js?v=0.2.7.1014.3"></script>
+    <script src="js/inventory.js?v=0.2.7.1014.3"></script>
+    <script src="js/ui.js?v=0.2.7.1014.3"></script>
+    <script src="js/input.js?v=0.2.7.1014.3"></script>
 
     <!-- 3. 메인 게임 루프 및 킥오프 모듈 -->
-    <script src="js/main.js?v=0.2.7.1014.2"></script>
+    <script src="js/main.js?v=0.2.7.1014.3"></script>
 
 </body>
 

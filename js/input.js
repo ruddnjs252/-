@@ -29,14 +29,18 @@
                 if (targetedFieldItem) pickupFieldItem(targetedFieldItem);
             }
 
-            if ((e.key.toLowerCase() === 'e' || e.key.toLowerCase() === 'i') && gameState !== "dead" && gameState !== "knockback") {
-                if (gameState === "playing") {
+            const isEKey = e.code === "KeyE" || (e.key && (e.key.toLowerCase() === 'e' || e.key === 'ㄷ' || e.key.toLowerCase() === 'i'));
+            if (isEKey && gameState !== "dead" && gameState !== "knockback") {
+                const invUI = document.getElementById("inventoryUI");
+                const isInvOpen = (invUI && invUI.style.display === "flex") || gameState === "inventory" || gameState === "storage";
+                if (isInvOpen) {
+                    if (typeof closeUI === "function") closeUI();
+                } else if (gameState === "playing") {
                     gameState = "inventory";
-                    document.getElementById("inventoryUI").style.display = "flex";
-                    document.getElementById("vpad-container").style.display = "none";
-                    if(typeof switchTab === "function") switchTab('inv');
-                } else {
-                    if(typeof closeUI === "function") closeUI();
+                    if (invUI) invUI.style.display = "flex";
+                    const vpad = document.getElementById("vpad-container");
+                    if (vpad) vpad.style.display = "none";
+                    if (typeof switchTab === "function") switchTab('inv');
                 }
             }
             
@@ -233,13 +237,16 @@
             if(btnE) btnE.addEventListener("touchstart", (e) => {
                 if (typeof isMenuOpen !== 'undefined' && isMenuOpen) return;
                 e.preventDefault();
-                if (gameState === "playing") {
+                const invUI = document.getElementById("inventoryUI");
+                const isInvOpen = (invUI && invUI.style.display === "flex") || gameState === "inventory" || gameState === "storage";
+                if (isInvOpen) {
+                    if (typeof closeUI === "function") closeUI();
+                } else if (gameState === "playing") {
                     gameState = "inventory";
-                    document.getElementById("inventoryUI").style.display = "flex";
-                    document.getElementById("vpad-container").style.display = "none";
-                    if(typeof switchTab === "function") switchTab('inv');
-                } else {
-                    if(typeof closeUI === "function") closeUI();
+                    if (invUI) invUI.style.display = "flex";
+                    const vpad = document.getElementById("vpad-container");
+                    if (vpad) vpad.style.display = "none";
+                    if (typeof switchTab === "function") switchTab('inv');
                 }
             });
         })();

@@ -27,7 +27,7 @@ document.head.appendChild(introStyle);
 const titleScreen = document.createElement("div");
 titleScreen.className = "intro-screen";
 titleScreen.innerHTML = `
-            <div style="position: absolute; top: 20px; right: 24px; font-size: 14px; color: #aaa; font-family: 'Consolas', 'Courier New', monospace; letter-spacing: 1px; background: rgba(255, 255, 255, 0.08); padding: 5px 12px; border-radius: 6px; border: 1px solid rgba(255, 255, 255, 0.15); pointer-events: none; z-index: 5001;">v0.2.7.1014.2</div>
+            <div style="position: absolute; top: 20px; right: 24px; font-size: 14px; color: #aaa; font-family: 'Consolas', 'Courier New', monospace; letter-spacing: 1px; background: rgba(255, 255, 255, 0.08); padding: 5px 12px; border-radius: 6px; border: 1px solid rgba(255, 255, 255, 0.15); pointer-events: none; z-index: 5001;">v0.2.7.1014.3</div>
             <div style="font-size: 48px; font-weight: bold; letter-spacing: 5px; cursor: pointer; text-shadow: 0 0 20px rgba(255,255,255,0.5);">Under To Under</div>
             <div style="margin-top: 30px; font-size: 14px; color: #888; animation: pulse-noti 1.5s infinite;">화면을 클릭하여 시작하세요</div>
         `;
@@ -58,7 +58,7 @@ const lobbyScreen = document.createElement("div");
 lobbyScreen.className = "intro-screen hidden-screen";
 lobbyScreen.style.backgroundColor = "#111"; // 추후 배경 이미지 삽입 가능
 lobbyScreen.innerHTML = `
-            <div style="position: absolute; top: 20px; right: 24px; font-size: 14px; color: #aaa; font-family: 'Consolas', 'Courier New', monospace; letter-spacing: 1px; background: rgba(255, 255, 255, 0.08); padding: 5px 12px; border-radius: 6px; border: 1px solid rgba(255, 255, 255, 0.15); pointer-events: none; z-index: 5001;">v0.2.7.1014.2</div>
+            <div style="position: absolute; top: 20px; right: 24px; font-size: 14px; color: #aaa; font-family: 'Consolas', 'Courier New', monospace; letter-spacing: 1px; background: rgba(255, 255, 255, 0.08); padding: 5px 12px; border-radius: 6px; border: 1px solid rgba(255, 255, 255, 0.15); pointer-events: none; z-index: 5001;">v0.2.7.1014.3</div>
             <div style="background: rgba(20,20,25,0.95); border: 2px solid #444; border-radius: 10px; padding: 30px; width: 420px; box-shadow: 0 10px 40px rgba(0,0,0,0.8); display: flex; flex-direction: column; gap: 20px; text-align: center;">
                 <div id="lobbyWelcomeMsg" style="color: white; font-size: 18px; font-weight: bold; border-bottom: 1px solid #333; padding-bottom: 15px;">환영합니다, 플레이어님</div>
                 
@@ -311,6 +311,48 @@ function closeUI() {
     if (vpad) vpad.style.display = "block";
     updateNotiBadges();
 }
+
+// [인벤토리 외부 배경 클릭/터치 시 닫기 핸들러]
+(function initInventoryBackdropClose() {
+    function setupBackdropListener() {
+        const invUI = document.getElementById("inventoryUI");
+        if (!invUI) return;
+
+        let isBackdropClick = false;
+        invUI.addEventListener("mousedown", (e) => {
+            isBackdropClick = (e.target === invUI);
+        });
+
+        invUI.addEventListener("mouseup", (e) => {
+            if (isBackdropClick && e.target === invUI) {
+                if (typeof dragItemState === "undefined" || !dragItemState.active) {
+                    closeUI();
+                }
+            }
+            isBackdropClick = false;
+        });
+
+        let isBackdropTouch = false;
+        invUI.addEventListener("touchstart", (e) => {
+            isBackdropTouch = (e.target === invUI);
+        }, { passive: true });
+
+        invUI.addEventListener("touchend", (e) => {
+            if (isBackdropTouch && e.target === invUI) {
+                if (typeof dragItemState === "undefined" || !dragItemState.active) {
+                    closeUI();
+                }
+            }
+            isBackdropTouch = false;
+        });
+    }
+
+    if (document.readyState === "loading") {
+        document.addEventListener("DOMContentLoaded", setupBackdropListener);
+    } else {
+        setupBackdropListener();
+    }
+})();
 
 function autoScaleInventory() {
     const container = document.querySelector('.inv-container');
