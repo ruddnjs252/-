@@ -90,12 +90,15 @@
                         player.dashTimer = 0; nextX = player.x; nextY = player.y; 
                     }
 
-                    if ((player.activeSkillType === "charge" || player.activeSkillType === "leap_attack") && currentMap === "dungeon" && typeof MAP_DATA !== "undefined" && MAP_DATA.dungeon.goblin.active) {
-                        let gob = MAP_DATA.dungeon.goblin;
-                        if (Math.hypot(nextX - gob.x, nextY - gob.y) < playerRadius + gob.size/2) {
-                            const dmg = (player.stats.str * 3) + (activeSkill ? activeSkill.bonusDmg : 0);
-                            applyDamageToGoblin(dmg);
-                        }
+                    if ((player.activeSkillType === "charge" || player.activeSkillType === "leap_attack") && currentMap === "dungeon" && typeof MAP_DATA !== "undefined" && MAP_DATA.dungeon) {
+                        const gobList = Array.isArray(MAP_DATA.dungeon.goblins) ? MAP_DATA.dungeon.goblins : (MAP_DATA.dungeon.goblin ? [MAP_DATA.dungeon.goblin] : []);
+                        gobList.forEach(gob => {
+                            if (!gob.active) return;
+                            if (Math.hypot(nextX - gob.x, nextY - gob.y) < playerRadius + gob.size/2) {
+                                const dmg = (player.stats.str * 3) + (activeSkill ? activeSkill.bonusDmg : 0);
+                                applyDamageToGoblin(dmg, gob);
+                            }
+                        });
                     }
                 } else {
                     let isMoving = keys["ArrowUp"] || keys["w"] || keys["s"] || keys["ArrowDown"] || keys["a"] || keys["ArrowLeft"] || keys["d"] || keys["ArrowRight"];
@@ -154,12 +157,21 @@
                     for (let i = projectiles.length - 1; i >= 0; i--) {
                         let p = projectiles[i];
 
-                        // ★ [추격(Homing) 인챈트 유도 비행]
-                        if (p.isHoming && currentMap === "dungeon" && typeof MAP_DATA !== "undefined" && MAP_DATA.dungeon.goblin.active) {
-                            const gob = MAP_DATA.dungeon.goblin;
-                            const gDist = Math.hypot(gob.x - p.x, gob.y - p.y);
-                            if (gDist < 480) {
-                                const targetAngle = Math.atan2(gob.y - p.y, gob.x - p.x);
+                        // ★ [추격(Homing) 인챈트 유도 비행: 가장 가까운 살아있는 고블린 탐색]
+                        if (p.isHoming && currentMap === "dungeon" && typeof MAP_DATA !== "undefined" && MAP_DATA.dungeon) {
+                            const gobList = Array.isArray(MAP_DATA.dungeon.goblins) ? MAP_DATA.dungeon.goblins : (MAP_DATA.dungeon.goblin ? [MAP_DATA.dungeon.goblin] : []);
+                            let closestGob = null;
+                            let closestDist = 500;
+                            for (const g of gobList) {
+                                if (!g.active || g.hp <= 0) continue;
+                                const d = Math.hypot(g.x - p.x, g.y - p.y);
+                                if (d < closestDist) {
+                                    closestDist = d;
+                                    closestGob = g;
+                                }
+                            }
+                            if (closestGob) {
+                                const targetAngle = Math.atan2(closestGob.y - p.y, closestGob.x - p.x);
                                 let curAngle = Math.atan2(p.vy, p.vx);
                                 let diff = targetAngle - curAngle;
                                 while (diff < -Math.PI) diff += Math.PI * 2;
@@ -196,10 +208,18 @@
                         }
 
                         // 던전 고블린 피격 검사 (몬스터에 박힌 화살은 회수 불가!)
-                        if (currentMap === "dungeon" && typeof MAP_DATA !== "undefined" && MAP_DATA.dungeon.goblin.active) {
-                            const gob = MAP_DATA.dungeon.goblin;
-                            if (Math.hypot(gob.x - p.x, gob.y - p.y) < gob.size / 2 + 12) {
-                                if (typeof applyDamageToGoblin === "function") applyDamageToGoblin(p.damage);
+                        if (currentMap === "dungeon" && typeof MAP_DATA !== "undefined" && MAP_DATA.dungeon) {
+                            const gobList = Array.isArray(MAP_DATA.dungeon.goblins) ? MAP_DATA.dungeon.goblins : (MAP_DATA.dungeon.goblin ? [MAP_DATA.dungeon.goblin] : []);
+                            let hitGob = null;
+                            for (const gob of gobList) {
+                                if (!gob.active || gob.hp <= 0) continue;
+                                if (Math.hypot(gob.x - p.x, gob.y - p.y) < gob.size / 2 + 12) {
+                                    hitGob = gob;
+                                    break;
+                                }
+                            }
+                            if (hitGob) {
+                                if (typeof applyDamageToGoblin === "function") applyDamageToGoblin(p.damage, hitGob);
                                 if (typeof addVisualEffect === "function") addVisualEffect(p.x, p.y, 25, "red");
                                 projectiles.splice(i, 1);
                                 continue;
@@ -269,9 +289,20 @@
                 ctx.textAlign = "center"; ctx.textBaseline = "middle";
                 ctx.fillText("개인 창고", chs.x + chs.w/2, chs.y - 10);
             } 
-            // 던전 고블린
-            else if (currentMap === "dungeon" && typeof MAP_DATA !== "undefined") {
-                // 던전 귀환 포탈 렌더링
+            // 던전 맵 오브젝트 (미로 벽, 보물 상자, 포탈, 다수 고블린)
+            else if (currentMap === "dungeon" && typeof MAP_DATA !== "undefined" && MAP_DATA.dungeon) {
+                // 1. 던전 임시 미로 벽 렌더링
+                if (Array.isArray(MAP_DATA.dungeon.walls)) {
+                    MAP_DATA.dungeon.walls.forEach(w => {
+                        ctx.fillStyle = "#272a36";
+                        ctx.fillRect(w.x, w.y, w.w, w.h);
+                        ctx.strokeStyle = "#495066";
+                        ctx.lineWidth = 2;
+                        ctx.strokeRect(w.x, w.y, w.w, w.h);
+                    });
+                }
+
+                // 2. 던전 귀환 포탈 렌더링
                 if (MAP_DATA.dungeon.portal) {
                     const dPor = MAP_DATA.dungeon.portal;
                     ctx.fillStyle = dPor.color; ctx.fillRect(dPor.x, dPor.y, dPor.w, dPor.h);
@@ -281,15 +312,54 @@
                     ctx.fillText("길드 귀환", dPor.x + dPor.w/2, dPor.y - 12);
                 }
 
-                let gob = MAP_DATA.dungeon.goblin;
-                if (gob.active) {
+                // 3. 던전 보물 상자 렌더링
+                if (Array.isArray(MAP_DATA.dungeon.chests)) {
+                    MAP_DATA.dungeon.chests.forEach(ch => {
+                        ctx.save();
+                        ctx.fillStyle = "rgba(0, 0, 0, 0.4)";
+                        ctx.fillRect(ch.x - 2, ch.y + 4, ch.w + 4, ch.h);
+
+                        ctx.fillStyle = ch.opened ? "#555" : "#b8860b";
+                        ctx.fillRect(ch.x, ch.y, ch.w, ch.h);
+                        ctx.strokeStyle = ch.opened ? "#777" : "#ffd700";
+                        ctx.lineWidth = 2;
+                        ctx.strokeRect(ch.x, ch.y, ch.w, ch.h);
+
+                        ctx.fillStyle = ch.opened ? "#333" : "#ffe066";
+                        ctx.fillRect(ch.x + ch.w / 2 - 3, ch.y + ch.h / 2 - 4, 6, 8);
+
+                        ctx.fillStyle = ch.opened ? "#888" : "gold";
+                        ctx.font = "bold 11px sans-serif";
+                        ctx.textAlign = "center";
+                        ctx.fillText(ch.opened ? "열린 상자" : "보물상자 [클릭/F]", ch.x + ch.w / 2, ch.y - 6);
+                        ctx.restore();
+                    });
+                }
+
+                // 4. 다수 고블린 AI 이동, 공격 및 렌더링
+                const gobList = Array.isArray(MAP_DATA.dungeon.goblins) ? MAP_DATA.dungeon.goblins : (MAP_DATA.dungeon.goblin ? [MAP_DATA.dungeon.goblin] : []);
+                gobList.forEach(gob => {
+                    if (!gob.active) return;
                     const dx = pCenterX - gob.x, dy = pCenterY - gob.y;
                     const dist = Math.hypot(dx, dy);
+
                     if (gameState === "playing") {
-                        if (dist > 20) {
-                            gob.x += (dx / dist) * gob.speed; gob.y += (dy / dist) * gob.speed;
+                        if (dist > 22) {
+                            let nextGx = gob.x + (dx / dist) * gob.speed;
+                            let nextGy = gob.y + (dy / dist) * gob.speed;
+                            if (typeof checkObstacleCollision === "function") {
+                                if (!checkObstacleCollision(nextGx - gob.size/2, nextGy - gob.size/2, gob.size, gob.size)) {
+                                    gob.x = nextGx; gob.y = nextGy;
+                                } else if (!checkObstacleCollision(nextGx - gob.size/2, gob.y - gob.size/2, gob.size, gob.size)) {
+                                    gob.x = nextGx;
+                                } else if (!checkObstacleCollision(gob.x - gob.size/2, nextGy - gob.size/2, gob.size, gob.size)) {
+                                    gob.y = nextGy;
+                                }
+                            } else {
+                                gob.x = nextGx; gob.y = nextGy;
+                            }
                         } else {
-                            if (Math.random() < 0.05) { 
+                            if (Math.random() < 0.04) { 
                                 player.currentHp -= gob.damage;
                                 addFloatingText(pCenterX, player.y - 10, gob.damage, "red");
                                 if (player.currentHp < 0) player.currentHp = 0; 
@@ -299,26 +369,32 @@
 
                     if (player.lockedTarget === gob) {
                         ctx.beginPath();
-                        ctx.arc(gob.x, gob.y, gob.size + 10, 0, Math.PI * 2);
+                        ctx.arc(gob.x, gob.y, gob.size + 8, 0, Math.PI * 2);
                         ctx.strokeStyle = "rgba(255, 0, 0, 0.8)";
-                        ctx.lineWidth = 3;
-                        ctx.setLineDash([6, 6]);
+                        ctx.lineWidth = 2.5;
+                        ctx.setLineDash([4, 4]);
                         ctx.stroke();
                         ctx.setLineDash([]);
                     }
 
-                    ctx.fillStyle = "limegreen";
-                    ctx.beginPath(); ctx.moveTo(gob.x, gob.y - gob.size / 2);
+                    ctx.fillStyle = "#32CD32";
+                    ctx.beginPath();
+                    ctx.moveTo(gob.x, gob.y - gob.size / 2);
                     ctx.lineTo(gob.x - gob.size / 2, gob.y + gob.size / 2);
-                    ctx.lineTo(gob.x + gob.size / 2, gob.y + gob.size / 2); ctx.fill();
+                    ctx.lineTo(gob.x + gob.size / 2, gob.y + gob.size / 2);
+                    ctx.closePath();
+                    ctx.fill();
+                    ctx.strokeStyle = "#1b5e20";
+                    ctx.lineWidth = 1.5;
+                    ctx.stroke();
 
-                    const tagY = gob.y - gob.size - 25;
-                    ctx.fillStyle = "rgba(0, 0, 0, 0.6)"; ctx.fillRect(gob.x - 40, tagY, 80, 16);
-                    ctx.fillStyle = "white"; ctx.font = "bold 12px sans-serif"; 
+                    const tagY = gob.y - gob.size - 18;
+                    ctx.fillStyle = "rgba(0, 0, 0, 0.6)"; ctx.fillRect(gob.x - 25, tagY, 50, 12);
+                    ctx.fillStyle = "white"; ctx.font = "bold 9px sans-serif"; 
                     ctx.textAlign = "center"; ctx.textBaseline = "middle";
-                    ctx.fillText(gob.name, gob.x, tagY + 8);
-                    ctx.fillStyle = "red"; ctx.fillRect(gob.x - 40, tagY + 18, 80 * Math.max(0, gob.hp / gob.maxHp), 3);
-                }
+                    ctx.fillText(gob.name, gob.x, tagY + 6);
+                    ctx.fillStyle = "red"; ctx.fillRect(gob.x - 25, tagY + 12, 50 * Math.max(0, gob.hp / gob.maxHp), 2.5);
+                });
             }
 
             // 필드 아이템 렌더링
@@ -624,6 +700,44 @@
                 ctx.fillStyle = "white"; ctx.fill(); ctx.strokeStyle = "black"; ctx.lineWidth = 1.5; ctx.stroke();
                 ctx.restore();
                 } // isBowEquipped else 종료
+            }
+
+            // ★ [던전 60도 부채꼴 시야각 제한 및 암흑 마스킹 효과]
+            if (currentMap === "dungeon" && gameState === "playing") {
+                ctx.save();
+                ctx.beginPath();
+                // 1. 전체 화면을 덮는 외부 사각형
+                const pad = 100;
+                ctx.rect(camera.x - pad, camera.y - pad, canvas.width + pad * 2, canvas.height + pad * 2);
+
+                // 2. 플레이어 조준 각도 기준 60도 부채꼴 빛 뚫기 (사거리 420px, aimAngle +- 30도)
+                const fovRadius = 420;
+                const fovHalfAngle = Math.PI / 6; // 30도
+                let wMouseX = mouseX + camera.x;
+                let wMouseY = mouseY + camera.y;
+                let curAimAngle = Math.atan2(wMouseY - pCenterY, wMouseX - pCenterX);
+
+                ctx.moveTo(pCenterX, pCenterY);
+                ctx.arc(pCenterX, pCenterY, fovRadius, curAimAngle - fovHalfAngle, curAimAngle + fovHalfAngle);
+                ctx.closePath();
+
+                // 3. 발밑 초근접 반경 35px 원형 조명 뚫기 (발밑 시야 확보)
+                ctx.moveTo(pCenterX + 35, pCenterY);
+                ctx.arc(pCenterX, pCenterY, 35, 0, Math.PI * 2);
+                ctx.closePath();
+
+                // Even-Odd 규칙으로 60도 부채꼴과 발밑을 제외한 영역을 암흑으로 채움
+                ctx.fillStyle = "rgba(6, 6, 12, 0.94)";
+                ctx.fill("evenodd");
+
+                // 시야 부채꼴 빛 테두리
+                ctx.strokeStyle = "rgba(255, 230, 160, 0.25)";
+                ctx.lineWidth = 1.5;
+                ctx.beginPath();
+                ctx.arc(pCenterX, pCenterY, fovRadius, curAimAngle - fovHalfAngle, curAimAngle + fovHalfAngle);
+                ctx.stroke();
+
+                ctx.restore();
             }
 
             for (let i = floatingTexts.length - 1; i >= 0; i--) {

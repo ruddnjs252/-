@@ -32,7 +32,16 @@
             if (isEKey && gameState === "playing") handleEKey();
             
             if (e.key.toLowerCase() === 'f' && gameState === "playing") {
-                if (targetedFieldItem) pickupFieldItem(targetedFieldItem);
+                if (targetedFieldItem) {
+                    pickupFieldItem(targetedFieldItem);
+                } else if (currentMap === "dungeon" && typeof MAP_DATA !== "undefined" && Array.isArray(MAP_DATA.dungeon.chests)) {
+                    const pCenterX = player.x + player.width / 2;
+                    const pCenterY = player.y + player.height / 2;
+                    const nearChest = MAP_DATA.dungeon.chests.find(ch => !ch.opened && Math.hypot((ch.x + ch.w/2) - pCenterX, (ch.y + ch.h/2) - pCenterY) < 100);
+                    if (nearChest && typeof openDungeonChest === "function") {
+                        openDungeonChest(nearChest);
+                    }
+                }
             }
 
             // [Tab키 / I키: 인벤토리 및 창고 토글 (열기/닫기)]
@@ -184,6 +193,24 @@
                         if (Math.hypot((dPor.x + dPor.w / 2) - pCenterX, (dPor.y + dPor.h / 2) - pCenterY) < 120) {
                             openNPCMenu('dungeon_portal');
                             return true;
+                        }
+                    }
+                }
+                // 던전 보물 상자 클릭 판정
+                if (Array.isArray(MAP_DATA.dungeon.chests)) {
+                    for (const ch of MAP_DATA.dungeon.chests) {
+                        if (wMouseX >= ch.x - 5 && wMouseX <= ch.x + ch.w + 5 && wMouseY >= ch.y - 5 && wMouseY <= ch.y + ch.h + 5) {
+                            if (Math.hypot((ch.x + ch.w / 2) - pCenterX, (ch.y + ch.h / 2) - pCenterY) < 110) {
+                                if (typeof openDungeonChest === "function") {
+                                    openDungeonChest(ch);
+                                    return true;
+                                }
+                            } else {
+                                if (typeof addFloatingText === "function") {
+                                    addFloatingText(player.x, player.y - 30, "상자가 너무 멉니다", "orange");
+                                }
+                                return true;
+                            }
                         }
                     }
                 }

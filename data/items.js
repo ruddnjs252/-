@@ -28,7 +28,8 @@ const ITEM_DB = {
         type: "potion", 
         shape: [[1]], 
         color: "rgba(200, 50, 50, 0.9)",
-        desc: "체력을 회복시켜 주는 붉은 물약이다."
+        healAmount: 50,
+        desc: "체력을 50 회복시켜 주는 붉은 물약이다."
     }, 
     // [ㄱ자 도끼]: 주무기(mainWeapon) 전용
     "axe_battle":   { 

@@ -51,16 +51,72 @@ function attackReceptionist() {
     gameState = "knockback";
 }
 
-// 데스 스크린에서 '길드에서 부활하기' 버튼 클릭 시 스탯을 모두 회복시키고 길드 중앙으로 좌표를 옮깁니다.
+// ★ [던전 고블린 다수 스폰 관리]
+const GOBLIN_SPAWN_POINTS = [
+    { x: 1350, y: 1300 }, { x: 1650, y: 1300 },
+    { x: 1250, y: 1500 }, { x: 1750, y: 1500 },
+    { x: 1350, y: 1780 }, { x: 1650, y: 1780 },
+    { x: 1180, y: 1180 }, { x: 1820, y: 1180 },
+    { x: 1180, y: 1820 }, { x: 1820, y: 1820 },
+    { x: 1500, y: 1080 }, { x: 1500, y: 1920 }
+];
+
+function spawnDungeonGoblins() {
+    if (!MAP_DATA || !MAP_DATA.dungeon) return;
+    MAP_DATA.dungeon.goblins = GOBLIN_SPAWN_POINTS.map((pt, idx) => ({
+        id: "goblin_" + idx + "_" + Date.now(),
+        x: pt.x,
+        y: pt.y,
+        size: 30,
+        hp: 120,
+        maxHp: 120,
+        name: `고블린 lv${(idx % 3) + 1}`,
+        speed: 0.65 + (idx % 4) * 0.08,
+        damage: 2,
+        expReward: 20,
+        active: true
+    }));
+    if (MAP_DATA.dungeon.goblins.length > 0) {
+        MAP_DATA.dungeon.goblin = MAP_DATA.dungeon.goblins[0];
+    }
+}
+window.spawnDungeonGoblins = spawnDungeonGoblins;
+
+// ★ [던전 보물 상자 스폰 관리]
+const CHEST_SPAWN_POINTS = [
+    { x: 1000, y: 1000 },
+    { x: 2000, y: 1000 },
+    { x: 1000, y: 2000 },
+    { x: 2000, y: 2000 },
+    { x: 1500, y: 980 }
+];
+
+function spawnDungeonChests() {
+    if (!MAP_DATA || !MAP_DATA.dungeon) return;
+    MAP_DATA.dungeon.chests = CHEST_SPAWN_POINTS.map((pt, idx) => ({
+        id: "dungeon_chest_" + idx,
+        x: pt.x - 18,
+        y: pt.y - 18,
+        w: 36,
+        h: 36,
+        opened: false,
+        name: "보물상자"
+    }));
+}
+window.spawnDungeonChests = spawnDungeonChests;
+
+// 데스 스크린에서 '길드에서 부활하기' 클릭 시
 function respawn() {
     player.currentHp = player.maxHp;
     player.currentStamina = player.maxStamina;
     player.currentMana = player.maxMana;
     player.x = 500; player.y = 500;
     currentMap = "guild";
-    // 던전에 있던 몬스터(고블린)의 상태를 비활성화(어그로 해제) 시킵니다.
     if (typeof MAP_DATA !== "undefined" && MAP_DATA.dungeon) {
         MAP_DATA.dungeon.goblin.active = false;
+        if (Array.isArray(MAP_DATA.dungeon.goblins)) {
+            MAP_DATA.dungeon.goblins.forEach(g => g.active = false);
+        }
     }
     player.aimingSkill = null;
     player.dashTimer = 0;
@@ -75,26 +131,26 @@ function takeQuest() {
     closeNPCMenu();
 }
 
-// 포탈을 타고 던전으로 진입할 때 몬스터를 활성화시키고 좌표를 재설정합니다.
+// 포탈을 타고 던전으로 진입할 때 미로 몬스터 및 상자를 활성화
 function enterDungeon() {
     currentMap = "dungeon";
     player.x = 1500; player.y = 1500; 
-    if (typeof MAP_DATA !== "undefined" && MAP_DATA.dungeon) {
-        MAP_DATA.dungeon.goblin.hp = MAP_DATA.dungeon.goblin.maxHp; 
-        MAP_DATA.dungeon.goblin.x = 1500; MAP_DATA.dungeon.goblin.y = 1350;
-        MAP_DATA.dungeon.goblin.active = true;
-    }
+    spawnDungeonGoblins();
+    spawnDungeonChests();
     player.aimingSkill = null;
     player.dashTimer = 0;
     closeNPCMenu();
 }
 
-// 던전에서 다시 길드로 안전하게 귀환합니다.
+// 던전에서 다시 길드로 안전하게 귀환
 function returnToGuild() {
     currentMap = "guild";
     player.x = 100; player.y = 350;
     if (typeof MAP_DATA !== "undefined" && MAP_DATA.dungeon) {
         MAP_DATA.dungeon.goblin.active = false;
+        if (Array.isArray(MAP_DATA.dungeon.goblins)) {
+            MAP_DATA.dungeon.goblins.forEach(g => g.active = false);
+        }
     }
     player.aimingSkill = null;
     player.dashTimer = 0;

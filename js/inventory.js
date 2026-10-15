@@ -1163,6 +1163,110 @@ function showTooltip(e, itemObj) {
           }
       }
 
+      // ★ [소비 아이템 사용 기능 (체력 포션 등)]
+      function useItem(itemObj, sourceName) {
+          const baseItem = ITEM_DB[itemObj.baseId];
+          if (!baseItem) return;
+
+          if (baseItem.type === "potion" || itemObj.baseId === "potion_hp") {
+              const heal = baseItem.healAmount || 50;
+              if (player.currentHp >= player.maxHp) {
+                  if (typeof addFloatingText === "function") {
+                      addFloatingText(player.x, player.y - 30, "체력이 이미 가득 찼습니다!", "orange");
+                  }
+                  return;
+              }
+
+              player.currentHp = Math.min(player.maxHp, player.currentHp + heal);
+              
+              if (typeof addFloatingText === "function") {
+                  addFloatingText(player.x, player.y - 30, `+${heal} HP`, "#00ff88");
+              }
+              if (typeof addVisualEffect === "function") {
+                  addVisualEffect(player.x + player.width / 2, player.y + player.height / 2, 40, "#00ff88");
+              }
+
+              // 포션 수량 차감
+              const targetArr = sourceName === "storage" ? personalStorage : myInventoryItems;
+              const idx = targetArr.findIndex(i => (i.id || i.uid) === (itemObj.id || itemObj.uid));
+              if (idx > -1) {
+                  if (targetArr[idx].count && targetArr[idx].count > 1) {
+                      targetArr[idx].count--;
+                  } else {
+                      targetArr.splice(idx, 1);
+                  }
+              }
+
+              renderGridInventory();
+          }
+      }
+      window.useItem = useItem;
+
+      // ★ [던전 보물 상자 개봉 및 전리품 드롭]
+      function openDungeonChest(chest) {
+          if (!chest || chest.opened) return;
+          chest.opened = true;
+
+          if (typeof addVisualEffect === "function") {
+              addVisualEffect(chest.x + chest.w / 2, chest.y + chest.h / 2, 60, "gold");
+          }
+          if (typeof addFloatingText === "function") {
+              addFloatingText(chest.x + chest.w / 2, chest.y - 15, "보물상자 개봉!", "gold");
+          }
+
+          if (typeof fieldItems !== "undefined") {
+              const dropOffset = [
+                  { dx: -25, dy: -25 },
+                  { dx: 25, dy: -25 },
+                  { dx: -25, dy: 25 },
+                  { dx: 25, dy: 25 }
+              ];
+
+              // 1. 포션 드롭
+              fieldItems.push({
+                  id: "chest_pot_" + Date.now() + "_" + Math.random().toString(36).substr(2, 4),
+                  baseId: "potion_hp",
+                  count: 1,
+                  rot: 0,
+                  x: chest.x + 18 + dropOffset[0].dx,
+                  y: chest.y + 18 + dropOffset[0].dy
+              });
+
+              // 2. 가방 드롭 (소형 or 중형 가방)
+              const bagType = Math.random() < 0.6 ? "bag_small" : "bag_medium";
+              fieldItems.push({
+                  id: "chest_bag_" + Date.now() + "_" + Math.random().toString(36).substr(2, 4),
+                  baseId: bagType,
+                  rot: 0,
+                  x: chest.x + 18 + dropOffset[1].dx,
+                  y: chest.y + 18 + dropOffset[1].dy
+              });
+
+              // 3. 화살 묶음 드롭 (16 ~ 32개)
+              const arrowCount = Math.floor(Math.random() * 16) + 16;
+              fieldItems.push({
+                  id: "chest_arrow_" + Date.now() + "_" + Math.random().toString(36).substr(2, 4),
+                  baseId: "arrow",
+                  count: arrowCount,
+                  rot: 0,
+                  x: chest.x + 18 + dropOffset[2].dx,
+                  y: chest.y + 18 + dropOffset[2].dy
+              });
+
+              // 4. 인챈트 두루마리 (추격, 분열, 강타 중 랜덤)
+              const scrollPool = ["scroll_smite", "scroll_homing", "scroll_split"];
+              const randScroll = scrollPool[Math.floor(Math.random() * scrollPool.length)];
+              fieldItems.push({
+                  id: "chest_scroll_" + Date.now() + "_" + Math.random().toString(36).substr(2, 4),
+                  baseId: randScroll,
+                  rot: 0,
+                  x: chest.x + 18 + dropOffset[3].dx,
+                  y: chest.y + 18 + dropOffset[3].dy
+              });
+          }
+      }
+      window.openDungeonChest = openDungeonChest;
+
       // [상단 5구 가방 슬롯 바 UI 렌더링]
       function renderBagSlotsUI() {
           const bar = document.getElementById("invBagSlotBar");

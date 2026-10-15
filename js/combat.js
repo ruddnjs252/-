@@ -316,20 +316,21 @@ function executeBasicAttack(wMouseX, wMouseY) {
     const totalDmg = (player.stats.str * 3) + 5;
 
     // 던전 고블린 적중 판정 (사거리 내 + 마우스 부채꼴 방향 판정)
-    if (currentMap === "dungeon" && typeof MAP_DATA !== "undefined" && MAP_DATA.dungeon.goblin.active) {
-        const gob = MAP_DATA.dungeon.goblin;
-        const dist = Math.hypot(gob.x - pCenterX, gob.y - pCenterY);
+    if (currentMap === "dungeon" && typeof MAP_DATA !== "undefined" && MAP_DATA.dungeon) {
+        const gobList = Array.isArray(MAP_DATA.dungeon.goblins) ? MAP_DATA.dungeon.goblins : (MAP_DATA.dungeon.goblin ? [MAP_DATA.dungeon.goblin] : []);
+        gobList.forEach(gob => {
+            if (!gob.active) return;
+            const dist = Math.hypot(gob.x - pCenterX, gob.y - pCenterY);
+            if (dist <= baseRange + gob.size / 2) {
+                let angleToGob = Math.atan2(gob.y - pCenterY, gob.x - pCenterX);
+                let diffAngle = Math.abs(clickAngle - angleToGob);
+                if (diffAngle > Math.PI) diffAngle = 2 * Math.PI - diffAngle;
 
-        if (dist <= baseRange + gob.size / 2) {
-            let angleToGob = Math.atan2(gob.y - pCenterY, gob.x - pCenterX);
-            let diffAngle = Math.abs(clickAngle - angleToGob);
-            if (diffAngle > Math.PI) diffAngle = 2 * Math.PI - diffAngle;
-
-            // 정면 부채꼴(약 80도) 또는 락온된 타겟이면 피격 성공
-            if (diffAngle < Math.PI * 0.45 || player.lockedTarget === gob) {
-                applyDamageToGoblin(totalDmg);
+                if (diffAngle < Math.PI * 0.45 || player.lockedTarget === gob) {
+                    applyDamageToGoblin(totalDmg, gob);
+                }
             }
-        }
+        });
     }
     return true;
 }
@@ -389,10 +390,14 @@ function executeAimingSkill() {
 
         const totalDmg = (player.stats.str * 3) + activeSkill.bonusDmg;
         // 고블린이 범위 내에 있다면 광역 데미지
-        if (currentMap === "dungeon" && typeof MAP_DATA !== "undefined" && MAP_DATA.dungeon.goblin.active) {
-            if (Math.hypot(MAP_DATA.dungeon.goblin.x - slamX, MAP_DATA.dungeon.goblin.y - slamY) < 80 + MAP_DATA.dungeon.goblin.size / 2) {
-                applyDamageToGoblin(totalDmg);
-            }
+        if (currentMap === "dungeon" && typeof MAP_DATA !== "undefined" && MAP_DATA.dungeon) {
+            const gobList = Array.isArray(MAP_DATA.dungeon.goblins) ? MAP_DATA.dungeon.goblins : (MAP_DATA.dungeon.goblin ? [MAP_DATA.dungeon.goblin] : []);
+            gobList.forEach(gob => {
+                if (!gob.active) return;
+                if (Math.hypot(gob.x - slamX, gob.y - slamY) < 80 + gob.size / 2) {
+                    applyDamageToGoblin(totalDmg, gob);
+                }
+            });
         }
         player.aimingSkill = null;
         return true;
@@ -540,18 +545,30 @@ function executeAimingSkill() {
 }
 
 // [MOD-015-4: 타격 및 경험치/레벨업 로직]
-function applyDamageToGoblin(dmg) {
-    let gob = MAP_DATA.dungeon.goblin;
+function applyDamageToGoblin(dmg, targetGob) {
+    let gob = targetGob || (MAP_DATA.dungeon && Array.isArray(MAP_DATA.dungeon.goblins) && MAP_DATA.dungeon.goblins.length > 0 ? MAP_DATA.dungeon.goblins[0] : MAP_DATA.dungeon.goblin);
+    if (!gob || !gob.active) return;
+
     gob.hp -= dmg;
     addFloatingText(gob.x, gob.y - gob.size, dmg, "orange"); // 딜 캐치 텍스트
     
-    // 고블린 체력 소진 시 맵 랜덤 위치에 즉시 리스폰 및 경험치 처리
+    // 고블린 체력 소진 시 미로 통로 랜덤 위치에 리스폰 및 경험치 처리
     if (gob.hp <= 0) {
         gob.hp = gob.maxHp;
-        gob.x = Math.random() * (WORLD_WIDTH - 200) + 100;
-        gob.y = Math.random() * (WORLD_HEIGHT - 200) + 100;
         
-        player.lockedTarget = null; // 죽었으므로 락온 해제
+        // 미로 스폰 포인트 목록에서 랜덤 선택
+        if (typeof GOBLIN_SPAWN_POINTS !== "undefined" && GOBLIN_SPAWN_POINTS.length > 0) {
+            const randPt = GOBLIN_SPAWN_POINTS[Math.floor(Math.random() * GOBLIN_SPAWN_POINTS.length)];
+            gob.x = randPt.x + (Math.random() * 40 - 20);
+            gob.y = randPt.y + (Math.random() * 40 - 20);
+        } else {
+            gob.x = Math.random() * 800 + 1100;
+            gob.y = Math.random() * 800 + 1100;
+        }
+        
+        if (player.lockedTarget === gob) {
+            player.lockedTarget = null; // 죽었으므로 락온 해제
+        }
 
         player.exp += gob.expReward;
         // 경험치 임계치 도달 시 레벨업 및 상태 풀 회복
