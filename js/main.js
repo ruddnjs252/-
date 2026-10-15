@@ -20,8 +20,9 @@
             }
 
             if (gameState === "playing") {
-                let wMouseX = mouseX + camera.x;
-                let wMouseY = mouseY + camera.y;
+                const curZoom = (typeof cameraZoom !== "undefined") ? cameraZoom : 1.0;
+                let wMouseX = (mouseX / curZoom) + camera.x;
+                let wMouseY = (mouseY / curZoom) + camera.y;
                 let minScore = Infinity;
                 let bestTarget = null;
                 const PICKUP_RADIUS = 105; 
@@ -254,13 +255,17 @@
                 }
             }
 
-            camera.x = player.x - canvas.width / 2;
-            camera.y = player.y - canvas.height / 2;
-            camera.x = Math.max(0, Math.min(camera.x, WORLD_WIDTH - canvas.width));
-            camera.y = Math.max(0, Math.min(camera.y, WORLD_HEIGHT - canvas.height));
+            const curZoom = (typeof cameraZoom !== "undefined") ? cameraZoom : 1.0;
+            const viewW = canvas.width / curZoom;
+            const viewH = canvas.height / curZoom;
+            camera.x = player.x - viewW / 2;
+            camera.y = player.y - viewH / 2;
+            camera.x = Math.max(0, Math.min(camera.x, WORLD_WIDTH - viewW));
+            camera.y = Math.max(0, Math.min(camera.y, WORLD_HEIGHT - viewH));
 
-            // === [월드 렌더링 시작] ===
+            // === [월드 렌더링 시작 (카메라 줌인 스케일 적용)] ===
             ctx.save();
+            ctx.scale(curZoom, curZoom);
             ctx.translate(-camera.x, -camera.y);
 
             // 타일 격자
@@ -475,8 +480,9 @@
 
             // 무기 및 조준선 렌더링
             if (gameState === "playing") {
-                let wMouseX = mouseX + camera.x;
-                let wMouseY = mouseY + camera.y;
+                const curZoom = (typeof cameraZoom !== "undefined") ? cameraZoom : 1.0;
+                let wMouseX = (mouseX / curZoom) + camera.x;
+                let wMouseY = (mouseY / curZoom) + camera.y;
                 const aimAngle = Math.atan2(wMouseY - pCenterY, wMouseX - pCenterX);
 
                 if (player.aimingSkill === "leap_only") {
@@ -702,19 +708,22 @@
                 } // isBowEquipped else 종료
             }
 
-            // ★ [던전 60도 부채꼴 시야각 제한 및 암흑 마스킹 효과]
+            // ★ [던전 60도 부채꼴 시야각 제한 및 암흑 마스킹 효과 (투명도 부여: 0.75)]
             if (currentMap === "dungeon" && gameState === "playing") {
                 ctx.save();
                 ctx.beginPath();
                 // 1. 전체 화면을 덮는 외부 사각형
-                const pad = 100;
-                ctx.rect(camera.x - pad, camera.y - pad, canvas.width + pad * 2, canvas.height + pad * 2);
+                const curZoom = (typeof cameraZoom !== "undefined") ? cameraZoom : 1.0;
+                const viewW = canvas.width / curZoom;
+                const viewH = canvas.height / curZoom;
+                const pad = 200;
+                ctx.rect(camera.x - pad, camera.y - pad, viewW + pad * 2, viewH + pad * 2);
 
                 // 2. 플레이어 조준 각도 기준 60도 부채꼴 빛 뚫기 (사거리 420px, aimAngle +- 30도)
                 const fovRadius = 420;
                 const fovHalfAngle = Math.PI / 6; // 30도
-                let wMouseX = mouseX + camera.x;
-                let wMouseY = mouseY + camera.y;
+                let wMouseX = (mouseX / curZoom) + camera.x;
+                let wMouseY = (mouseY / curZoom) + camera.y;
                 let curAimAngle = Math.atan2(wMouseY - pCenterY, wMouseX - pCenterX);
 
                 ctx.moveTo(pCenterX, pCenterY);
@@ -726,8 +735,8 @@
                 ctx.arc(pCenterX, pCenterY, 35, 0, Math.PI * 2);
                 ctx.closePath();
 
-                // Even-Odd 규칙으로 60도 부채꼴과 발밑을 제외한 영역을 암흑으로 채움
-                ctx.fillStyle = "rgba(6, 6, 12, 0.94)";
+                // Even-Odd 규칙으로 60도 부채꼴과 발밑을 제외한 영역을 반투명 암흑(0.75)으로 채움
+                ctx.fillStyle = "rgba(6, 6, 12, 0.75)";
                 ctx.fill("evenodd");
 
                 // 시야 부채꼴 빛 테두리

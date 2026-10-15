@@ -125,8 +125,9 @@
             mouseX = canvasX;
             mouseY = canvasY;
 
-            let wMouseX = canvasX + camera.x;
-            let wMouseY = canvasY + camera.y;
+            const curZoom = (typeof cameraZoom !== "undefined") ? cameraZoom : 1.0;
+            let wMouseX = (canvasX / curZoom) + camera.x;
+            let wMouseY = (canvasY / curZoom) + camera.y;
             const pCenterX = player.x + player.width / 2;
             const pCenterY = player.y + player.height / 2;
 
@@ -247,8 +248,9 @@
         window.addEventListener("mouseup", (e) => {
             if (e.button === 0) {
                 if (typeof isBowCharging !== "undefined" && isBowCharging) {
-                    let wMouseX = mouseX + camera.x;
-                    let wMouseY = mouseY + camera.y;
+                    const curZoom = (typeof cameraZoom !== "undefined") ? cameraZoom : 1.0;
+                    let wMouseX = (mouseX / curZoom) + camera.x;
+                    let wMouseY = (mouseY / curZoom) + camera.y;
                     if (typeof releaseBowShot === "function") {
                         releaseBowShot(wMouseX, wMouseY);
                     }

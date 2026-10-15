@@ -6,6 +6,8 @@ const ctx = canvas.getContext("2d");
 const WORLD_WIDTH = 3000;  // 전체 월드의 가로 크기
 const WORLD_HEIGHT = 3000; // 전체 월드의 세로 크기
 let camera = { x: 0, y: 0, width: 1000, height: 750 }; // 카메라 뷰포트 영역
+let cameraZoom = 1.35; // 카메라 줌인 배율 (약 35% 확대)
+window.cameraZoom = cameraZoom;
 
 // 창 크기 변경 시 캔버스 해상도를 동기화하여 깨짐 방지
 function resizeCanvas() {
