@@ -736,42 +736,55 @@
                     }
                     ctx.restore();
                 } else {
-                    const weaponLength = 50, weaponWidth = 12, pivotX = 0, pivotY = playerRadius + 25;
-                let currentAngle = aimAngle;
-                let isSwinging = (attackTimer > 0 && player.lastAttackAngle !== undefined);
-                let wristAngle = -Math.PI / 6; 
+                    const weaponLength = 48, weaponWidth = 10;
+                    
+                    // 방향별 캐릭터 오른손 오프셋 계산 (bounceY 연동)
+                    let handOffsetX = -13, handOffsetY = 2;
+                    if (player.facing === "down") {
+                        handOffsetX = -13; handOffsetY = 2;
+                    } else if (player.facing === "up") {
+                        handOffsetX = 13; handOffsetY = 2;
+                    } else if (player.facing === "right") {
+                        handOffsetX = 11; handOffsetY = 3;
+                    } else if (player.facing === "left") {
+                        handOffsetX = -11; handOffsetY = 3;
+                    }
 
-                if (isSwinging) {
-                    let progress = 1.0 - (attackTimer / 30);
-                    let startAngle = player.lastAttackAngle - Math.PI / 3;
-                    let endAngle = player.lastAttackAngle + Math.PI / 3;
-                    currentAngle = startAngle + (endAngle - startAngle) * progress;
-                    wristAngle = (-Math.PI / 6) * (1 - Math.sin(progress * Math.PI));
+                    const handX = pCenterX + handOffsetX;
+                    const handY = pCenterY + handOffsetY + bounceY;
 
-                    ctx.beginPath();
-                    const swingRadius = Math.hypot(weaponLength, pivotY);
-                    const tipOffsetAngle = Math.atan2(pivotY, weaponLength);
-                    ctx.arc(pCenterX, pCenterY, swingRadius, startAngle + tipOffsetAngle, currentAngle + tipOffsetAngle);
-                    ctx.strokeStyle = "rgba(255, 255, 255, 0.4)";
-                    ctx.lineWidth = 15;
-                    ctx.stroke();
-                }
+                    let currentAngle = aimAngle;
+                    let isSwinging = (attackTimer > 0 && player.lastAttackAngle !== undefined);
+                    let wristAngle = -Math.PI / 6; 
 
-                ctx.save();
-                ctx.translate(pCenterX, pCenterY);
-                ctx.rotate(currentAngle);
-                ctx.translate(pivotX, pivotY);
-                ctx.rotate(wristAngle);
-                
-                ctx.fillStyle = "rgba(255, 255, 255, 0.8)";
-                ctx.fillRect(0, -weaponWidth / 2, weaponLength, weaponWidth);
-                ctx.strokeStyle = "red";
-                ctx.lineWidth = 1.5;
-                ctx.strokeRect(0, -weaponWidth / 2, weaponLength, weaponWidth);
-                
-                ctx.beginPath(); ctx.arc(0, 0, 5, 0, Math.PI * 2);
-                ctx.fillStyle = "white"; ctx.fill(); ctx.strokeStyle = "black"; ctx.lineWidth = 1.5; ctx.stroke();
-                ctx.restore();
+                    if (isSwinging) {
+                        let progress = 1.0 - (attackTimer / 30);
+                        let startAngle = player.lastAttackAngle - Math.PI / 3;
+                        let endAngle = player.lastAttackAngle + Math.PI / 3;
+                        currentAngle = startAngle + (endAngle - startAngle) * progress;
+                        wristAngle = (-Math.PI / 6) * (1 - Math.sin(progress * Math.PI));
+
+                        ctx.beginPath();
+                        ctx.arc(handX, handY, weaponLength, startAngle, currentAngle);
+                        ctx.strokeStyle = "rgba(255, 255, 255, 0.4)";
+                        ctx.lineWidth = 15;
+                        ctx.stroke();
+                    }
+
+                    ctx.save();
+                    ctx.translate(handX, handY);
+                    ctx.rotate(currentAngle);
+                    ctx.rotate(wristAngle);
+                    
+                    ctx.fillStyle = "rgba(255, 255, 255, 0.85)";
+                    ctx.fillRect(0, -weaponWidth / 2, weaponLength, weaponWidth);
+                    ctx.strokeStyle = "red";
+                    ctx.lineWidth = 1.5;
+                    ctx.strokeRect(0, -weaponWidth / 2, weaponLength, weaponWidth);
+                    
+                    ctx.beginPath(); ctx.arc(0, 0, 4, 0, Math.PI * 2);
+                    ctx.fillStyle = "white"; ctx.fill(); ctx.strokeStyle = "black"; ctx.lineWidth = 1.5; ctx.stroke();
+                    ctx.restore();
                 } // isBowEquipped else 종료
             }
 
