@@ -1096,24 +1096,24 @@ function showTooltip(e, itemObj) {
               }
 
               if (baseItem.icon) {
+                  const baseH = baseItem.shape.length;
+                  const baseW = baseItem.shape[0].length;
                   const iconImg = document.createElement("img");
                   iconImg.src = baseItem.icon;
                   iconImg.className = "grid-item-icon";
                   iconImg.style.position = "absolute";
-                  iconImg.style.left = "0px";
-                  iconImg.style.top = "0px";
-                  iconImg.style.width = (w * GRID_CELL_SIZE) + "px";
-                  iconImg.style.height = (h * GRID_CELL_SIZE) + "px";
+                  iconImg.style.left = "50%";
+                  iconImg.style.top = "50%";
+                  iconImg.style.width = (baseW * GRID_CELL_SIZE) + "px";
+                  iconImg.style.height = (baseH * GRID_CELL_SIZE) + "px";
                   iconImg.style.padding = "2px";
                   iconImg.style.boxSizing = "border-box";
                   iconImg.style.objectFit = "contain";
                   iconImg.style.pointerEvents = "none";
                   iconImg.style.imageRendering = "pixelated";
                   iconImg.style.zIndex = "2";
-                  if (item.rot) {
-                      iconImg.style.transform = `rotate(${item.rot}deg)`;
-                      iconImg.style.transformOrigin = "center";
-                  }
+                  iconImg.style.transform = `translate(-50%, -50%) rotate(${item.rot || 0}deg)`;
+                  iconImg.style.transformOrigin = "center center";
                   wrapper.appendChild(iconImg);
               }
 
@@ -1842,24 +1842,24 @@ function showTooltip(e, itemObj) {
             }
 
             if (baseItem.icon) {
+                const baseH = baseItem.shape.length;
+                const baseW = baseItem.shape[0].length;
                 const iconImg = document.createElement("img");
                 iconImg.src = baseItem.icon;
                 iconImg.className = "grid-item-icon";
                 iconImg.style.position = "absolute";
-                iconImg.style.left = "0px";
-                iconImg.style.top = "0px";
-                iconImg.style.width = (w * GRID_CELL_SIZE) + "px";
-                iconImg.style.height = (h * GRID_CELL_SIZE) + "px";
+                iconImg.style.left = "50%";
+                iconImg.style.top = "50%";
+                iconImg.style.width = (baseW * GRID_CELL_SIZE) + "px";
+                iconImg.style.height = (baseH * GRID_CELL_SIZE) + "px";
                 iconImg.style.padding = "2px";
                 iconImg.style.boxSizing = "border-box";
                 iconImg.style.objectFit = "contain";
                 iconImg.style.pointerEvents = "none";
                 iconImg.style.imageRendering = "pixelated";
                 iconImg.style.zIndex = "2";
-                if (itemObj.rot) {
-                    iconImg.style.transform = `rotate(${itemObj.rot}deg)`;
-                    iconImg.style.transformOrigin = "center";
-                }
+                iconImg.style.transform = `translate(-50%, -50%) rotate(${itemObj.rot || 0}deg)`;
+                iconImg.style.transformOrigin = "center center";
                 ghost.appendChild(iconImg);
             }
             return ghost;
