@@ -7,6 +7,7 @@ const ITEM_DB = {
         equipSlot: "mainWeapon", 
         shape: [[1],[1],[1]], 
         color: "rgba(120, 120, 150, 0.9)", 
+        icon: "assets/items/sword_basic.png",
         stats: { str: 5 }, 
         maxSockets: 3,
         desc: "모험가들이 널리 사용하는 기본 검이다."

@@ -147,8 +147,13 @@ function showTooltip(e, itemObj) {
 
                 if(item) {
                     let baseItem = ITEM_DB[item.baseId];
-                    el.style.backgroundColor = baseItem.color;
-                    el.innerHTML = `<span style="color:white; font-size:9px; font-weight:bold; pointer-events:none; text-align:center;">${baseItem.name}</span>`;
+                    if (baseItem.icon) {
+                        el.style.backgroundColor = "rgba(25, 25, 30, 0.9)";
+                        el.innerHTML = `<img src="${baseItem.icon}" style="width:85%; height:85%; object-fit:contain; pointer-events:none; image-rendering:pixelated;" alt="${baseItem.name}">`;
+                    } else {
+                        el.style.backgroundColor = baseItem.color;
+                        el.innerHTML = `<span style="color:white; font-size:9px; font-weight:bold; pointer-events:none; text-align:center;">${baseItem.name}</span>`;
+                    }
                     
                     // [개선] 단순 클릭 시 상세창 팝업, 드래그(이동) 시 드래그 모드 분기
                     bindEquipSlotInput(el, slot, item);
@@ -255,8 +260,13 @@ function showTooltip(e, itemObj) {
             }
 
             let baseItem = ITEM_DB[item.baseId];
-            targetSlotHint.innerHTML = `<span style="color: white; font-weight: bold; font-size: 11px;">${baseItem.name}</span>`;
-            targetSlot.style.borderColor = "gold"; targetSlot.style.backgroundColor = baseItem.color;
+            if (baseItem.icon) {
+                targetSlotHint.innerHTML = `<img src="${baseItem.icon}" style="width:85%; height:85%; object-fit:contain; pointer-events:none; image-rendering:pixelated;" alt="${baseItem.name}">`;
+                targetSlot.style.borderColor = "gold"; targetSlot.style.backgroundColor = "rgba(25, 25, 30, 0.9)";
+            } else {
+                targetSlotHint.innerHTML = `<span style="color: white; font-weight: bold; font-size: 11px;">${baseItem.name}</span>`;
+                targetSlot.style.borderColor = "gold"; targetSlot.style.backgroundColor = baseItem.color;
+            }
 
             let allScrolls = getAvailableEnchantScrolls();
             let equippedEnchants = item.sockets.filter(s => s !== null).map(s => typeof s === "string" ? s : s.baseId);
@@ -769,6 +779,7 @@ function showTooltip(e, itemObj) {
           const canUse = ["skillbook", "potion", "consumable"].includes(baseItem.type);
 
           itemDetailPanel.innerHTML = `
+              ${baseItem.icon ? `<div style="text-align:center;margin-bottom:8px;"><img src="${baseItem.icon}" style="max-height:72px;max-width:72px;object-fit:contain;image-rendering:pixelated;" alt="${baseItem.name}"></div>` : ""}
               <div style="font-size:16px;font-weight:bold;color:gold">
                   ${baseItem.name}
               </div>
@@ -1062,6 +1073,9 @@ function showTooltip(e, itemObj) {
                           title.innerText = baseItem.name;
                           title.style.left = (c * GRID_CELL_SIZE + GRID_CELL_SIZE / 2) + "px";
                           title.style.top = (r * GRID_CELL_SIZE + GRID_CELL_SIZE / 2) + "px";
+                          if (baseItem.icon) {
+                              title.style.display = "none";
+                          }
                           wrapper.appendChild(title);
                           labelPlaced = true;
 
@@ -1073,6 +1087,22 @@ function showTooltip(e, itemObj) {
                           }
                       }
                   }
+              }
+
+              if (baseItem.icon) {
+                  const iconImg = document.createElement("img");
+                  iconImg.src = baseItem.icon;
+                  iconImg.className = "grid-item-icon";
+                  iconImg.style.position = "absolute";
+                  iconImg.style.left = "2px";
+                  iconImg.style.top = "2px";
+                  iconImg.style.width = (w * GRID_CELL_SIZE - 4) + "px";
+                  iconImg.style.height = (h * GRID_CELL_SIZE - 4) + "px";
+                  iconImg.style.objectFit = "contain";
+                  iconImg.style.pointerEvents = "none";
+                  iconImg.style.imageRendering = "pixelated";
+                  iconImg.style.zIndex = "2";
+                  wrapper.appendChild(iconImg);
               }
 
               let handleC = 0;
@@ -1789,11 +1819,30 @@ function showTooltip(e, itemObj) {
                             title.innerText = baseItem.name;
                             title.style.left = (c * GRID_CELL_SIZE + GRID_CELL_SIZE/2) + "px";
                             title.style.top = (r * GRID_CELL_SIZE + GRID_CELL_SIZE/2) + "px";
+                            if (baseItem.icon) {
+                                title.style.display = "none";
+                            }
                             ghost.appendChild(title);
                             labelPlaced = true;
                         }
                     }
                 }
+            }
+
+            if (baseItem.icon) {
+                const iconImg = document.createElement("img");
+                iconImg.src = baseItem.icon;
+                iconImg.className = "grid-item-icon";
+                iconImg.style.position = "absolute";
+                iconImg.style.left = "2px";
+                iconImg.style.top = "2px";
+                iconImg.style.width = (w * GRID_CELL_SIZE - 4) + "px";
+                iconImg.style.height = (h * GRID_CELL_SIZE - 4) + "px";
+                iconImg.style.objectFit = "contain";
+                iconImg.style.pointerEvents = "none";
+                iconImg.style.imageRendering = "pixelated";
+                iconImg.style.zIndex = "2";
+                ghost.appendChild(iconImg);
             }
             return ghost;
         }
