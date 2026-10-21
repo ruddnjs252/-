@@ -507,6 +507,195 @@
             ctx.fill();
             ctx.restore();
 
+            // [장착 무기 렌더링 함수]: 캐릭터 시선(up)에 따라 몸체 뒤/앞 레이어 분기 렌더링
+            function renderEquippedWeapon() {
+                const wpn = player.equipment?.mainWeapon;
+                const isBowEquipped = wpn && (wpn.baseId === "bow_basic" || (typeof ITEM_DB !== "undefined" && ITEM_DB[wpn.baseId]?.weaponType === "bow"));
+
+                if (isBowEquipped) {
+                    // ★ 활(Bow) 무기 외형 렌더링
+                    ctx.save();
+                    ctx.translate(pCenterX, pCenterY);
+                    ctx.rotate(aimAngle);
+                    ctx.translate(playerRadius + 8, 0);
+
+                    // 활대 (갈색 우드 곡선)
+                    ctx.beginPath();
+                    ctx.arc(0, 0, 26, -Math.PI / 2.3, Math.PI / 2.3);
+                    ctx.strokeStyle = "#8B5A2B";
+                    ctx.lineWidth = 4;
+                    ctx.stroke();
+
+                    // 활시위 (연한 흰색)
+                    const stringTopY = -Math.sin(Math.PI / 2.3) * 26;
+                    const stringBotY = Math.sin(Math.PI / 2.3) * 26;
+                    const stringX = Math.cos(Math.PI / 2.3) * 26;
+                    
+                    let pullX = stringX - 10;
+                    if (typeof isBowCharging !== "undefined" && isBowCharging) {
+                        pullX = stringX - 10 - (bowChargeRatio * 16);
+                    } else if (attackTimer > 0) {
+                        pullX = stringX - (attackTimer / 22) * 14;
+                    }
+                    ctx.beginPath();
+                    ctx.moveTo(stringX, stringTopY);
+                    ctx.lineTo(pullX, 0);
+                    ctx.lineTo(stringX, stringBotY);
+                    ctx.strokeStyle = "rgba(255, 255, 255, 0.75)";
+                    ctx.lineWidth = 1.5;
+                    ctx.stroke();
+
+                    ctx.restore();
+
+                    // ★ [활 차징 3색 게이지 바 렌더링]
+                    const barW = 7;
+                    const barH = 50;
+                    const barX = pCenterX + playerRadius + 10;
+                    const barY = pCenterY - barH / 2;
+
+                    ctx.save();
+                    // 1. 게이지 바 배경 프레임
+                    ctx.fillStyle = "rgba(15, 15, 20, 0.75)";
+                    ctx.fillRect(barX - 1, barY - 1, barW + 2, barH + 2);
+                    ctx.strokeStyle = "rgba(255, 255, 255, 0.5)";
+                    ctx.lineWidth = 1;
+                    ctx.strokeRect(barX - 1, barY - 1, barW + 2, barH + 2);
+
+                    // 2. 3구간 배경 (비활성 은은한 가이드 색상)
+                    ctx.fillStyle = "rgba(231, 76, 60, 0.35)";
+                    ctx.fillRect(barX, barY, barW, 10);
+                    ctx.fillStyle = "rgba(46, 204, 113, 0.35)";
+                    ctx.fillRect(barX, barY + 10, barW, 10);
+                    ctx.fillStyle = "rgba(241, 196, 15, 0.35)";
+                    ctx.fillRect(barX, barY + 20, barW, 30);
+
+                    // 구분선
+                    ctx.strokeStyle = "rgba(255, 255, 255, 0.35)";
+                    ctx.beginPath();
+                    ctx.moveTo(barX, barY + 10); ctx.lineTo(barX + barW, barY + 10);
+                    ctx.moveTo(barX, barY + 20); ctx.lineTo(barX + barW, barY + 20);
+                    ctx.stroke();
+
+                    // 3. 차징 진행 시 채워지는 게이지 바
+                    const curRatio = (typeof bowChargeRatio !== "undefined") ? bowChargeRatio : 0;
+                    if (curRatio > 0) {
+                        const fillH = Math.min(barH, barH * curRatio);
+                        const fillY = barY + barH - fillH;
+
+                        let fillColor = "#FFD700";
+                        if (curRatio >= 0.8) {
+                            fillColor = "#FF3333";
+                        } else if (curRatio >= 0.6) {
+                            fillColor = "#00FF66";
+                        }
+
+                        if (curRatio >= 0.6 && curRatio < 0.8) {
+                            ctx.shadowColor = "#00FF66";
+                            ctx.shadowBlur = 8;
+                        } else if (curRatio >= 0.8) {
+                            ctx.shadowColor = "#FF3333";
+                            ctx.shadowBlur = 8;
+                        }
+
+                        ctx.fillStyle = fillColor;
+                        ctx.fillRect(barX, fillY, barW, fillH);
+
+                        // 인디케이터 화살표
+                        ctx.shadowBlur = 0;
+                        ctx.fillStyle = "#ffffff";
+                        ctx.beginPath();
+                        ctx.moveTo(barX + barW + 1, fillY);
+                        ctx.lineTo(barX + barW + 5, fillY - 3);
+                        ctx.lineTo(barX + barW + 5, fillY + 3);
+                        ctx.closePath();
+                        ctx.fill();
+                    }
+                    ctx.restore();
+                } else {
+                    const weaponLength = 48, weaponWidth = 10;
+                    
+                    // 방향별 캐릭터 오른손 오프셋 계산 (bounceY 연동)
+                    let handOffsetX = -13, handOffsetY = 2;
+                    if (player.facing === "down") {
+                        handOffsetX = -13; handOffsetY = 2;
+                    } else if (player.facing === "up") {
+                        handOffsetX = 13; handOffsetY = 2;
+                    } else if (player.facing === "right") {
+                        handOffsetX = 11; handOffsetY = 3;
+                    } else if (player.facing === "left") {
+                        handOffsetX = -11; handOffsetY = 3;
+                    }
+
+                    const handX = pCenterX + handOffsetX;
+                    const handY = pCenterY + handOffsetY + bounceY;
+
+                    let currentAngle = aimAngle;
+                    let isSwinging = (attackTimer > 0 && player.lastAttackAngle !== undefined);
+                    let wristAngle = -Math.PI / 6; 
+
+                    if (isSwinging) {
+                        let progress = 1.0 - (attackTimer / 30);
+                        let startAngle = player.lastAttackAngle - Math.PI / 3;
+                        let endAngle = player.lastAttackAngle + Math.PI / 3;
+                        currentAngle = startAngle + (endAngle - startAngle) * progress;
+                        wristAngle = (-Math.PI / 6) * (1 - Math.sin(progress * Math.PI));
+
+                        ctx.beginPath();
+                        ctx.arc(handX, handY, weaponLength, startAngle, currentAngle);
+                        ctx.strokeStyle = "rgba(255, 255, 255, 0.4)";
+                        ctx.lineWidth = 15;
+                        ctx.stroke();
+                    }
+
+                    // 검(주무기)을 장착하고 있을 때만 손에 무기 외형 렌더링
+                    if (wpn) {
+                        const itemData = (typeof ITEM_DB !== "undefined") ? ITEM_DB[wpn.baseId] : null;
+                        const iconPath = wpn.icon || itemData?.icon;
+                        const wpnImg = (typeof getItemImage === "function" && iconPath) ? getItemImage(iconPath) : null;
+
+                        ctx.save();
+                        ctx.translate(handX, handY);
+                        ctx.rotate(currentAngle);
+                        ctx.rotate(wristAngle);
+
+                        if (wpnImg && wpnImg.complete && wpnImg.naturalWidth > 0) {
+                            // 원본 세로 비율 1:3.13, 전체 높이 50px, 가로폭 16px
+                            const drawH = 50;
+                            const drawW = 16;
+                            // 손잡이(자루) 중심 위치: 이미지 상단 가죽 손잡이 중심 (8px)
+                            const gripY = 8;
+
+                            // 세로 이미지의 아래쪽(칼끝)이 조준 방향(+X축)을 향하도록 -90도(반시계) 회전
+                            ctx.rotate(-Math.PI / 2);
+                            ctx.drawImage(wpnImg, -drawW / 2, -gripY, drawW, drawH);
+                        } else {
+                            // 폴백 (이미지 없거나 로딩 중일 때 기본 막대기)
+                            ctx.fillStyle = "rgba(255, 255, 255, 0.85)";
+                            ctx.fillRect(0, -weaponWidth / 2, weaponLength, weaponWidth);
+                            ctx.strokeStyle = "red";
+                            ctx.lineWidth = 1.5;
+                            ctx.strokeRect(0, -weaponWidth / 2, weaponLength, weaponWidth);
+                        }
+
+                        // 오른손 주먹(칼 손잡이를 쥔 손)
+                        ctx.beginPath();
+                        ctx.arc(0, 0, 4, 0, Math.PI * 2);
+                        ctx.fillStyle = "white";
+                        ctx.fill();
+                        ctx.strokeStyle = "black";
+                        ctx.lineWidth = 1.5;
+                        ctx.stroke();
+
+                        ctx.restore();
+                    }
+                } // isBowEquipped else 종료
+            }
+
+            // [Z-Order 1]: 캐릭터가 뒤돌아 서 있을 때는 몸체보다 무기를 먼저(등 뒤 레이어) 렌더링
+            if (player.facing === "up" && gameState === "playing") {
+                renderEquippedWeapon();
+            }
+
             // 2. 플레이어 캐릭터 스프라이트 렌더링
             if (typeof playerSprites !== "undefined" && playerSprites.loaded) {
                 ctx.save();
@@ -628,191 +817,10 @@
                     });
                 }
 
-                const wpn = player.equipment?.mainWeapon;
-                const isBowEquipped = wpn && (wpn.baseId === "bow_basic" || (typeof ITEM_DB !== "undefined" && ITEM_DB[wpn.baseId]?.weaponType === "bow"));
-
-                if (isBowEquipped) {
-                    // ★ 활(Bow) 무기 외형 렌더링
-                    ctx.save();
-                    ctx.translate(pCenterX, pCenterY);
-                    ctx.rotate(aimAngle);
-                    ctx.translate(playerRadius + 8, 0);
-
-                    // 활대 (갈색 우드 곡선)
-                    ctx.beginPath();
-                    ctx.arc(0, 0, 26, -Math.PI / 2.3, Math.PI / 2.3);
-                    ctx.strokeStyle = "#8B5A2B";
-                    ctx.lineWidth = 4;
-                    ctx.stroke();
-
-                    // 활시위 (연한 흰색)
-                    const stringTopY = -Math.sin(Math.PI / 2.3) * 26;
-                    const stringBotY = Math.sin(Math.PI / 2.3) * 26;
-                    const stringX = Math.cos(Math.PI / 2.3) * 26;
-                    
-                    let pullX = stringX - 10;
-                    if (typeof isBowCharging !== "undefined" && isBowCharging) {
-                        pullX = stringX - 10 - (bowChargeRatio * 16);
-                    } else if (attackTimer > 0) {
-                        pullX = stringX - (attackTimer / 22) * 14;
-                    }
-                    ctx.beginPath();
-                    ctx.moveTo(stringX, stringTopY);
-                    ctx.lineTo(pullX, 0);
-                    ctx.lineTo(stringX, stringBotY);
-                    ctx.strokeStyle = "rgba(255, 255, 255, 0.75)";
-                    ctx.lineWidth = 1.5;
-                    ctx.stroke();
-
-                    ctx.restore();
-
-                    // ★ [활 차징 3색 게이지 바 렌더링]
-                    // 활을 들면 캐릭터 우측 옆에 세로 게이지 바가 표시되고, 좌클릭을 꾹 누르면 아래에서 위로 차오릅니다.
-                    const barW = 7;
-                    const barH = 50;
-                    const barX = pCenterX + playerRadius + 10;
-                    const barY = pCenterY - barH / 2;
-
-                    ctx.save();
-                    // 1. 게이지 바 배경 프레임
-                    ctx.fillStyle = "rgba(15, 15, 20, 0.75)";
-                    ctx.fillRect(barX - 1, barY - 1, barW + 2, barH + 2);
-                    ctx.strokeStyle = "rgba(255, 255, 255, 0.5)";
-                    ctx.lineWidth = 1;
-                    ctx.strokeRect(barX - 1, barY - 1, barW + 2, barH + 2);
-
-                    // 2. 3구간 배경 (비활성 은은한 가이드 색상)
-                    // - 80~100% (위 1/5: 10px): 실패 구간 (빨강)
-                    ctx.fillStyle = "rgba(231, 76, 60, 0.35)";
-                    ctx.fillRect(barX, barY, barW, 10);
-                    // - 60~80% (중간 1/5: 10px): 퍼펙트 구간 (녹색)
-                    ctx.fillStyle = "rgba(46, 204, 113, 0.35)";
-                    ctx.fillRect(barX, barY + 10, barW, 10);
-                    // - 0~60% (아래 3/5: 30px): 약한 공격 구간 (노랑)
-                    ctx.fillStyle = "rgba(241, 196, 15, 0.35)";
-                    ctx.fillRect(barX, barY + 20, barW, 30);
-
-                    // 구분선
-                    ctx.strokeStyle = "rgba(255, 255, 255, 0.35)";
-                    ctx.beginPath();
-                    ctx.moveTo(barX, barY + 10); ctx.lineTo(barX + barW, barY + 10);
-                    ctx.moveTo(barX, barY + 20); ctx.lineTo(barX + barW, barY + 20);
-                    ctx.stroke();
-
-                    // 3. 차징 진행 시 채워지는 게이지 바
-                    const curRatio = (typeof bowChargeRatio !== "undefined") ? bowChargeRatio : 0;
-                    if (curRatio > 0) {
-                        const fillH = Math.min(barH, barH * curRatio);
-                        const fillY = barY + barH - fillH;
-
-                        let fillColor = "#FFD700"; // 기본 노란색
-                        if (curRatio >= 0.8) {
-                            fillColor = "#FF3333"; // 빨간색 (실패)
-                        } else if (curRatio >= 0.6) {
-                            fillColor = "#00FF66"; // 녹색 (가장 강함)
-                        }
-
-                        // 퍼펙트 구간 도달 시 글로우 효과
-                        if (curRatio >= 0.6 && curRatio < 0.8) {
-                            ctx.shadowColor = "#00FF66";
-                            ctx.shadowBlur = 8;
-                        } else if (curRatio >= 0.8) {
-                            ctx.shadowColor = "#FF3333";
-                            ctx.shadowBlur = 8;
-                        }
-
-                        ctx.fillStyle = fillColor;
-                        ctx.fillRect(barX, fillY, barW, fillH);
-
-                        // 현재 위치 인디케이터 화살표
-                        ctx.shadowBlur = 0;
-                        ctx.fillStyle = "#ffffff";
-                        ctx.beginPath();
-                        ctx.moveTo(barX + barW + 1, fillY);
-                        ctx.lineTo(barX + barW + 5, fillY - 3);
-                        ctx.lineTo(barX + barW + 5, fillY + 3);
-                        ctx.closePath();
-                        ctx.fill();
-                    }
-                    ctx.restore();
-                } else {
-                    const weaponLength = 48, weaponWidth = 10;
-                    
-                    // 방향별 캐릭터 오른손 오프셋 계산 (bounceY 연동)
-                    let handOffsetX = -13, handOffsetY = 2;
-                    if (player.facing === "down") {
-                        handOffsetX = -13; handOffsetY = 2;
-                    } else if (player.facing === "up") {
-                        handOffsetX = 13; handOffsetY = 2;
-                    } else if (player.facing === "right") {
-                        handOffsetX = 11; handOffsetY = 3;
-                    } else if (player.facing === "left") {
-                        handOffsetX = -11; handOffsetY = 3;
-                    }
-
-                    const handX = pCenterX + handOffsetX;
-                    const handY = pCenterY + handOffsetY + bounceY;
-
-                    let currentAngle = aimAngle;
-                    let isSwinging = (attackTimer > 0 && player.lastAttackAngle !== undefined);
-                    let wristAngle = -Math.PI / 6; 
-
-                    if (isSwinging) {
-                        let progress = 1.0 - (attackTimer / 30);
-                        let startAngle = player.lastAttackAngle - Math.PI / 3;
-                        let endAngle = player.lastAttackAngle + Math.PI / 3;
-                        currentAngle = startAngle + (endAngle - startAngle) * progress;
-                        wristAngle = (-Math.PI / 6) * (1 - Math.sin(progress * Math.PI));
-
-                        ctx.beginPath();
-                        ctx.arc(handX, handY, weaponLength, startAngle, currentAngle);
-                        ctx.strokeStyle = "rgba(255, 255, 255, 0.4)";
-                        ctx.lineWidth = 15;
-                        ctx.stroke();
-                    }
-
-                    // 검(주무기)을 장착하고 있을 때만 손에 무기 외형 렌더링
-                    if (wpn) {
-                        const itemData = (typeof ITEM_DB !== "undefined") ? ITEM_DB[wpn.baseId] : null;
-                        const iconPath = wpn.icon || itemData?.icon;
-                        const wpnImg = (typeof getItemImage === "function" && iconPath) ? getItemImage(iconPath) : null;
-
-                        ctx.save();
-                        ctx.translate(handX, handY);
-                        ctx.rotate(currentAngle);
-                        ctx.rotate(wristAngle);
-
-                        if (wpnImg && wpnImg.complete && wpnImg.naturalWidth > 0) {
-                            // 원본 세로 비율 1:3.13, 전체 높이 50px, 가로폭 16px
-                            const drawH = 50;
-                            const drawW = 16;
-                            // 손잡이(자루) 중심 위치: 이미지 아래쪽에서 8px (위에서 42px)
-                            const gripY = 42;
-
-                            // 세로 이미지의 위쪽(칼끝)이 조준 방향(+X축)을 향하도록 90도 회전
-                            ctx.rotate(Math.PI / 2);
-                            ctx.drawImage(wpnImg, -drawW / 2, -gripY, drawW, drawH);
-                        } else {
-                            // 폴백 (이미지 없거나 로딩 중일 때 기본 막대기)
-                            ctx.fillStyle = "rgba(255, 255, 255, 0.85)";
-                            ctx.fillRect(0, -weaponWidth / 2, weaponLength, weaponWidth);
-                            ctx.strokeStyle = "red";
-                            ctx.lineWidth = 1.5;
-                            ctx.strokeRect(0, -weaponWidth / 2, weaponLength, weaponWidth);
-                        }
-
-                        // 오른손 주먹(칼 손잡이를 쥔 손)
-                        ctx.beginPath();
-                        ctx.arc(0, 0, 4, 0, Math.PI * 2);
-                        ctx.fillStyle = "white";
-                        ctx.fill();
-                        ctx.strokeStyle = "black";
-                        ctx.lineWidth = 1.5;
-                        ctx.stroke();
-
-                        ctx.restore();
-                    }
-                } // isBowEquipped else 종료
+                // [Z-Order 2]: 정면이나 측면을 볼 때는 무기를 캐릭터 몸체 앞(나중에)에 렌더링
+                if (player.facing !== "up") {
+                    renderEquippedWeapon();
+                }
             }
 
             // ★ [던전 60도 부채꼴 시야각 제한 및 암흑 마스킹 효과 (투명도 부여: 0.75)]
