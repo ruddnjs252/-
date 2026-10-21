@@ -141,6 +141,14 @@
                     }
                 }
 
+                const actuallyMoved = (nextX !== player.x || nextY !== player.y);
+                if (isMoving && actuallyMoved) {
+                    const stepSpeed = isSprinting ? 0.35 : 0.22;
+                    player.walkTimer = (player.walkTimer || 0) + stepSpeed;
+                } else {
+                    player.walkTimer = 0;
+                }
+
                 player.x = nextX;
                 player.y = nextY;
 
@@ -485,10 +493,15 @@
                 player.facing = "left";
             }
 
+            // 0. 걸을 때 통통 튀는 바운스(Bounce) 연산
+            const isWalking = (typeof player.walkTimer === "number" && player.walkTimer > 0);
+            const bounceY = isWalking ? -Math.abs(Math.sin(player.walkTimer)) * 5 : 0;
+
             // 1. 발밑 그림자 (원근감 및 입체감)
             ctx.save();
             ctx.beginPath();
-            ctx.ellipse(pCenterX, pCenterY + 12, 14, 6, 0, 0, Math.PI * 2);
+            const shadowScale = isWalking ? Math.max(0.7, 1 - (Math.abs(bounceY) / 5) * 0.25) : 1;
+            ctx.ellipse(pCenterX, pCenterY + 12, 14 * shadowScale, 6 * shadowScale, 0, 0, Math.PI * 2);
             ctx.fillStyle = "rgba(0, 0, 0, 0.35)";
             ctx.fill();
             ctx.restore();
@@ -504,7 +517,7 @@
 
                 const renderH = 46;
                 const footY = pCenterY + 14;
-                const drawY = footY - renderH;
+                const drawY = footY - renderH + bounceY;
 
                 if (player.facing === "down") {
                     const renderW = Math.round(renderH * (380 / 480)); // 약 36px
