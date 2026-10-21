@@ -149,7 +149,13 @@ function showTooltip(e, itemObj) {
                     let baseItem = ITEM_DB[item.baseId];
                     if (baseItem.icon) {
                         el.style.backgroundColor = "rgba(25, 25, 30, 0.9)";
-                        el.innerHTML = `<img src="${baseItem.icon}" style="width:85%; height:85%; object-fit:contain; pointer-events:none; image-rendering:pixelated;" alt="${baseItem.name}">`;
+                        el.style.overflow = "hidden";
+                        el.style.display = "flex";
+                        el.style.justifyContent = "center";
+                        el.style.alignItems = "center";
+                        const isWeapon = (slot === "mainWeapon" || slot === "subWeapon" || baseItem.equipSlot === "mainWeapon" || baseItem.equipSlot === "subWeapon");
+                        const transformStyle = isWeapon ? "transform: rotate(-45deg) scale(1.4); transform-origin: center;" : "";
+                        el.innerHTML = `<img src="${baseItem.icon}" style="width:90%; height:90%; object-fit:contain; pointer-events:none; image-rendering:pixelated; ${transformStyle}" alt="${baseItem.name}">`;
                     } else {
                         el.style.backgroundColor = baseItem.color;
                         el.innerHTML = `<span style="color:white; font-size:9px; font-weight:bold; pointer-events:none; text-align:center;">${baseItem.name}</span>`;
@@ -1094,14 +1100,20 @@ function showTooltip(e, itemObj) {
                   iconImg.src = baseItem.icon;
                   iconImg.className = "grid-item-icon";
                   iconImg.style.position = "absolute";
-                  iconImg.style.left = "2px";
-                  iconImg.style.top = "2px";
-                  iconImg.style.width = (w * GRID_CELL_SIZE - 4) + "px";
-                  iconImg.style.height = (h * GRID_CELL_SIZE - 4) + "px";
+                  iconImg.style.left = "0px";
+                  iconImg.style.top = "0px";
+                  iconImg.style.width = (w * GRID_CELL_SIZE) + "px";
+                  iconImg.style.height = (h * GRID_CELL_SIZE) + "px";
+                  iconImg.style.padding = "2px";
+                  iconImg.style.boxSizing = "border-box";
                   iconImg.style.objectFit = "contain";
                   iconImg.style.pointerEvents = "none";
                   iconImg.style.imageRendering = "pixelated";
                   iconImg.style.zIndex = "2";
+                  if (item.rot) {
+                      iconImg.style.transform = `rotate(${item.rot}deg)`;
+                      iconImg.style.transformOrigin = "center";
+                  }
                   wrapper.appendChild(iconImg);
               }
 
@@ -1834,14 +1846,20 @@ function showTooltip(e, itemObj) {
                 iconImg.src = baseItem.icon;
                 iconImg.className = "grid-item-icon";
                 iconImg.style.position = "absolute";
-                iconImg.style.left = "2px";
-                iconImg.style.top = "2px";
-                iconImg.style.width = (w * GRID_CELL_SIZE - 4) + "px";
-                iconImg.style.height = (h * GRID_CELL_SIZE - 4) + "px";
+                iconImg.style.left = "0px";
+                iconImg.style.top = "0px";
+                iconImg.style.width = (w * GRID_CELL_SIZE) + "px";
+                iconImg.style.height = (h * GRID_CELL_SIZE) + "px";
+                iconImg.style.padding = "2px";
+                iconImg.style.boxSizing = "border-box";
                 iconImg.style.objectFit = "contain";
                 iconImg.style.pointerEvents = "none";
                 iconImg.style.imageRendering = "pixelated";
                 iconImg.style.zIndex = "2";
+                if (itemObj.rot) {
+                    iconImg.style.transform = `rotate(${itemObj.rot}deg)`;
+                    iconImg.style.transformOrigin = "center";
+                }
                 ghost.appendChild(iconImg);
             }
             return ghost;
