@@ -469,21 +469,74 @@
                 if (eff.timer <= 0) visualEffects.splice(i, 1);
             }
 
-            // 플레이어 본체
+            // 플레이어 조준 각도 및 바라보는 방향 계산
+            let wMouseX = (mouseX / curZoom) + camera.x;
+            let wMouseY = (mouseY / curZoom) + camera.y;
+            const aimAngle = Math.atan2(wMouseY - pCenterY, wMouseX - pCenterX);
+
+            // 마우스 조준 각도에 따른 4방향 결정
+            if (aimAngle >= -Math.PI / 4 && aimAngle <= Math.PI / 4) {
+                player.facing = "right";
+            } else if (aimAngle > Math.PI / 4 && aimAngle < 3 * Math.PI / 4) {
+                player.facing = "down";
+            } else if (aimAngle < -Math.PI / 4 && aimAngle > -3 * Math.PI / 4) {
+                player.facing = "up";
+            } else {
+                player.facing = "left";
+            }
+
+            // 1. 발밑 그림자 (원근감 및 입체감)
+            ctx.save();
             ctx.beginPath();
-            ctx.arc(player.x, player.y, playerRadius, 0, Math.PI * 2);
-            ctx.fillStyle = "#00a2ff"; 
+            ctx.ellipse(pCenterX, pCenterY + 12, 14, 6, 0, 0, Math.PI * 2);
+            ctx.fillStyle = "rgba(0, 0, 0, 0.35)";
             ctx.fill();
-            ctx.lineWidth = 3;
-            ctx.strokeStyle = "#004488"; 
-            ctx.stroke();
+            ctx.restore();
+
+            // 2. 플레이어 캐릭터 스프라이트 렌더링
+            if (typeof playerSprites !== "undefined" && playerSprites.loaded) {
+                ctx.save();
+                ctx.imageSmoothingEnabled = false; // 도트 픽셀 아트 선명도 유지
+
+                if (player.dashTimer > 0) {
+                    ctx.globalAlpha = 0.7; // 대시 중 잔상 느낌
+                }
+
+                const renderH = 46;
+                const footY = pCenterY + 14;
+                const drawY = footY - renderH;
+
+                if (player.facing === "down") {
+                    const renderW = Math.round(renderH * (380 / 480)); // 약 36px
+                    ctx.drawImage(playerSprites.down, pCenterX - renderW / 2, drawY, renderW, renderH);
+                } else if (player.facing === "up") {
+                    const renderW = Math.round(renderH * (380 / 480)); // 약 36px
+                    ctx.drawImage(playerSprites.up, pCenterX - renderW / 2, drawY, renderW, renderH);
+                } else if (player.facing === "right") {
+                    const renderW = Math.round(renderH * (252 / 418)); // 약 28px
+                    ctx.drawImage(playerSprites.side, pCenterX - renderW / 2, drawY, renderW, renderH);
+                } else if (player.facing === "left") {
+                    const renderW = Math.round(renderH * (252 / 418)); // 약 28px
+                    ctx.save();
+                    ctx.translate(pCenterX, 0);
+                    ctx.scale(-1, 1);
+                    ctx.drawImage(playerSprites.side, -renderW / 2, drawY, renderW, renderH);
+                    ctx.restore();
+                }
+                ctx.restore();
+            } else {
+                // 스프라이트 로딩 전 폴백 (기존 원형)
+                ctx.beginPath();
+                ctx.arc(player.x, player.y, playerRadius, 0, Math.PI * 2);
+                ctx.fillStyle = "#00a2ff"; 
+                ctx.fill();
+                ctx.lineWidth = 3;
+                ctx.strokeStyle = "#004488"; 
+                ctx.stroke();
+            }
 
             // 무기 및 조준선 렌더링
             if (gameState === "playing") {
-                const curZoom = (typeof cameraZoom !== "undefined") ? cameraZoom : 1.0;
-                let wMouseX = (mouseX / curZoom) + camera.x;
-                let wMouseY = (mouseY / curZoom) + camera.y;
-                const aimAngle = Math.atan2(wMouseY - pCenterY, wMouseX - pCenterX);
 
                 if (player.aimingSkill === "leap_only") {
                     const fixedLeapDist = player.width * 3;

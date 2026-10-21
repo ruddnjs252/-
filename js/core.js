@@ -23,8 +23,29 @@ resizeCanvas();
 let gameState = "playing"; 
 let currentMap = "guild";  
 
+// 플레이어 캐릭터 4방향 스프라이트 에셋
+const playerSprites = {
+    down: new Image(),
+    up: new Image(),
+    side: new Image(),
+    loaded: false
+};
+playerSprites.down.src = "assets/player/player_down.png";
+playerSprites.up.src = "assets/player/player_up.png";
+playerSprites.side.src = "assets/player/player_side.png";
+
+let _loadedSpritesCount = 0;
+const _checkSpriteLoaded = () => {
+    _loadedSpritesCount++;
+    if (_loadedSpritesCount >= 3) playerSprites.loaded = true;
+};
+playerSprites.down.onload = _checkSpriteLoaded;
+playerSprites.up.onload = _checkSpriteLoaded;
+playerSprites.side.onload = _checkSpriteLoaded;
+
 let player = {
     name: "방랑자",
+    facing: "down", // 현재 바라보는 방향: down(하), up(상), right(우), left(좌)
     x: 500, y: 500, width: 30, height: 30, color: "cyan", speed: 5, 
     stats: { hp: 3, str: 3, dex: 3, mana: 3, stamina: 3, charm: 3 }, 
     baseStats: { hp: 3, str: 3, dex: 3, mana: 3, stamina: 3, charm: 3 }, // <-- [핵심 수정] 한글 스탯명을 모두 영어로 통일!
