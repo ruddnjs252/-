@@ -1112,7 +1112,9 @@ function showTooltip(e, itemObj) {
                   iconImg.style.pointerEvents = "none";
                   iconImg.style.imageRendering = "pixelated";
                   iconImg.style.zIndex = "2";
-                  iconImg.style.transform = `translate(-50%, -50%) rotate(${item.rot || 0}deg)`;
+                  const rotStep = item.rot || 0;
+                  const rotDeg = rotStep <= 3 ? rotStep * 90 : rotStep;
+                  iconImg.style.transform = `translate(-50%, -50%) rotate(${rotDeg}deg)`;
                   iconImg.style.transformOrigin = "center center";
                   wrapper.appendChild(iconImg);
               }
@@ -1858,7 +1860,9 @@ function showTooltip(e, itemObj) {
                 iconImg.style.pointerEvents = "none";
                 iconImg.style.imageRendering = "pixelated";
                 iconImg.style.zIndex = "2";
-                iconImg.style.transform = `translate(-50%, -50%) rotate(${itemObj.rot || 0}deg)`;
+                const rotStep = itemObj.rot || 0;
+                const rotDeg = rotStep <= 3 ? rotStep * 90 : rotStep;
+                iconImg.style.transform = `translate(-50%, -50%) rotate(${rotDeg}deg)`;
                 iconImg.style.transformOrigin = "center center";
                 ghost.appendChild(iconImg);
             }
