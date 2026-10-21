@@ -771,20 +771,47 @@
                         ctx.stroke();
                     }
 
-                    ctx.save();
-                    ctx.translate(handX, handY);
-                    ctx.rotate(currentAngle);
-                    ctx.rotate(wristAngle);
-                    
-                    ctx.fillStyle = "rgba(255, 255, 255, 0.85)";
-                    ctx.fillRect(0, -weaponWidth / 2, weaponLength, weaponWidth);
-                    ctx.strokeStyle = "red";
-                    ctx.lineWidth = 1.5;
-                    ctx.strokeRect(0, -weaponWidth / 2, weaponLength, weaponWidth);
-                    
-                    ctx.beginPath(); ctx.arc(0, 0, 4, 0, Math.PI * 2);
-                    ctx.fillStyle = "white"; ctx.fill(); ctx.strokeStyle = "black"; ctx.lineWidth = 1.5; ctx.stroke();
-                    ctx.restore();
+                    // 검(주무기)을 장착하고 있을 때만 손에 무기 외형 렌더링
+                    if (wpn) {
+                        const itemData = (typeof ITEM_DB !== "undefined") ? ITEM_DB[wpn.baseId] : null;
+                        const iconPath = wpn.icon || itemData?.icon;
+                        const wpnImg = (typeof getItemImage === "function" && iconPath) ? getItemImage(iconPath) : null;
+
+                        ctx.save();
+                        ctx.translate(handX, handY);
+                        ctx.rotate(currentAngle);
+                        ctx.rotate(wristAngle);
+
+                        if (wpnImg && wpnImg.complete && wpnImg.naturalWidth > 0) {
+                            // 원본 세로 비율 1:3.13, 전체 높이 50px, 가로폭 16px
+                            const drawH = 50;
+                            const drawW = 16;
+                            // 손잡이(자루) 중심 위치: 이미지 아래쪽에서 8px (위에서 42px)
+                            const gripY = 42;
+
+                            // 세로 이미지의 위쪽(칼끝)이 조준 방향(+X축)을 향하도록 90도 회전
+                            ctx.rotate(Math.PI / 2);
+                            ctx.drawImage(wpnImg, -drawW / 2, -gripY, drawW, drawH);
+                        } else {
+                            // 폴백 (이미지 없거나 로딩 중일 때 기본 막대기)
+                            ctx.fillStyle = "rgba(255, 255, 255, 0.85)";
+                            ctx.fillRect(0, -weaponWidth / 2, weaponLength, weaponWidth);
+                            ctx.strokeStyle = "red";
+                            ctx.lineWidth = 1.5;
+                            ctx.strokeRect(0, -weaponWidth / 2, weaponLength, weaponWidth);
+                        }
+
+                        // 오른손 주먹(칼 손잡이를 쥔 손)
+                        ctx.beginPath();
+                        ctx.arc(0, 0, 4, 0, Math.PI * 2);
+                        ctx.fillStyle = "white";
+                        ctx.fill();
+                        ctx.strokeStyle = "black";
+                        ctx.lineWidth = 1.5;
+                        ctx.stroke();
+
+                        ctx.restore();
+                    }
                 } // isBowEquipped else 종료
             }
 

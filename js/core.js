@@ -93,4 +93,16 @@ let bowChargeTime = 0; // 활 차징 프레임 타이머
 let bowChargeRatio = 0; // 활 차징 게이지 비율 (0.0 ~ 1.0)
 let keys = {}; // 키보드 입력 상태 저장 객체
 const statKeys = ["hp", "str", "dex", "mana", "stamina", "charm"];
+
+// [MOD-010-4: 아이템 및 무기 이미지 캐시 시스템]
+const itemImageCache = {};
+function getItemImage(src) {
+    if (!src) return null;
+    if (!itemImageCache[src]) {
+        const img = new Image();
+        img.src = src;
+        itemImageCache[src] = img;
+    }
+    return itemImageCache[src];
+}
 // [MOD-010-END]
