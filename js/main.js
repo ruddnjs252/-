@@ -139,14 +139,15 @@
                     } else {
                         player.staminaRegenTimer = 0;
                     }
-                }
 
-                const actuallyMoved = (nextX !== player.x || nextY !== player.y);
-                if (isMoving && actuallyMoved) {
-                    const stepSpeed = isSprinting ? 0.35 : 0.22;
-                    player.walkTimer = (player.walkTimer || 0) + stepSpeed;
-                } else {
-                    player.walkTimer = 0;
+                    // [통통 튀는 바운스 걸음 타이머 계산: else 블록 내부로 안전하게 배치]
+                    const actuallyMoved = (nextX !== player.x || nextY !== player.y);
+                    if (isMoving && actuallyMoved) {
+                        const stepSpeed = isSprinting ? 0.35 : 0.22;
+                        player.walkTimer = (player.walkTimer || 0) + stepSpeed;
+                    } else {
+                        player.walkTimer = 0;
+                    }
                 }
 
                 player.x = nextX;
