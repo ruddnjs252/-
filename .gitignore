@@ -1,0 +1,27 @@
+# Operating System Files
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+.DS_Store
+._*
+
+# Editor & IDE Directories
+.vscode/
+.idea/
+*.sublime-project
+*.sublime-workspace
+
+# Logs and Temporary Files
+*.log
+*.tmp
+*.bak
+
+# Scratch & Temporary Testing Directory
+scratch/
+
+# Environment and Secret Files
+.env
+.env.*
+*.pem
+*.key
