@@ -27,7 +27,7 @@ document.head.appendChild(introStyle);
 const titleScreen = document.createElement("div");
 titleScreen.className = "intro-screen";
 titleScreen.innerHTML = `
-            <div style="position: absolute; top: 20px; right: 24px; font-size: 14px; color: #aaa; font-family: 'Consolas', 'Courier New', monospace; letter-spacing: 1px; background: rgba(255, 255, 255, 0.08); padding: 5px 12px; border-radius: 6px; border: 1px solid rgba(255, 255, 255, 0.15); pointer-events: none; z-index: 5001;">v0.2.7.1021.11</div>
+            <div style="position: absolute; top: 20px; right: 24px; font-size: 14px; color: #aaa; font-family: 'Consolas', 'Courier New', monospace; letter-spacing: 1px; background: rgba(255, 255, 255, 0.08); padding: 5px 12px; border-radius: 6px; border: 1px solid rgba(255, 255, 255, 0.15); pointer-events: none; z-index: 5001;">v0.2.7.1022.1</div>
             <div style="font-size: 48px; font-weight: bold; letter-spacing: 5px; cursor: pointer; text-shadow: 0 0 20px rgba(255,255,255,0.5);">Under To Under</div>
             <div style="margin-top: 30px; font-size: 14px; color: #888; animation: pulse-noti 1.5s infinite;">화면을 클릭하여 시작하세요</div>
         `;

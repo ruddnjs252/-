@@ -43,6 +43,46 @@ playerSprites.down.onload = _checkSpriteLoaded;
 playerSprites.up.onload = _checkSpriteLoaded;
 playerSprites.side.onload = _checkSpriteLoaded;
 
+// 늑대인간 용병 '돌프하' 3방향 스프라이트 에셋
+const dolphaSprites = {
+    down: new Image(),
+    up: new Image(),
+    side: new Image(),
+    loaded: false
+};
+dolphaSprites.down.src = "assets/dolpha/dolpha_down.png";
+dolphaSprites.up.src = "assets/dolpha/dolpha_up.png";
+dolphaSprites.side.src = "assets/dolpha/dolpha_side.png";
+
+let _dolphaLoadedCount = 0;
+const _checkDolphaLoaded = () => {
+    _dolphaLoadedCount++;
+    if (_dolphaLoadedCount >= 3) dolphaSprites.loaded = true;
+};
+dolphaSprites.down.onload = _checkDolphaLoaded;
+dolphaSprites.up.onload = _checkDolphaLoaded;
+dolphaSprites.side.onload = _checkDolphaLoaded;
+
+// [용병 돌프하 데이터 객체]
+let dolpha = {
+    name: "돌프하",
+    title: "용병",
+    x: 840,
+    y: 65, // 길드 개인창고(910, 50) 바로 왼쪽 배치
+    width: 28,
+    height: 46,
+    facing: "down",
+    isFollowing: false, // 동행(고용) 여부
+    currentMap: "guild",
+    hp: 300,
+    maxHp: 300,
+    speed: 4.8,
+    attackCooldown: 0,
+    attackTimer: 0,
+    walkTimer: 0,
+    targetGob: null
+};
+
 let player = {
     name: "방랑자",
     facing: "down", // 현재 바라보는 방향: down(하), up(상), right(우), left(좌)

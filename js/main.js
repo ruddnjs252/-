@@ -153,6 +153,11 @@
                 player.x = nextX;
                 player.y = nextY;
 
+                // [MOD-012: 용병 돌프하 추종 및 전투 AI 업데이트]
+                if (typeof updateDolphaAI === "function") {
+                    updateDolphaAI();
+                }
+
                 if (attackTimer > 0) attackTimer--;
 
                 // [활 차징 진행 업데이트]
@@ -507,6 +512,93 @@
             ctx.fill();
             ctx.restore();
 
+            // [용병 돌프하 렌더링 함수]
+            function renderDolpha() {
+                if (typeof dolpha === "undefined") return;
+                if (dolpha.currentMap !== currentMap) return;
+
+                const dCenterX = dolpha.x + dolpha.width / 2;
+                const dCenterY = dolpha.y + dolpha.height / 2;
+
+                // 0. 보행 바운스 계산
+                const isDolphaWalking = (typeof dolpha.walkTimer === "number" && dolpha.walkTimer > 0);
+                const dBounceY = isDolphaWalking ? -Math.abs(Math.sin(dolpha.walkTimer)) * 4 : 0;
+
+                // 1. 발밑 그림자
+                ctx.save();
+                ctx.beginPath();
+                ctx.ellipse(dCenterX, dCenterY + 14, 13, 6, 0, 0, Math.PI * 2);
+                ctx.fillStyle = "rgba(0, 0, 0, 0.35)";
+                ctx.fill();
+                ctx.restore();
+
+                // 2. 공격 스윙 이펙트
+                if (dolpha.attackTimer > 0) {
+                    ctx.save();
+                    ctx.beginPath();
+                    const swingDir = (dolpha.facing === "left") ? -1 : 1;
+                    ctx.arc(dCenterX + (swingDir * 16), dCenterY, 32, -Math.PI / 3, Math.PI / 3);
+                    ctx.strokeStyle = "rgba(255, 255, 255, 0.85)";
+                    ctx.lineWidth = 4;
+                    ctx.stroke();
+                    ctx.restore();
+                }
+
+                // 3. 스프라이트 렌더링
+                if (typeof dolphaSprites !== "undefined" && dolphaSprites.loaded) {
+                    ctx.save();
+                    ctx.imageSmoothingEnabled = false;
+
+                    const renderH = dolpha.height || 46;
+                    const footY = dCenterY + 14;
+                    const drawY = footY - renderH + dBounceY;
+
+                    if (dolpha.facing === "down") {
+                        const renderW = Math.round(renderH * (340 / 735)); // 약 21px
+                        ctx.drawImage(dolphaSprites.down, dCenterX - renderW / 2, drawY, renderW, renderH);
+                    } else if (dolpha.facing === "up") {
+                        const renderW = Math.round(renderH * (315 / 735)); // 약 20px
+                        ctx.drawImage(dolphaSprites.up, dCenterX - renderW / 2, drawY, renderW, renderH);
+                    } else if (dolpha.facing === "right") {
+                        const renderW = Math.round(renderH * (260 / 735)); // 약 16px
+                        ctx.drawImage(dolphaSprites.side, dCenterX - renderW / 2, drawY, renderW, renderH);
+                    } else if (dolpha.facing === "left") {
+                        const renderW = Math.round(renderH * (260 / 735)); // 약 16px
+                        ctx.save();
+                        ctx.translate(dCenterX, 0);
+                        ctx.scale(-1, 1);
+                        ctx.drawImage(dolphaSprites.side, -renderW / 2, drawY, renderW, renderH);
+                        ctx.restore();
+                    }
+                    ctx.restore();
+                } else {
+                    ctx.save();
+                    ctx.fillStyle = "#8B4513";
+                    ctx.fillRect(dolpha.x, dolpha.y, dolpha.width, dolpha.height);
+                    ctx.restore();
+                }
+
+                // 4. 머리 위 이름표 및 체력바
+                ctx.save();
+                const tagY = dCenterY - dolpha.height / 2 - 16;
+                ctx.fillStyle = "rgba(0, 0, 0, 0.65)";
+                ctx.fillRect(dCenterX - 35, tagY, 70, 14);
+                ctx.fillStyle = dolpha.isFollowing ? "#4ade80" : "#facc15";
+                ctx.font = "bold 10px sans-serif";
+                ctx.textAlign = "center";
+                ctx.textBaseline = "middle";
+                ctx.fillText("[용병] 돌프하", dCenterX, tagY + 7);
+
+                // 던전에서 동행 중일 때 체력 게이지
+                if (currentMap === "dungeon" && dolpha.isFollowing) {
+                    ctx.fillStyle = "rgba(0, 0, 0, 0.5)";
+                    ctx.fillRect(dCenterX - 20, tagY + 16, 40, 3);
+                    ctx.fillStyle = "#22c55e";
+                    ctx.fillRect(dCenterX - 20, tagY + 16, 40 * Math.max(0, dolpha.hp / dolpha.maxHp), 3);
+                }
+                ctx.restore();
+            }
+
             // [장착 무기 렌더링 함수]: 캐릭터 시선(up)에 따라 몸체 뒤/앞 레이어 분기 렌더링
             function renderEquippedWeapon() {
                 const wpn = player.equipment?.mainWeapon;
@@ -737,6 +829,9 @@
                 ctx.strokeStyle = "#004488"; 
                 ctx.stroke();
             }
+
+            // [MOD-012: 용병 돌프하 렌더링]
+            renderDolpha();
 
             // 무기 및 조준선 렌더링
             if (gameState === "playing") {

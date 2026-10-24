@@ -173,6 +173,24 @@
                     }
                 }
 
+                // 용병 돌프하 클릭 판정
+                if (typeof dolpha !== "undefined" && dolpha.currentMap === currentMap) {
+                    const dW = dolpha.width || 28;
+                    const dH = dolpha.height || 46;
+                    if (wMouseX >= dolpha.x - 12 && wMouseX <= dolpha.x + dW + 12 && wMouseY >= dolpha.y - 12 && wMouseY <= dolpha.y + dH + 12) {
+                        const distToDolpha = Math.hypot((dolpha.x + dW / 2) - pCenterX, (dolpha.y + dH / 2) - pCenterY);
+                        if (distToDolpha < 140) {
+                            openNPCMenu('dolpha');
+                            return true;
+                        } else {
+                            if (typeof addFloatingText === "function") {
+                                addFloatingText(player.x, player.y - 30, "돌프하와 너무 멉니다", "orange");
+                            }
+                            return true;
+                        }
+                    }
+                }
+
                 if (wMouseX >= rec.x && wMouseX <= rec.x + rec.size && wMouseY >= rec.y && wMouseY <= rec.y + rec.size) {
                     if (Math.hypot((rec.x + 15) - pCenterX, (rec.y + 15) - pCenterY) < 100) { 
                         openNPCMenu('receptionist'); 
